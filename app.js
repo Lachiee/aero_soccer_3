@@ -1,4 +1,4 @@
-﻿// =====================================================================
+// =====================================================================
 // RAW CSV DATA
 // =====================================================================
 const RAW_CSV = `match_id,match_date,team,player,half,goals,assists,shots_on_target,shots_off_target,total_shots,goalkeeper_saves,blocks,total_saves,interceptions,tackles,nutmegs,post,key_passes,own_goals
@@ -1057,10 +1057,10 @@ function openMvpTuner() {
   if (existing) { existing.remove(); return; }
 
   const statLabels = {
-    goals: 'âš½ Goals', assists: 'ðŸŽ¯ Assists', key_passes: 'ðŸ”‘ Key Passes',
-    tackles: 'ðŸ’ª Tackles', interceptions: 'ðŸ›¡ Interceptions', blocks: 'ðŸ§± Blocks',
-    goalkeeper_saves: 'ðŸ§¤ GK Saves', shots_on_target: 'ðŸŽ¯ Shots on Target',
-    shots_off_target: 'ðŸ’¨ Shots off Target', nutmegs: 'ðŸª„ Nutmegs', post: 'ðŸƒ Post Hits'
+    goals: '⚽ Goals', assists: '🎯 Assists', key_passes: '🔑 Key Passes',
+    tackles: '💪 Tackles', interceptions: '🛡 Interceptions', blocks: '🧱 Blocks',
+    goalkeeper_saves: '🧤 GK Saves', shots_on_target: '🎯 Shots on Target',
+    shots_off_target: '💨 Shots off Target', nutmegs: '🪄 Nutmegs', post: '🏃 Post Hits'
   };
 
   window._tunerMatchIdx = 0; // reset to most recent match each time tuner opens
@@ -1094,13 +1094,13 @@ function openMvpTuner() {
           const mvp = calcMvp(r);
           return `<tr>
             <td style="${tdN};color:${color}">${r.player}</td>
-            ${statCols.map(s=>`<td style="${tdS}">${n(r[s])||'â€“'}</td>`).join('')}
+            ${statCols.map(s=>`<td style="${tdS}">${n(r[s])||'–'}</td>`).join('')}
             <td style="${tdS};color:var(--lime);font-weight:700">${mvp}</td>
           </tr>`;
         }).join('')}</tbody>
       </table></div>`;
     return `<div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">
-      <div style="font-size:.6rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:2px">${match.date} Â· ${match.goalsA}â€“${match.goalsB}</div>
+      <div style="font-size:.6rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:2px">${match.date} · ${match.goalsA}–${match.goalsB}</div>
       ${teamTable(match.teamA,'#4ade80','Team A')}
       ${teamTable(match.teamB,'#60a5fa','Team B')}
     </div>`;
@@ -1121,7 +1121,7 @@ function openMvpTuner() {
         w.post * n(r.post)
       ).toFixed(1))
     })).sort((a,b) => b.score - a.score).slice(0,5);
-    const medals = ['ðŸ‘‘','ðŸ¥ˆ','ðŸ¥‰','4th','5th'];
+    const medals = ['👑','🥈','🥉','4th','5th'];
     return scored.map((s,i) => `<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);font-size:.78rem">
       <span>${medals[i]} ${s.player}</span><span style="color:var(--green);font-weight:700">${s.score}pts</span>
     </div>`).join('');
@@ -1136,8 +1136,8 @@ function openMvpTuner() {
     modal.innerHTML = `
       <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:24px;width:100%;max-width:600px;margin:auto">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-          <div style="font-family:'Bebas Neue',sans-serif;font-size:1.5rem;color:var(--lime);letter-spacing:2px">âš™ MVP Formula Tuner</div>
-          <button onclick="document.getElementById('mvp-tuner-modal').remove()" style="background:none;border:none;color:var(--muted);font-size:1.3rem;cursor:pointer">âœ•</button>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:1.5rem;color:var(--lime);letter-spacing:2px">⚙ MVP Formula Tuner</div>
+          <button onclick="document.getElementById('mvp-tuner-modal').remove()" style="background:none;border:none;color:var(--muted);font-size:1.3rem;cursor:pointer">✕</button>
         </div>
         <div style="font-size:.72rem;color:var(--muted);margin-bottom:18px">Drag sliders to adjust weights. Preview updates live using the most recent match.</div>
 
@@ -1155,8 +1155,8 @@ function openMvpTuner() {
                   style="width:100%;accent-color:var(--lime)">
               </div>`).join('')}
             <div style="display:flex;gap:8px;margin-top:16px">
-              <button onclick="window._mvpSaveWeights()" style="flex:1;background:var(--green);color:#071009;border:none;border-radius:7px;padding:9px;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:1px;cursor:pointer">ðŸ’¾ Save</button>
-              <button onclick="window._mvpResetWeights()" style="flex:1;background:var(--card2);border:1px solid var(--border);color:var(--muted);border-radius:7px;padding:9px;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:1px;cursor:pointer">â†º Reset</button>
+              <button onclick="window._mvpSaveWeights()" style="flex:1;background:var(--green);color:#071009;border:none;border-radius:7px;padding:9px;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:1px;cursor:pointer">💾 Save</button>
+              <button onclick="window._mvpResetWeights()" style="flex:1;background:var(--card2);border:1px solid var(--border);color:var(--muted);border-radius:7px;padding:9px;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:1px;cursor:pointer">↺ Reset</button>
             </div>
           </div>
 
@@ -1165,7 +1165,7 @@ function openMvpTuner() {
             <div style="font-size:.65rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:8px">Live Preview</div>
             <select onchange="window._tunerMatchIdx=parseInt(this.value);document.getElementById('mvp-live-preview').innerHTML=window._mvpTunerPreview();document.getElementById('mvp-match-stats').innerHTML=window._mvpMatchStats()"
               style="width:100%;background:var(--card2);border:1px solid var(--border);color:var(--text);border-radius:7px;padding:7px 10px;font-size:.78rem;font-family:'Barlow Condensed',sans-serif;outline:none;cursor:pointer;margin-bottom:10px">
-              ${matchList.map((m,i) => `<option value="${i}">${m.date} â€” ${m.goalsA}â€“${m.goalsB}</option>`).join('')}
+              ${matchList.map((m,i) => `<option value="${i}">${m.date} — ${m.goalsA}–${m.goalsB}</option>`).join('')}
             </select>
             <div id="mvp-live-preview" style="background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:12px">
               ${recomputeLivePreview()}
@@ -1190,7 +1190,7 @@ function openMvpTuner() {
     renderAll();
     renderMatches();
     const btn = modal.querySelector('button[onclick*="Save"]');
-    if (btn) { btn.textContent = 'âœ… Saved!'; setTimeout(async () => { if (btn) btn.textContent = 'ðŸ’¾ Save'; }, 1500); }
+    if (btn) { btn.textContent = '✅ Saved!'; setTimeout(async () => { if (btn) btn.textContent = '💾 Save'; }, 1500); }
   };
   window._mvpResetWeights = () => {
     mvpWeights = { ...MVP_WEIGHTS_DEFAULT };
@@ -1209,7 +1209,7 @@ function toggleAdmin() {
     updateAdminUI();
     return;
   }
-  // Custom modal instead of prompt() â€” works in Claude's sandboxed iframe
+  // Custom modal instead of prompt() — works in Claude's sandboxed iframe
   const existing = document.getElementById('admin-pw-modal');
   if (existing) existing.remove();
   const modal = document.createElement('div');
@@ -1217,7 +1217,7 @@ function toggleAdmin() {
   modal.style.cssText = 'position:fixed;inset:0;z-index:600;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center;padding:20px';
   modal.innerHTML = `
     <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:24px;width:100%;max-width:360px;position:relative">
-      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.4rem;color:var(--green);letter-spacing:2px;margin-bottom:6px">ðŸ”’ Admin Login</div>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.4rem;color:var(--green);letter-spacing:2px;margin-bottom:6px">🔒 Admin Login</div>
       <div style="font-size:.78rem;color:var(--muted);margin-bottom:14px">Enter the admin password to unlock ratings and custom stats.</div>
       <input id="admin-pw-input" type="password" placeholder="Password"
         style="width:100%;background:var(--bg2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:10px 14px;font-size:.95rem;font-family:'Barlow',sans-serif;outline:none;margin-bottom:10px;box-sizing:border-box"
@@ -1241,7 +1241,7 @@ function submitAdminPw() {
     adminMode = true;
     updateAdminUI();
   } else {
-    if (error) error.textContent = 'Incorrect password â€” try again.';
+    if (error) error.textContent = 'Incorrect password — try again.';
     input.value = '';
     input.focus();
   }
@@ -1250,7 +1250,7 @@ function submitAdminPw() {
 function updateAdminUI() {
   const btn = document.getElementById('admin-btn');
   if (btn) {
-    btn.textContent = adminMode ? 'ðŸ”“ Admin' : 'ðŸ”’ Admin';
+    btn.textContent = adminMode ? '🔓 Admin' : '🔒 Admin';
     btn.style.color = adminMode ? 'var(--lime)' : '';
     btn.style.borderColor = adminMode ? 'var(--lime)' : '';
   }
@@ -1274,7 +1274,7 @@ function updateAdminUI() {
   renderAll();
 }
 
-// Returns a rating display string â€” blank if not admin
+// Returns a rating display string — blank if not admin
 const ratingDisplay = (val) => adminMode ? val : '';
 
 function timeToYtSeconds(timeStr, half) {
@@ -1331,10 +1331,10 @@ function openYtSyncModal() {
   modal.onclick = e => { if(e.target===modal) modal.remove(); };
   modal.innerHTML = `
     <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:24px;width:100%;max-width:560px;position:relative;max-height:90vh;overflow-y:auto">
-      <button onclick="document.getElementById('yt-sync-modal').remove()" style="position:absolute;top:12px;right:14px;background:none;border:none;color:var(--muted);font-size:1.4rem;cursor:pointer">Ã—</button>
-      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.4rem;color:var(--green);letter-spacing:2px;margin-bottom:4px">ðŸ“º Sync YouTube Videos</div>
+      <button onclick="document.getElementById('yt-sync-modal').remove()" style="position:absolute;top:12px;right:14px;background:none;border:none;color:var(--muted);font-size:1.4rem;cursor:pointer">×</button>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.4rem;color:var(--green);letter-spacing:2px;margin-bottom:4px">📺 Sync YouTube Videos</div>
       <div style="font-size:.78rem;color:var(--muted);margin-bottom:14px;line-height:1.6">
-        Paste video URLs from <a href="https://www.youtube.com/@Aero-Soccer/videos" target="_blank" style="color:var(--blue)">@Aero-Soccer â†—</a> â€” one per line. The app will match each video to a match by date.
+        Paste video URLs from <a href="https://www.youtube.com/@Aero-Soccer/videos" target="_blank" style="color:var(--blue)">@Aero-Soccer ↗</a> — one per line. The app will match each video to a match by date.
         <br>Format: paste YouTube URLs or video IDs, one per line. Include the date in the title or URL if possible.
       </div>
       <textarea id="yt-sync-input" placeholder="https://youtube.com/watch?v=ABC123&#10;https://youtu.be/DEF456&#10;XYZ789" style="width:100%;height:140px;background:var(--card2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:10px 12px;font-family:monospace;font-size:.76rem;resize:vertical;outline:none;line-height:1.6;box-sizing:border-box"></textarea>
@@ -1346,17 +1346,17 @@ function openYtSyncModal() {
           const vid = matchVideos[m.id] || '';
           return `<div style="display:flex;align-items:center;gap:8px">
             <div style="min-width:100px;font-size:.75rem;color:var(--text2);font-family:'Barlow Condensed',sans-serif">${m.date}</div>
-            <div style="font-size:.7rem;color:var(--muted);min-width:60px">${m.goalsA}â€“${m.goalsB}</div>
+            <div style="font-size:.7rem;color:var(--muted);min-width:60px">${m.goalsA}–${m.goalsB}</div>
             <input type="text" placeholder="YouTube URL or ID" value="${vid}"
               style="flex:1;background:var(--bg2);border:1px solid ${vid?'rgba(57,211,83,.4)':'var(--border)'};color:var(--text);border-radius:6px;padding:5px 10px;font-size:.75rem;font-family:'Barlow',sans-serif;outline:none"
               oninput="matchVideos['${m.id}']=extractYtId(this.value)||'';this.style.borderColor=this.value?'rgba(57,211,83,.4)':'var(--border)'"
               onblur="if(this.value){matchVideos['${m.id}']=extractYtId(this.value)}else{delete matchVideos['${m.id}']}">
-            ${vid?`<a href="https://youtube.com/watch?v=${vid}" target="_blank" style="color:var(--blue);font-size:.72rem;white-space:nowrap">â–¶ Watch</a>`:''}
+            ${vid?`<a href="https://youtube.com/watch?v=${vid}" target="_blank" style="color:var(--blue);font-size:.72rem;white-space:nowrap">▶ Watch</a>`:''}
           </div>`;
         }).join('')}
       </div>
       <div style="display:flex;gap:8px">
-        <button onclick="saveAllVideoLinks()" style="background:var(--green);border:none;color:#071009;border-radius:7px;padding:9px 20px;font-family:'Bebas Neue',sans-serif;font-size:.95rem;letter-spacing:1px;cursor:pointer">ðŸ’¾ Save All & Export settings.json</button>
+        <button onclick="saveAllVideoLinks()" style="background:var(--green);border:none;color:#071009;border-radius:7px;padding:9px 20px;font-family:'Bebas Neue',sans-serif;font-size:.95rem;letter-spacing:1px;cursor:pointer">💾 Save All & Export settings.json</button>
         <button onclick="document.getElementById('yt-sync-modal').remove()" style="background:var(--card2);border:1px solid var(--border);color:var(--muted);border-radius:7px;padding:9px 14px;font-family:'Barlow Condensed',sans-serif;font-size:.82rem;cursor:pointer">Cancel</button>
       </div>
       <div id="yt-sync-status" style="margin-top:8px;font-size:.78rem"></div>
@@ -1370,7 +1370,7 @@ function saveAllVideoLinks() {
   saveSettings();
   const status = document.getElementById('yt-sync-status');
   const count = Object.keys(matchVideos).length;
-  if(status){ status.textContent = `âœ… Saved ${count} video links. Download settings.json and push to GitHub.`; status.style.color='var(--green)'; }
+  if(status){ status.textContent = `✅ Saved ${count} video links. Download settings.json and push to GitHub.`; status.style.color='var(--green)'; }
   renderMatches();
 }
 
@@ -1385,15 +1385,15 @@ function openVideoModal(matchId, matchDate) {
   modal.onclick = e => { if (e.target === modal) modal.remove(); };
   modal.innerHTML = `
     <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:24px;width:100%;max-width:500px;position:relative">
-      <button onclick="document.getElementById('video-link-modal').remove()" style="position:absolute;top:12px;right:14px;background:none;border:none;color:var(--muted);font-size:1.4rem;cursor:pointer;line-height:1">Ã—</button>
-      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.4rem;color:var(--green);letter-spacing:2px;margin-bottom:4px">ðŸ“º Link Match Video</div>
+      <button onclick="document.getElementById('video-link-modal').remove()" style="position:absolute;top:12px;right:14px;background:none;border:none;color:var(--muted);font-size:1.4rem;cursor:pointer;line-height:1">×</button>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.4rem;color:var(--green);letter-spacing:2px;margin-bottom:4px">📺 Link Match Video</div>
       <div style="font-size:.78rem;color:var(--muted);margin-bottom:14px">${matchDate}</div>
-      <input id="video-modal-input" type="text" placeholder="https://youtube.com/watch?v=â€¦ or video ID"
+      <input id="video-modal-input" type="text" placeholder="https://youtube.com/watch?v=… or video ID"
         value="${current}"
         style="width:100%;background:var(--bg2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:10px 14px;font-size:.88rem;font-family:'Barlow',sans-serif;outline:none;margin-bottom:10px;box-sizing:border-box">
 
       <div style="background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:12px">
-        <div style="font-size:.7rem;color:var(--muted);margin-bottom:6px;letter-spacing:.5px">â± 2nd half starts at (video time)</div>
+        <div style="font-size:.7rem;color:var(--muted);margin-bottom:6px;letter-spacing:.5px">⏱ 2nd half starts at (video time)</div>
         <div style="display:flex;align-items:center;gap:10px">
           <input type="range" id="yt-offset-slider" min="0" max="60" step="1" value="${Math.round(offset/60)}"
             oninput="document.getElementById('yt-offset-val').textContent=this.value+' min';window._ytHalfOffset=parseInt(this.value)*60"
@@ -1409,8 +1409,8 @@ function openVideoModal(matchId, matchDate) {
         <button onclick="document.getElementById('video-link-modal').remove()" class="btn-secondary">Cancel</button>
       </div>
       <div style="padding-top:12px;border-top:1px solid var(--border);font-size:.72rem;color:var(--muted);line-height:1.6">
-        Find match on <a href="https://www.youtube.com/@Aero-Soccer/videos" target="_blank" style="color:var(--blue)">@Aero-Soccer YouTube â†—</a>
-        or <a href="https://www.youtube.com/results?search_query=Aero+Soccer+${encodeURIComponent(matchDate)}" target="_blank" style="color:var(--blue)">search YouTube for this date â†—</a>
+        Find match on <a href="https://www.youtube.com/@Aero-Soccer/videos" target="_blank" style="color:var(--blue)">@Aero-Soccer YouTube ↗</a>
+        or <a href="https://www.youtube.com/results?search_query=Aero+Soccer+${encodeURIComponent(matchDate)}" target="_blank" style="color:var(--blue)">search YouTube for this date ↗</a>
       </div>
     </div>`;
   document.body.appendChild(modal);
@@ -1542,8 +1542,8 @@ function buildPlayerStats(rows) {
 function computeWinLoss(playerMap, matches) {
   matches.forEach(m => {
     // Own goals from team B count for team A and vice versa
-    const ownGoalsA = m.teamB.reduce((s, r) => s + n(r.own_goals), 0); // B players' OGs â†’ A score
-    const ownGoalsB = m.teamA.reduce((s, r) => s + n(r.own_goals), 0); // A players' OGs â†’ B score
+    const ownGoalsA = m.teamB.reduce((s, r) => s + n(r.own_goals), 0); // B players' OGs → A score
+    const ownGoalsB = m.teamA.reduce((s, r) => s + n(r.own_goals), 0); // A players' OGs → B score
     const goalsA = m.teamA.reduce((s, r) => s + n(r.goals), 0) + ownGoalsA;
     const goalsB = m.teamB.reduce((s, r) => s + n(r.goals), 0) + ownGoalsB;
     const winnerTeam = goalsA > goalsB ? 'A' : goalsB > goalsA ? 'B' : 'draw';
@@ -1616,80 +1616,80 @@ function computeRating(s, cs) {
 // FIFA TAGS
 // =====================================================================
 // Tag definitions: { label, cls, tip }
-// â”€â”€ Tag definitions with hover descriptions â”€â”€
-// â”€â”€ Tag definitions â”€â”€
-// â”€â”€ Tag definitions â”€â”€
+// ── Tag definitions with hover descriptions ──
+// ── Tag definitions ──
+// ── Tag definitions ──
 const TAG_DEFS = {
   // Attacking
-  'Golden Boot':       { cls:'tag-striker',   tip:"Top scorer in the group â€” the team's most dangerous goal threat by goals per game" },
-  'Clinical':          { cls:'tag-striker',   tip:'Converts more chances into goals per shot than anyone â€” ruthlessly efficient in front of goal' },
-  'Silent Assassin':   { cls:'tag-striker',   tip:'Scores frequently but takes very few shots â€” needs almost nothing to be dangerous' },
-  'Finisher':          { cls:'tag-striker',   tip:'Consistently turns up in the right place at the right time â€” combines goal volume with finishing efficiency' },
-  'Poacher':           { cls:'tag-striker',   tip:'Creates and converts their own chances independently â€” dangerous even without a teammate setting them up' },
-  'Hat-Trick Hero':    { cls:'tag-striker',   tip:'Scored 3+ goals in a single match more times than anyone â€” capable of completely taking over and dominating a game' },
-  'Net Magnet':        { cls:'tag-striker',   tip:'Highest shots on target per game â€” constantly forces saves and rarely wastes a shooting opportunity' },
-  'Rebound King':      { cls:'tag-striker',   tip:'Thrives off second chances and loose balls â€” hits the post and keeps scoring from rebounds around goal' },
-  'Ghost Runner':      { cls:'tag-striker',   tip:'Scores quietly without dominating the stats â€” gets in the right positions without constant involvement' },
-  'Wave Maker':        { cls:'tag-striker',   tip:'Combines scoring and creating at high volume over time â€” a consistent match-winner across the whole season' },
+  'Golden Boot':       { cls:'tag-striker',   tip:"Top scorer in the group — the team's most dangerous goal threat by goals per game" },
+  'Clinical':          { cls:'tag-striker',   tip:'Converts more chances into goals per shot than anyone — ruthlessly efficient in front of goal' },
+  'Silent Assassin':   { cls:'tag-striker',   tip:'Scores frequently but takes very few shots — needs almost nothing to be dangerous' },
+  'Finisher':          { cls:'tag-striker',   tip:'Consistently turns up in the right place at the right time — combines goal volume with finishing efficiency' },
+  'Poacher':           { cls:'tag-striker',   tip:'Creates and converts their own chances independently — dangerous even without a teammate setting them up' },
+  'Hat-Trick Hero':    { cls:'tag-striker',   tip:'Scored 3+ goals in a single match more times than anyone — capable of completely taking over and dominating a game' },
+  'Net Magnet':        { cls:'tag-striker',   tip:'Highest shots on target per game — constantly forces saves and rarely wastes a shooting opportunity' },
+  'Rebound King':      { cls:'tag-striker',   tip:'Thrives off second chances and loose balls — hits the post and keeps scoring from rebounds around goal' },
+  'Ghost Runner':      { cls:'tag-striker',   tip:'Scores quietly without dominating the stats — gets in the right positions without constant involvement' },
+  'Wave Maker':        { cls:'tag-striker',   tip:'Combines scoring and creating at high volume over time — a consistent match-winner across the whole season' },
   // Shooting
-  'Gunslinger':        { cls:'tag-target',    tip:'Takes more shots per game than anyone â€” never stops attacking and always has a shot in mind' },
-  'Deadeye':           { cls:'tag-target',    tip:'Highest shot accuracy in the group â€” a greater percentage of shots hit the target than anyone else' },
-  'Heat Check':        { cls:'tag-target',    tip:'Most off-target shots â€” fires from bold angles and distances without hesitation, high volume high risk' },
-  'Trigger Finger':    { cls:'tag-target',    tip:'Best ratio of shots on target to shots taken â€” the most precise shooter when pulling the trigger' },
-  'Front Foot':        { cls:'tag-target',    tip:'Highest shots on target combined with assists â€” always threatening the goal directly while also creating for teammates' },
-  'Sledgehammer':      { cls:'tag-target',    tip:'High shot volume and regularly rattles the woodwork â€” a powerful attacker who constantly tests the frame' },
-  'Pinball':           { cls:'tag-target',    tip:'Constantly involved in chaotic attacking moments â€” hits posts and fires wide but keeps defences under pressure' },
-  'High Voltage':      { cls:'tag-target',    tip:'Scores, tackles and stays active at the highest rate â€” an explosive player who impacts every phase of the game' },
+  'Gunslinger':        { cls:'tag-target',    tip:'Takes more shots per game than anyone — never stops attacking and always has a shot in mind' },
+  'Deadeye':           { cls:'tag-target',    tip:'Highest shot accuracy in the group — a greater percentage of shots hit the target than anyone else' },
+  'Heat Check':        { cls:'tag-target',    tip:'Most off-target shots — fires from bold angles and distances without hesitation, high volume high risk' },
+  'Trigger Finger':    { cls:'tag-target',    tip:'Best ratio of shots on target to shots taken — the most precise shooter when pulling the trigger' },
+  'Front Foot':        { cls:'tag-target',    tip:'Highest shots on target combined with assists — always threatening the goal directly while also creating for teammates' },
+  'Sledgehammer':      { cls:'tag-target',    tip:'High shot volume and regularly rattles the woodwork — a powerful attacker who constantly tests the frame' },
+  'Pinball':           { cls:'tag-target',    tip:'Constantly involved in chaotic attacking moments — hits posts and fires wide but keeps defences under pressure' },
+  'High Voltage':      { cls:'tag-target',    tip:'Scores, tackles and stays active at the highest rate — an explosive player who impacts every phase of the game' },
   // Flair
-  'Sauce Merchant':    { cls:'tag-wizard',    tip:'Highest nutmegs per game â€” beats more defenders with skill moves than anyone else in the group' },
-  'Streetballer':      { cls:'tag-wizard',    tip:'Combines the most nutmegs with genuine scoring threat â€” flair that translates directly into attacking output' },
-  'Risk Taker':        { cls:'tag-wizard',    tip:'Attempts nutmegs and fires ambitious off-target shots constantly â€” always trying something difficult' },
-  'Chaos Creator':     { cls:'tag-wizard',    tip:'Produces high nutmegs, key passes and shots together â€” the most unpredictably dangerous attacker available' },
-  'Chaos Agent':       { cls:'tag-wizard',    tip:'Most off-target shots in the group â€” applies relentless attacking pressure even if the execution is erratic' },
-  'Woodwork Warrior':  { cls:'tag-wizard',    tip:'Hits the woodwork more per game than anyone â€” constantly inches away from spectacular goals that deserve better' },
-  'Showtime':          { cls:'tag-wizard',    tip:'Nutmegs in games where they also score or assist â€” delivers crowd-pleasing performances in the biggest moments' },
-  'Breaker':           { cls:'tag-wizard',    tip:'Wins tackles and nutmegs opponents â€” a rare combination of defensive physicality and technical flair in one player' },
+  'Sauce Merchant':    { cls:'tag-wizard',    tip:'Highest nutmegs per game — beats more defenders with skill moves than anyone else in the group' },
+  'Streetballer':      { cls:'tag-wizard',    tip:'Combines the most nutmegs with genuine scoring threat — flair that translates directly into attacking output' },
+  'Risk Taker':        { cls:'tag-wizard',    tip:'Attempts nutmegs and fires ambitious off-target shots constantly — always trying something difficult' },
+  'Chaos Creator':     { cls:'tag-wizard',    tip:'Produces high nutmegs, key passes and shots together — the most unpredictably dangerous attacker available' },
+  'Chaos Agent':       { cls:'tag-wizard',    tip:'Most off-target shots in the group — applies relentless attacking pressure even if the execution is erratic' },
+  'Woodwork Warrior':  { cls:'tag-wizard',    tip:'Hits the woodwork more per game than anyone — constantly inches away from spectacular goals that deserve better' },
+  'Showtime':          { cls:'tag-wizard',    tip:'Nutmegs in games where they also score or assist — delivers crowd-pleasing performances in the biggest moments' },
+  'Breaker':           { cls:'tag-wizard',    tip:'Wins tackles and nutmegs opponents — a rare combination of defensive physicality and technical flair in one player' },
   // Creating
-  'Architect':         { cls:'tag-playmaker', tip:'Highest assists per game â€” sets up more goals than anyone and is the main creative force in every attack' },
-  'Thread Needle':     { cls:'tag-playmaker', tip:'Most key passes per game â€” consistently finds dangerous passes through tight spaces that unlock defences' },
-  'Puppet Master':     { cls:'tag-playmaker', tip:'Elite in both assists and key passes â€” controls the entire flow of attacking play from creation to delivery' },
-  'The Supplier':      { cls:'tag-playmaker', tip:'Balances assists with high-quality key passes â€” a reliable creator who feeds teammates both directly and indirectly' },
-  'Pathfinder':        { cls:'tag-playmaker', tip:'Assists the widest variety of teammates â€” connects the whole team together and finds whoever is in space' },
-  'Play Driver':       { cls:'tag-playmaker', tip:'Highest combined scoring and creating output â€” central to almost every attack with both goals and assists' },
-  'Traffic Controller':{ cls:'tag-playmaker', tip:'Wins possession through interceptions and immediately restarts attacks with key passes â€” reads the game in both directions' },
-  'Safety Valve':      { cls:'tag-playmaker', tip:'Intercepts danger and immediately creates attack â€” the most reliable player for winning possession and restarting play' },
-  'Brace Builder':     { cls:'tag-playmaker', tip:'Set up 2+ goals in the same match more often than anyone â€” the most dangerous creator when they get going in a single game' },
-  'Leveller':          { cls:'tag-playmaker', tip:'Most assists that directly equalled the score â€” sets up teammates to drag the team back into matches at the critical moment' },
+  'Architect':         { cls:'tag-playmaker', tip:'Highest assists per game — sets up more goals than anyone and is the main creative force in every attack' },
+  'Thread Needle':     { cls:'tag-playmaker', tip:'Most key passes per game — consistently finds dangerous passes through tight spaces that unlock defences' },
+  'Puppet Master':     { cls:'tag-playmaker', tip:'Elite in both assists and key passes — controls the entire flow of attacking play from creation to delivery' },
+  'The Supplier':      { cls:'tag-playmaker', tip:'Balances assists with high-quality key passes — a reliable creator who feeds teammates both directly and indirectly' },
+  'Pathfinder':        { cls:'tag-playmaker', tip:'Assists the widest variety of teammates — connects the whole team together and finds whoever is in space' },
+  'Play Driver':       { cls:'tag-playmaker', tip:'Highest combined scoring and creating output — central to almost every attack with both goals and assists' },
+  'Traffic Controller':{ cls:'tag-playmaker', tip:'Wins possession through interceptions and immediately restarts attacks with key passes — reads the game in both directions' },
+  'Safety Valve':      { cls:'tag-playmaker', tip:'Intercepts danger and immediately creates attack — the most reliable player for winning possession and restarting play' },
+  'Brace Builder':     { cls:'tag-playmaker', tip:'Set up 2+ goals in the same match more often than anyone — the most dangerous creator when they get going in a single game' },
+  'Leveller':          { cls:'tag-playmaker', tip:'Most assists that directly equalled the score — sets up teammates to drag the team back into matches at the critical moment' },
   // Combo
-  'Combo King':        { cls:'tag-engine',    tip:'Both scores and assists in more games than anyone â€” the complete offensive force who takes over matches completely' },
-  'One-Two Specialist':{ cls:'tag-engine',    tip:'Has been assisted by the same teammate more than any other pair â€” the most productive scoring partnership in the group' },
-  'Duo Link':          { cls:'tag-engine',    tip:'Has assisted the same scorer more times than any other pair â€” forms the deadliest and most consistent attacking combination' },
+  'Combo King':        { cls:'tag-engine',    tip:'Both scores and assists in more games than anyone — the complete offensive force who takes over matches completely' },
+  'One-Two Specialist':{ cls:'tag-engine',    tip:'Has been assisted by the same teammate more than any other pair — the most productive scoring partnership in the group' },
+  'Duo Link':          { cls:'tag-engine',    tip:'Has assisted the same scorer more times than any other pair — forms the deadliest and most consistent attacking combination' },
   // Defending
-  'Enforcer':          { cls:'tag-guardian',  tip:'Wins more tackles per game than anyone â€” the most physical presence who dominates direct duels and wins possession' },
-  'Ball Hawk':         { cls:'tag-guardian',  tip:'Most interceptions per game â€” reads the game better than anyone and cuts out attacks before they develop' },
-  'Lockdown':          { cls:'tag-guardian',  tip:'Blocks-dominant defensive force â€” gets in the way of shots and challenges more than anyone in the group' },
-  'Engine Room':       { cls:'tag-guardian',  tip:'Combines defensive work with playmaking â€” wins the ball through tackles and interceptions then drives attacks forward' },
-  'Hunter':            { cls:'tag-guardian',  tip:'Intercepts and scores â€” tracks down turnovers defensively then capitalises going forward at the highest rate' },
+  'Enforcer':          { cls:'tag-guardian',  tip:'Wins more tackles per game than anyone — the most physical presence who dominates direct duels and wins possession' },
+  'Ball Hawk':         { cls:'tag-guardian',  tip:'Most interceptions per game — reads the game better than anyone and cuts out attacks before they develop' },
+  'Lockdown':          { cls:'tag-guardian',  tip:'Blocks-dominant defensive force — gets in the way of shots and challenges more than anyone in the group' },
+  'Engine Room':       { cls:'tag-guardian',  tip:'Combines defensive work with playmaking — wins the ball through tackles and interceptions then drives attacks forward' },
+  'Hunter':            { cls:'tag-guardian',  tip:'Intercepts and scores — tracks down turnovers defensively then capitalises going forward at the highest rate' },
   // GK/Blocking
-  'Brick Wall':        { cls:'tag-blocker',   tip:'Blocks more shots per game than anyone â€” throws themselves in front of attempts more than any other player' },
-  'Shot Stopper':      { cls:'tag-sweeper',   tip:'Highest GK saves per game â€” repeatedly bails the team out and is the single biggest reason they stay in matches' },
-  'Fortress':          { cls:'tag-blocker',   tip:'Elite at both blocking shots and making saves â€” must be high in both stats, the complete multi-layer defensive presence' },
-  'Clean Hands':       { cls:'tag-sweeper',   tip:'GK-dominant defensive wall â€” makes the most goalkeeper saves while also contributing through outfield blocks' },
+  'Brick Wall':        { cls:'tag-blocker',   tip:'Blocks more shots per game than anyone — throws themselves in front of attempts more than any other player' },
+  'Shot Stopper':      { cls:'tag-sweeper',   tip:'Highest GK saves per game — repeatedly bails the team out and is the single biggest reason they stay in matches' },
+  'Fortress':          { cls:'tag-blocker',   tip:'Elite at both blocking shots and making saves — must be high in both stats, the complete multi-layer defensive presence' },
+  'Clean Hands':       { cls:'tag-sweeper',   tip:'GK-dominant defensive wall — makes the most goalkeeper saves while also contributing through outfield blocks' },
   // Hybrid
-  'Two-Way Engine':    { cls:'tag-workhorse', tip:'Scores and tackles at the same elite rate â€” a genuinely rare dual-threat player who dominates both ends of the pitch' },
-  'Swiss Army Knife':  { cls:'tag-workhorse', tip:'Most balanced stat profile in the group â€” contributes meaningfully across scoring, creating, defending and goalkeeping' },
-  'Iron Lung':         { cls:'tag-workhorse', tip:'Highest total actions per game â€” involved in attack and defence more than anyone and never stops running' },
-  'Mr Reliable':       { cls:'tag-workhorse', tip:'Most consistent contributor across matches â€” delivers solid performances every single session with minimal variance' },
-  'Lone Wolf':         { cls:'tag-workhorse', tip:'Scores without receiving tracked assists â€” creates and converts their own chances with minimal direct help from others' },
-  // Timestamp â€” goal scoring
-  'Icebreaker':        { cls:'tag-enforcer',  tip:'Scores the first goal of matches more than anyone â€” breaks the deadlock and shifts momentum before others find their rhythm' },
-  'Blitz':             { cls:'tag-enforcer',  tip:'Scores two goals within 5 minutes in the same match more often than anyone â€” the most explosively dangerous scorer in the group' },
-  'Clutch Factor':     { cls:'tag-enforcer',  tip:'Most goals after the 40-minute mark â€” produces in the biggest moments when matches are still alive and pressure is highest' },
-  'Momentum Shift':    { cls:'tag-enforcer',  tip:'Scores the most equalisers â€” steps up when the team is behind and single-handedly drags them back into matches' },
-  'Comeback Kid':      { cls:'tag-enforcer',  tip:'Most goals while losing in the second half â€” refuses to accept defeat and keeps fighting when others might switch off' },
-  'Last Laugh':        { cls:'tag-enforcer',  tip:'Scores the final goal of matches more than anyone â€” loves finishing games off and always wants the last word' },
-  'Big Game Player':   { cls:'tag-enforcer',  tip:'Scores more in high-scoring open matches than their average suggests â€” rises to the occasion when the game is chaotic' },
-  'Heartbreaker':      { cls:'tag-enforcer',  tip:'Hits the woodwork in more matches than anyone â€” comes agonisingly close to defining moments with painful regularity' },
+  'Two-Way Engine':    { cls:'tag-workhorse', tip:'Scores and tackles at the same elite rate — a genuinely rare dual-threat player who dominates both ends of the pitch' },
+  'Swiss Army Knife':  { cls:'tag-workhorse', tip:'Most balanced stat profile in the group — contributes meaningfully across scoring, creating, defending and goalkeeping' },
+  'Iron Lung':         { cls:'tag-workhorse', tip:'Highest total actions per game — involved in attack and defence more than anyone and never stops running' },
+  'Mr Reliable':       { cls:'tag-workhorse', tip:'Most consistent contributor across matches — delivers solid performances every single session with minimal variance' },
+  'Lone Wolf':         { cls:'tag-workhorse', tip:'Scores without receiving tracked assists — creates and converts their own chances with minimal direct help from others' },
+  // Timestamp — goal scoring
+  'Icebreaker':        { cls:'tag-enforcer',  tip:'Scores the first goal of matches more than anyone — breaks the deadlock and shifts momentum before others find their rhythm' },
+  'Blitz':             { cls:'tag-enforcer',  tip:'Scores two goals within 5 minutes in the same match more often than anyone — the most explosively dangerous scorer in the group' },
+  'Clutch Factor':     { cls:'tag-enforcer',  tip:'Most goals after the 40-minute mark — produces in the biggest moments when matches are still alive and pressure is highest' },
+  'Momentum Shift':    { cls:'tag-enforcer',  tip:'Scores the most equalisers — steps up when the team is behind and single-handedly drags them back into matches' },
+  'Comeback Kid':      { cls:'tag-enforcer',  tip:'Most goals while losing in the second half — refuses to accept defeat and keeps fighting when others might switch off' },
+  'Last Laugh':        { cls:'tag-enforcer',  tip:'Scores the final goal of matches more than anyone — loves finishing games off and always wants the last word' },
+  'Big Game Player':   { cls:'tag-enforcer',  tip:'Scores more in high-scoring open matches than their average suggests — rises to the occasion when the game is chaotic' },
+  'Heartbreaker':      { cls:'tag-enforcer',  tip:'Hits the woodwork in more matches than anyone — comes agonisingly close to defining moments with painful regularity' },
 };
 
 
@@ -1697,7 +1697,7 @@ const TAG_DEFS = {
 
 
 // =====================================================================
-// TAG SYSTEM â€” global auction: each tag goes to exactly one player
+// TAG SYSTEM — global auction: each tag goes to exactly one player
 // =====================================================================
 let _tagCache = null; // { playerName: [{label,cls,tip},...] }
 
@@ -1709,7 +1709,7 @@ function buildTagAuction() {
     return m && [...m.teamA,...m.teamB].some(r=>r.player===player);
   });
 
-  // Use all-time playerStats for metrics â€” timestamp tags should use career data
+  // Use all-time playerStats for metrics — timestamp tags should use career data
   const allStats = Object.values(playerStats).filter(p => p.games >= 5 && isActive(p.player));
   if (!allStats.length) return {};
 
@@ -1753,7 +1753,7 @@ function buildTagAuction() {
       const scorerTeam={};
       [...match.teamA,...match.teamB].forEach(r=>{ scorerTeam[r.player]=r.team; });
 
-      // Build full sorted goal list â€” all goals across both halves by absolute time
+      // Build full sorted goal list — all goals across both halves by absolute time
       const toSecs=t=>{ if(!t) return 0; const[a,b]=t.split(':').map(Number); return a*60+(b||0); };
       const allGoals=[
         ...(data.h1||[]).map(g=>({...g})),
@@ -1823,7 +1823,7 @@ function buildTagAuction() {
       });
     });
 
-    // topScorerMatches â€” matches where this player scored the most (min 3 goals)
+    // topScorerMatches — matches where this player scored the most (min 3 goals)
     const topScorerMatches=playerCombos.filter(([,data])=>{
       const all=[...(data.h1||[]),...(data.h2||[])].filter(g=>!g.isOG&&g.scorer);
       const counts={}; all.forEach(g=>{ counts[g.scorer]=(counts[g.scorer]||0)+1; });
@@ -1899,8 +1899,8 @@ function buildTagAuction() {
     return bestV >= minScore ? bestP : null;
   };
 
-  // â”€â”€ TAG AUCTION â€” one winner per tag â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  const tagWinners = {}; // tagLabel â†’ playerName
+  // ── TAG AUCTION — one winner per tag ──────────────────────────────────
+  const tagWinners = {}; // tagLabel → playerName
 
   const award = (label, scoreFn, minScore = 0.01) => {
     const winner = best(scoreFn, minScore);
@@ -1921,7 +1921,7 @@ function buildTagAuction() {
   };
 
   // Attacking
-  // Attacking â€” each formula emphasises a distinct dimension
+  // Attacking — each formula emphasises a distinct dimension
   award('Golden Boot',      m => m.gpg);
   award('Clinical',         m => m.conv);
   award('Silent Assassin',  m => m.gpg>0&&m.spg>0?m.conv/Math.max(m.spg,0.1):0);
@@ -1934,7 +1934,7 @@ function buildTagAuction() {
   award('Ghost Runner',     m => m.gpg>0.2&&m.actpg<2.5?m.gpg*3/Math.max(m.actpg,0.5):0);
   award('Wave Maker',       m => (m.gpg+m.apg)*m.ps.games);
 
-  // Shooting â€” clearly distinct stats
+  // Shooting — clearly distinct stats
   award('Gunslinger',       m => m.spg);
   award('Deadeye',          m => m.acc);
   award('Heat Check',       m => m.offpg);
@@ -1944,7 +1944,7 @@ function buildTagAuction() {
   award('Pinball',          m => m.postpg+m.offpg*0.5);
   award('High Voltage',     m => m.gpg+m.tklpg+m.actpg*0.2);
 
-  // Flair â€” nutmeg-based, deduped after
+  // Flair — nutmeg-based, deduped after
   award('Sauce Merchant',   m => m.nmpg);
   award('Streetballer',     m => m.nmpg*2+m.gpg);
   award('Risk Taker',       m => m.nmpg+m.offpg*0.8);
@@ -1954,7 +1954,7 @@ function buildTagAuction() {
   award('Showtime',         m => m.nmpg*(m.dualGames+m.multiGoalGames+1));
   award('Breaker',          m => m.tklpg+m.nmpg*1.5);
 
-  // Creating â€” clearly distinct
+  // Creating — clearly distinct
   award('Architect',        m => m.apg);
   award('Thread Needle',    m => m.kppg);
   award('Puppet Master',    m => Math.min(m.apg,m.kppg)*2);
@@ -1969,14 +1969,14 @@ function buildTagAuction() {
   award('Duo Link',         m => m.topProvider?m.topProvider.goals:0);
   award('One-Two Specialist',m => m.topReceiver?m.topReceiver.goals:0);
 
-  // Defending â€” each primary stat distinct
+  // Defending — each primary stat distinct
   award('Enforcer',         m => m.tklpg);
   award('Ball Hawk',        m => m.intpg);
   award('Lockdown',         m => m.blkpg*2+m.tklpg*0.3+m.intpg*0.3);
   award('Engine Room',      m => m.kppg*0.8+m.tklpg*0.6+m.intpg*0.6);
   award('Hunter',           m => m.intpg*0.6+m.gpg*1.4);
 
-  // GK/Blocking â€” truly distinct
+  // GK/Blocking — truly distinct
   award('Brick Wall',       m => m.blkpg);
   award('Shot Stopper',     m => m.gkspg);
   award('Fortress',         m => Math.min(m.blkpg,m.gkspg)*3);
@@ -2010,7 +2010,7 @@ function buildTagAuction() {
   });
   award('Heartbreaker',     m => (m.ps.post||0)*m.postpg);
 
-  // â”€â”€ Dedup: each player keeps only their single best nutmeg-based tag â”€â”€
+  // ── Dedup: each player keeps only their single best nutmeg-based tag ──
   const nutmegTags = ['Sauce Merchant','Streetballer','Risk Taker','Chaos Creator','Showtime','Breaker'];
   const nutmegScoreFns = {
     'Sauce Merchant': m => m.nmpg,
@@ -2034,7 +2034,7 @@ function buildTagAuction() {
     tags.slice(1).forEach(t => { delete tagWinners[t.tag]; });
   });
 
-  // Build reverse map: player â†’ [tags they won], capped at 3 per player
+  // Build reverse map: player → [tags they won], capped at 3 per player
   // Process in order: stat tags first, then timestamp tags
   // This ensures timestamp tags aren't crowded out by players who win everything
   const playerTags = {};
@@ -2053,7 +2053,7 @@ function buildTagAuction() {
     }
   });
 
-  // Second pass: assign timestamp tags â€” each goes to its winner regardless of cap
+  // Second pass: assign timestamp tags — each goes to its winner regardless of cap
   // but if winner already has 3, reassign to next best eligible player
   timeTagOrder.forEach(label => {
     const winner = tagWinners[label];
@@ -2061,7 +2061,7 @@ function buildTagAuction() {
     if (playerTags[winner] && playerTags[winner].length < 3) {
       playerTags[winner].push(label);
     } else {
-      // Winner is full â€” give to next best eligible player who has room
+      // Winner is full — give to next best eligible player who has room
       // Find all eligible players for this tag and pick highest scorer with < 3 tags
       const scoreFnMap = {
         'Clutch Factor':      m => m.lateGoals>=2?m.lateGoals:0,
@@ -2111,7 +2111,7 @@ function getFifaTags(s, cs) {
   if (!_tagCache) _tagCache = buildTagAuction();
   const myTagLabels = (_tagCache[s.player] || []);
 
-  // Convert label strings â†’ {label, cls, tip} objects
+  // Convert label strings → {label, cls, tip} objects
   const sorted = [...myTagLabels].sort((a,b) => {
     const primaryFirst = ['Golden Boot','Shot Stopper','Enforcer','Ball Hawk','Brick Wall',
       'Sauce Merchant','Architect','Thread Needle','Gunslinger','Deadeye','Clinical'];
@@ -2126,7 +2126,7 @@ function getFifaTags(s, cs) {
     return def ? {label, cls:def.cls, tip:def.tip} : null;
   }).filter(Boolean);
 
-  // Fallback if player has fewer than 3 won tags â€” award based on best ranked stat
+  // Fallback if player has fewer than 3 won tags — award based on best ranked stat
   if (result.length < 3) {
     const g = Math.max(s.games,1);
     const gpg=s.goals/g, apg=s.assists/g, kppg=s.key_passes/g;
@@ -2135,7 +2135,7 @@ function getFifaTags(s, cs) {
     const sotpg=(s.shots_on_target||0)/g, spg=s.total_shots/g;
     const actpg=(s.goals+s.assists+s.total_shots+s.tackles+s.interceptions)/g;
     // Fallback: award tags based on this player's best stats relative to pool
-    // Each fallback tag still unique â€” awarded to the best-ranked eligible player
+    // Each fallback tag still unique — awarded to the best-ranked eligible player
     // But here we just check if THIS player is in top 25% for that stat
     const pool = Object.values(getDisplayStats()).filter(p => p.games >= 5);
     const rank = (myVal, fn) => pool.filter(p => fn(p) > myVal).length; // 0 = best
@@ -2194,18 +2194,18 @@ function getFifaTags(s, cs) {
 
 
 
-// â”€â”€ Leader badges: gold crown for #1 in each stat â”€â”€
+// ── Leader badges: gold crown for #1 in each stat ──
 const LEADER_STATS = [
-  { key: 'goals',            label: 'âš½ Top Scorer',       tip: '#1 in goals per game in the group' },
-  { key: 'assists',          label: 'ðŸŽ¯ Top Assist',        tip: '#1 in assists per game in the group' },
-  { key: 'key_passes',       label: 'ðŸ”‘ Top Creator',       tip: '#1 in key passes per game in the group' },
-  { key: 'total_shots',      label: 'ðŸ’¥ Top Shooter',       tip: '#1 in shots per game in the group' },
-  { key: 'interceptions',    label: 'ðŸ›¡ Top Interceptor',   tip: '#1 in interceptions per game in the group' },
-  { key: 'tackles',          label: 'ðŸ’ª Top Tackler',       tip: '#1 in tackles per game in the group' },
-  { key: 'blocks',           label: 'ðŸ§± Top Blocker',       tip: '#1 in blocks per game in the group' },
-  { key: 'goalkeeper_saves', label: 'ðŸ§¤ Top GK',            tip: '#1 in goalkeeper saves per game in the group' },
-  { key: 'nutmegs',          label: 'ðŸª„ Top Flair',         tip: '#1 in nutmegs per game in the group' },
-  { key: '_conv',            label: 'ðŸŽ¯ Top Finisher',      tip: '#1 in shot conversion rate (goals per shot) in the group' },
+  { key: 'goals',            label: '⚽ Top Scorer',       tip: '#1 in goals per game in the group' },
+  { key: 'assists',          label: '🎯 Top Assist',        tip: '#1 in assists per game in the group' },
+  { key: 'key_passes',       label: '🔑 Top Creator',       tip: '#1 in key passes per game in the group' },
+  { key: 'total_shots',      label: '💥 Top Shooter',       tip: '#1 in shots per game in the group' },
+  { key: 'interceptions',    label: '🛡 Top Interceptor',   tip: '#1 in interceptions per game in the group' },
+  { key: 'tackles',          label: '💪 Top Tackler',       tip: '#1 in tackles per game in the group' },
+  { key: 'blocks',           label: '🧱 Top Blocker',       tip: '#1 in blocks per game in the group' },
+  { key: 'goalkeeper_saves', label: '🧤 Top GK',            tip: '#1 in goalkeeper saves per game in the group' },
+  { key: 'nutmegs',          label: '🪄 Top Flair',         tip: '#1 in nutmegs per game in the group' },
+  { key: '_conv',            label: '🎯 Top Finisher',      tip: '#1 in shot conversion rate (goals per shot) in the group' },
 ];
 
 function getLeaderTags(playerName) {
@@ -2248,7 +2248,7 @@ function renderSeasonSummary() {
   // Use playerStats as base but recompute games within the season
   const inSeason = d => seasonFilter === 'all' || (d||'').startsWith(seasonFilter);
   const seasonRows = allRows.filter(r => r.half === 'FULL' && r.team !== 'DNP' && inSeason(r.match_date));
-  const seasonGames = {}; // player â†’ set of match IDs in season
+  const seasonGames = {}; // player → set of match IDs in season
   seasonRows.forEach(r => {
     if (!seasonGames[r.player]) seasonGames[r.player] = new Set();
     seasonGames[r.player].add(r.match_id);
@@ -2261,7 +2261,7 @@ function renderSeasonSummary() {
 
   const seasonLabel = seasonFilter !== 'all' ? seasonFilter : 'All Time';
   const seasonMatchCount = matchList.filter(m => inSeason(m.date)).length;
-  subtitle.textContent = seasonLabel + ' Â· ' + seasonMatchCount + ' matches';
+  subtitle.textContent = seasonLabel + ' · ' + seasonMatchCount + ' matches';
 
   // Build per-game values for each player within the season
   const seasonStats = {};
@@ -2305,22 +2305,22 @@ function renderSeasonSummary() {
   const fmt2 = v => Number.isInteger(v) ? v : parseFloat(v.toFixed(2));
 
   const awards = [
-    best(p => p.goals/gf(p),         'âš½ Top Scorer',         v => fmt2(v)),
-    best(p => p.assists/gf(p),        'ðŸŽ¯ Most Assists',        v => fmt2(v)),
-    best(p => p.goals,                 'ðŸ“Š Most Goals (Total)',  v => Math.round(v)),
-    best(p => p.total_shots/gf(p),    'ðŸ’¥ Most Shots/G',        v => fmt1(v)),
-    best(p => p.goalkeeper_saves/gf(p),'ðŸ§¤ Best GK',            v => fmt2(v)),
-    best(p => (p.interceptions+p.tackles)/gf(p), 'ðŸ›¡ Best Defender', v => fmt1(v)),
-    best(p => p.blocks/gf(p),         'ðŸ§± Best Shot Blocker',   v => fmt2(v)),
-    best(p => p.key_passes/gf(p),     'ðŸ”‘ Best Creator',        v => fmt2(v)),
-    best(p => p.nutmegs/gf(p),        'ðŸª„ Most Nutmegs/G',      v => fmt2(v)),
-    best(p => p.total_shots>0?p.goals/p.total_shots:0, 'ðŸŽ¯ Best Conversion', v => (v*100).toFixed(0)+'%'),
-    best(p => p.wins/(p.wins+p.losses+(p.draws||0)||1), 'ðŸ† Best Win Rate', v => (v*100).toFixed(0)+'%'),
-    best(p => p.mvps||0,              'ðŸ‘‘ Most MVPs',           v => Math.round(v)),
-    best(p => p.synergyScore||0,       'ðŸ¤ Best Team Player',   v => (v>0?'+':'')+parseFloat(v.toFixed(1))+'%'),
-    best(p => p.consistency||0,        'ðŸ“ˆ Most Consistent',    v => Math.round(v)+'/100'),
-    best(p => p.longestWinStreak||0,   'ðŸ”¥ Longest Win Streak', v => Math.round(v)+' games'),
-    best(p => p.gd||0,                 'âš– Best Goal Diff',     v => (v>0?'+':'')+Math.round(v)),
+    best(p => p.goals/gf(p),         '⚽ Top Scorer',         v => fmt2(v)),
+    best(p => p.assists/gf(p),        '🎯 Most Assists',        v => fmt2(v)),
+    best(p => p.goals,                 '📊 Most Goals (Total)',  v => Math.round(v)),
+    best(p => p.total_shots/gf(p),    '💥 Most Shots/G',        v => fmt1(v)),
+    best(p => p.goalkeeper_saves/gf(p),'🧤 Best GK',            v => fmt2(v)),
+    best(p => (p.interceptions+p.tackles)/gf(p), '🛡 Best Defender', v => fmt1(v)),
+    best(p => p.blocks/gf(p),         '🧱 Best Shot Blocker',   v => fmt2(v)),
+    best(p => p.key_passes/gf(p),     '🔑 Best Creator',        v => fmt2(v)),
+    best(p => p.nutmegs/gf(p),        '🪄 Most Nutmegs/G',      v => fmt2(v)),
+    best(p => p.total_shots>0?p.goals/p.total_shots:0, '🎯 Best Conversion', v => (v*100).toFixed(0)+'%'),
+    best(p => p.wins/(p.wins+p.losses+(p.draws||0)||1), '🏆 Best Win Rate', v => (v*100).toFixed(0)+'%'),
+    best(p => p.mvps||0,              '👑 Most MVPs',           v => Math.round(v)),
+    best(p => p.synergyScore||0,       '🤝 Best Team Player',   v => (v>0?'+':'')+parseFloat(v.toFixed(1))+'%'),
+    best(p => p.consistency||0,        '📈 Most Consistent',    v => Math.round(v)+'/100'),
+    best(p => p.longestWinStreak||0,   '🔥 Longest Win Streak', v => Math.round(v)+' games'),
+    best(p => p.gd||0,                 '⚖ Best Goal Diff',     v => (v>0?'+':'')+Math.round(v)),
   ];
 
   // Most improved: within season, compare first half vs second half of games
@@ -2340,7 +2340,7 @@ function renderSeasonSummary() {
       const late  = allMatches.slice(-half).reduce((s,m)=>s+scoreMatch(m),0)/half;
       if (late - early > bestDelta) { bestDelta = late - early; bestPlayer = sp.player; }
     });
-    return { player: bestPlayer || 'â€“', val: bestDelta > 0 ? '+'+bestDelta.toFixed(1)+' pts/g' : 'â€“', label: 'ðŸ“ˆ Most Improved' };
+    return { player: bestPlayer || '–', val: bestDelta > 0 ? '+'+bestDelta.toFixed(1)+' pts/g' : '–', label: '📈 Most Improved' };
   })();
   awards.push(mostImproved);
 
@@ -2370,11 +2370,11 @@ function renderSeasonSummary() {
   const matchCard = (label, m) => m ? `
     <div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px 16px">
       <div style="font-size:.7rem;color:var(--muted);font-family:'Barlow Condensed',sans-serif;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">${label}</div>
-      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.5rem;color:var(--text)">${m.goalsA} â€“ ${m.goalsB}</div>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.5rem;color:var(--text)">${m.goalsA} – ${m.goalsB}</div>
       <div style="font-size:.75rem;color:var(--muted);margin-top:2px">${m.date}</div>
     </div>` : '';
 
-  const filtered = awards.filter(a => a.player && a.player !== 'â€“');
+  const filtered = awards.filter(a => a.player && a.player !== '–');
   const [a1, a2, a3, ...rest] = filtered;
 
   // Combo highlights
@@ -2384,31 +2384,31 @@ function renderSeasonSummary() {
     if (comboHighlights.topPartnership) {
       const p = comboHighlights.topPartnership;
       parts.push(`<div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px 16px">
-        <div style="font-size:.7rem;color:var(--muted);font-family:'Barlow Condensed',sans-serif;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">ðŸ”— Best Partnership</div>
-        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;color:var(--lime)">${p.scorer} â† ${p.assister}</div>
+        <div style="font-size:.7rem;color:var(--muted);font-family:'Barlow Condensed',sans-serif;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">🔗 Best Partnership</div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;color:var(--lime)">${p.scorer} ← ${p.assister}</div>
         <div style="font-size:.75rem;color:var(--muted);margin-top:2px">${p.goals} goals in ${p.matchCount} of ${p.matchCount} recorded games</div>
       </div>`);
     }
     if (comboHighlights.biggestComeback) {
       const c = comboHighlights.biggestComeback;
       parts.push(`<div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px 16px">
-        <div style="font-size:.7rem;color:var(--muted);font-family:'Barlow Condensed',sans-serif;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">ðŸ”„ Biggest Comeback</div>
-        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;color:#60a5fa">Team ${c.team} Â· ${c.deficit} Down</div>
-        <div style="font-size:.75rem;color:var(--muted);margin-top:2px">${c.match.date} Â· ${c.match.goalsA}â€“${c.match.goalsB}</div>
+        <div style="font-size:.7rem;color:var(--muted);font-family:'Barlow Condensed',sans-serif;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">🔄 Biggest Comeback</div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;color:#60a5fa">Team ${c.team} · ${c.deficit} Down</div>
+        <div style="font-size:.75rem;color:var(--muted);margin-top:2px">${c.match.date} · ${c.match.goalsA}–${c.match.goalsB}</div>
       </div>`);
     }
     if (comboHighlights.longestRun) {
       const r = comboHighlights.longestRun;
       parts.push(`<div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px 16px">
-        <div style="font-size:.7rem;color:var(--muted);font-family:'Barlow Condensed',sans-serif;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">âš¡ Longest Goal Run</div>
-        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;color:var(--amber)">Team ${r.team} Â· ${r.cnt} Goals</div>
-        <div style="font-size:.75rem;color:var(--muted);margin-top:2px">${r.from}â€“${r.to} Â· ${r.match.date}</div>
+        <div style="font-size:.7rem;color:var(--muted);font-family:'Barlow Condensed',sans-serif;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">⚡ Longest Goal Run</div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;color:var(--amber)">Team ${r.team} · ${r.cnt} Goals</div>
+        <div style="font-size:.75rem;color:var(--muted);margin-top:2px">${r.from}–${r.to} · ${r.match.date}</div>
       </div>`);
     }
     if (comboHighlights.totalCombos > 0) {
       const topAssist = getAssistLeaderboard()[0];
       if (topAssist) parts.push(`<div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px 16px;cursor:pointer" onclick="nav('profile','${topAssist.name}')">
-        <div style="font-size:.7rem;color:var(--muted);font-family:'Barlow Condensed',sans-serif;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">ðŸŽ¯ Top Playmaker</div>
+        <div style="font-size:.7rem;color:var(--muted);font-family:'Barlow Condensed',sans-serif;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">🎯 Top Playmaker</div>
         <div style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;color:var(--green)">${topAssist.name}</div>
         <div style="font-size:.75rem;color:var(--muted);margin-top:2px">${topAssist.assists} tracked assists</div>
       </div>`);
@@ -2426,17 +2426,17 @@ function renderSeasonSummary() {
     <!-- Remaining awards -->
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;margin-bottom:10px">
       ${rest.map(statCard).join('')}
-      ${matchCard('ðŸŽ¯ Biggest Win', biggestWin)}
-      ${matchCard('ðŸ”¥ Highest Scoring', highestScoring)}
+      ${matchCard('🎯 Biggest Win', biggestWin)}
+      ${matchCard('🔥 Highest Scoring', highestScoring)}
     </div>
     ${comboSection}
-    <div style="font-size:.72rem;color:var(--muted);text-align:center">Click any card to open that player's profile Â· Respects the season filter above</div>
+    <div style="font-size:.72rem;color:var(--muted);text-align:center">Click any card to open that player's profile · Respects the season filter above</div>
   `;
 }
 
 // =====================================================================
 // =====================================================================
-// Global store for worm data â€” populated when match cards render, drawn when panel opens
+// Global store for worm data — populated when match cards render, drawn when panel opens
 window._wormData = window._wormData || {};
 
 function drawWormCanvas(canvasId, matchId) {
@@ -2514,9 +2514,9 @@ function drawWormCanvas(canvasId, matchId) {
   // Legend
   ctx.textAlign = 'right';
   ctx.fillStyle = '#4ade80'; ctx.font = 'bold 9px Barlow Condensed, sans-serif';
-  ctx.fillText('â–  TEAM A LEADING', W - pad.right - 80, 18);
+  ctx.fillText('■ TEAM A LEADING', W - pad.right - 80, 18);
   ctx.fillStyle = '#60a5fa';
-  ctx.fillText('â–  TEAM B LEADING', W - pad.right, 18);
+  ctx.fillText('■ TEAM B LEADING', W - pad.right, 18);
 
   // Build worm path (step function)
   const pts = [{ x: pad.left, y: toY(0) }];
@@ -2552,7 +2552,7 @@ function drawWormCanvas(canvasId, matchId) {
     const x = toX(e.secs), y = toY(e.scoreA - e.scoreB);
     ctx.beginPath(); ctx.arc(x, y, 5, 0, Math.PI*2);
     if (e.isOG) {
-      // Own goal â€” red hollow dot
+      // Own goal — red hollow dot
       ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fill();
       ctx.strokeStyle = '#f87171'; ctx.lineWidth = 2; ctx.stroke();
       // Small X inside
@@ -2579,7 +2579,7 @@ function drawWormCanvas(canvasId, matchId) {
       const r = canvas.getBoundingClientRect();
       const cx = (ev.clientX-r.left)*(W/r.width), cy = (ev.clientY-r.top)*(H/r.height);
       const hit = (canvas._dots||[]).find(d => Math.hypot(cx-d.x,cy-d.y)<=d.r);
-      canvas.title = hit ? 'â–¶ '+hit.scorer+' '+hit.half+' '+hit.time : '';
+      canvas.title = hit ? '▶ '+hit.scorer+' '+hit.half+' '+hit.time : '';
     });
   } else if (ytId) { canvas._dots = dotData; }
 }
@@ -2643,7 +2643,7 @@ function getPlayerComboStats(playerName) {
     });
   });
 
-  // Calculate shared games from combo data only â€” games where both players
+  // Calculate shared games from combo data only — games where both players
   // appeared in the same match AND that match has goal combo data recorded
   const getSharedGames = (otherPlayer) => {
     return Object.entries(goalCombos).filter(([mid, data]) => {
@@ -2666,7 +2666,7 @@ function getPlayerComboStats(playerName) {
   return { scoredFrom: toArr(scoredFrom), assistedTo: toArr(assistedTo) };
 }
 
-// â”€â”€ Goal timing patterns for a player â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Goal timing patterns for a player ──────────────────────────────
 function getPlayerHighlights(playerName) {
   // Returns all goal/assist highlights for this player with video links
   const highlights = [];
@@ -2729,7 +2729,7 @@ function getPlayerGoalTimings(playerName) {
   return { buckets, allGoals };
 }
 
-// â”€â”€ Assist leaderboard data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Assist leaderboard data ─────────────────────────────────────────
 function getAssistLeaderboard() {
   const totals = {};
   Object.entries(goalCombos).forEach(([mid, data]) => {
@@ -2761,7 +2761,7 @@ function getAssistLeaderboard() {
     .sort((a,b) => b.assists - a.assists);
 }
 
-// â”€â”€ Season summary stats from combos â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Season summary stats from combos ───────────────────────────────
 function getSeasonComboHighlights() {
   const partnerships = getComboStats();
   const comebacks = [];
@@ -2803,7 +2803,7 @@ function getSeasonComboHighlights() {
   };
 }
 
-// â”€â”€ Attack combo prediction for team builder â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Attack combo prediction for team builder ───────────────────────
 function getAttackComboPrediction(teamPlayers) {
   // Given a list of player names, find best scoring partnerships within them
   const stats = getComboStats();
@@ -2859,7 +2859,7 @@ function renderComboLeaderboard() {
       <span style="font-family:'Bebas Neue',sans-serif;font-size:.9rem;color:var(--muted);width:18px">${i+1}</span>
       <div style="flex:1">
         <span style="color:var(--green);font-weight:600;font-size:.85rem">${c.scorer}</span>
-        <span style="color:var(--muted);font-size:.75rem;margin:0 5px">â†</span>
+        <span style="color:var(--muted);font-size:.75rem;margin:0 5px">←</span>
         <span style="color:var(--text2);font-size:.85rem">${c.assister}</span>
       </div>
       <div style="text-align:right">
@@ -2880,13 +2880,13 @@ function renderAllCombos() {
     const all = [...(data.h1||[]).map(p=>({...p,half:'1H'})), ...(data.h2||[]).map(p=>({...p,half:'2H'}))];
     return `<div style="margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid var(--border)">
       <div style="font-family:\'Barlow Condensed\',sans-serif;font-size:.8rem;letter-spacing:1px;color:var(--muted);margin-bottom:8px">
-        ${match.date} Â· ${match.goalsA}â€“${match.goalsB} Â· <span style="color:var(--text)">${all.length} goals logged</span>
+        ${match.date} · ${match.goalsA}–${match.goalsB} · <span style="color:var(--text)">${all.length} goals logged</span>
       </div>
       <div style="display:flex;flex-wrap:wrap;gap:4px">
         ${all.map(p => `<span style="background:${p.assister?'rgba(57,211,83,.08)':'var(--card2)'};border:1px solid ${p.assister?'rgba(57,211,83,.2)':'var(--border)'};border-radius:5px;padding:3px 8px;font-size:.72rem">
           <span style="color:var(--lime);font-size:.6rem">${p.half}${p.time?' '+p.time:''}</span>
           <span style="color:var(--text);font-weight:600;margin-left:3px">${p.scorer}</span>
-          ${p.assister ? `<span style="color:var(--muted)"> â† </span><span style="color:var(--text2)">${p.assister}</span>` : ''}
+          ${p.assister ? `<span style="color:var(--muted)"> ← </span><span style="color:var(--text2)">${p.assister}</span>` : ''}
         </span>`).join('')}
       </div>
     </div>`;
@@ -2900,15 +2900,15 @@ function renderCombosPage() {
   el.innerHTML = `
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px">
       <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px">
-        <div style="font-family:\'Bebas Neue\',sans-serif;font-size:1.2rem;letter-spacing:2px;color:var(--lime);margin-bottom:14px">âš½ Import Goal Combinations</div>
+        <div style="font-family:\'Bebas Neue\',sans-serif;font-size:1.2rem;letter-spacing:2px;color:var(--lime);margin-bottom:14px">⚽ Import Goal Combinations</div>
         <div style="margin-bottom:12px">
           <label style="font-size:.7rem;color:var(--muted);letter-spacing:1px;text-transform:uppercase;display:block;margin-bottom:5px">Select Match</label>
           <select id="combo-match-select" onchange="loadComboForMatch()" style="width:100%;background:var(--card2);border:1px solid var(--border);color:var(--text);border-radius:7px;padding:8px 12px;font-family:\'Barlow Condensed\',sans-serif;font-size:.88rem;outline:none">
-            <option value="">Select a matchâ€¦</option>
+            <option value="">Select a match…</option>
             ${matches.map(m => {
               const ex = goalCombos[m.id];
               const count = ex ? (ex.h1||[]).length + (ex.h2||[]).length : 0;
-              return `<option value="${m.id}">${m.date} Â· ${m.goalsA}â€“${m.goalsB}${count?' ('+count+' goals saved)':''}`;
+              return `<option value="${m.id}">${m.date} · ${m.goalsA}–${m.goalsB}${count?' ('+count+' goals saved)':''}`;
             }).join('')}
           </select>
         </div>
@@ -2922,21 +2922,21 @@ function renderCombosPage() {
             <textarea id="combo-h2-input" oninput="previewCombos()" placeholder="33:10 Bailey (Lachlan)&#10;41:22 Jake" style="width:100%;height:180px;background:var(--card2);border:1px solid var(--border);color:var(--text);border-radius:7px;padding:10px 12px;font-family:monospace;font-size:.76rem;resize:vertical;outline:none;line-height:1.6;box-sizing:border-box"></textarea>
           </div>
         </div>
-        <div id="combo-preview" style="background:var(--card2);border:1px solid var(--border);border-radius:7px;padding:10px 12px;margin-bottom:12px;min-height:36px;font-size:.75rem;color:var(--muted)">Paste goal data above to preview parsed pairsâ€¦</div>
+        <div id="combo-preview" style="background:var(--card2);border:1px solid var(--border);border-radius:7px;padding:10px 12px;margin-bottom:12px;min-height:36px;font-size:.75rem;color:var(--muted)">Paste goal data above to preview parsed pairs…</div>
         <div style="display:flex;gap:8px">
-          <button onclick="saveCombos()" style="background:var(--green);border:none;color:#071009;border-radius:7px;padding:9px 20px;font-family:\'Bebas Neue\',sans-serif;font-size:.95rem;letter-spacing:1px;cursor:pointer">ðŸ’¾ Save</button>
-          <button onclick="exportCombosCsv()" style="background:var(--lime);border:none;color:#071009;border-radius:7px;padding:9px 16px;font-family:\'Bebas Neue\',sans-serif;font-size:.95rem;letter-spacing:1px;cursor:pointer">â¬‡ combos.csv</button>
-          <button onclick="clearCombosForMatch()" style="background:var(--card2);border:1px solid rgba(240,96,96,.3);color:var(--red);border-radius:7px;padding:9px 14px;font-family:\'Barlow Condensed\',sans-serif;font-size:.82rem;cursor:pointer">ðŸ—‘ Clear Match</button>
+          <button onclick="saveCombos()" style="background:var(--green);border:none;color:#071009;border-radius:7px;padding:9px 20px;font-family:\'Bebas Neue\',sans-serif;font-size:.95rem;letter-spacing:1px;cursor:pointer">💾 Save</button>
+          <button onclick="exportCombosCsv()" style="background:var(--lime);border:none;color:#071009;border-radius:7px;padding:9px 16px;font-family:\'Bebas Neue\',sans-serif;font-size:.95rem;letter-spacing:1px;cursor:pointer">⬇ combos.csv</button>
+          <button onclick="clearCombosForMatch()" style="background:var(--card2);border:1px solid rgba(240,96,96,.3);color:var(--red);border-radius:7px;padding:9px 14px;font-family:\'Barlow Condensed\',sans-serif;font-size:.82rem;cursor:pointer">🗑 Clear Match</button>
         </div>
         <div id="combo-save-status" style="margin-top:8px;font-size:.78rem"></div>
       </div>
       <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px">
-        <div style="font-family:\'Bebas Neue\',sans-serif;font-size:1.2rem;letter-spacing:2px;color:var(--text);margin-bottom:12px">ðŸ”— Top Combinations</div>
+        <div style="font-family:\'Bebas Neue\',sans-serif;font-size:1.2rem;letter-spacing:2px;color:var(--text);margin-bottom:12px">🔗 Top Combinations</div>
         <div id="combo-leaderboard">${renderComboLeaderboard()}</div>
       </div>
     </div>
     <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px">
-      <div style="font-family:\'Bebas Neue\',sans-serif;font-size:1.2rem;letter-spacing:2px;color:var(--text);margin-bottom:14px">ðŸ“‹ All Saved Match Data</div>
+      <div style="font-family:\'Bebas Neue\',sans-serif;font-size:1.2rem;letter-spacing:2px;color:var(--text);margin-bottom:14px">📋 All Saved Match Data</div>
       ${renderAllCombos()}
     </div>`;
 }
@@ -2962,10 +2962,10 @@ function previewCombos() {
   const prev = document.getElementById('combo-preview');
   if (!prev) return;
   if (!all.length) { prev.innerHTML = '<span style="color:var(--muted)">No goals parsed yet.</span>'; return; }
-  prev.innerHTML = `<div style="margin-bottom:5px;font-size:.68rem;color:var(--muted)">${all.length} goals Â· ${all.filter(p=>p.assister).length} with assists</div>
+  prev.innerHTML = `<div style="margin-bottom:5px;font-size:.68rem;color:var(--muted)">${all.length} goals · ${all.filter(p=>p.assister).length} with assists</div>
     <div style="display:flex;flex-wrap:wrap;gap:4px">${all.map(p=>`
       <span style="background:${p.assister?'rgba(57,211,83,.1)':'var(--card)'};border:1px solid ${p.assister?'rgba(57,211,83,.25)':'var(--border)'};border-radius:5px;padding:2px 7px;font-size:.7rem">
-        <span style="color:var(--lime);font-weight:600">${p.scorer}</span>${p.assister?` <span style="color:var(--muted)">â†</span> <span style="color:var(--text2)">${p.assister}</span>`:''}
+        <span style="color:var(--lime);font-weight:600">${p.scorer}</span>${p.assister?` <span style="color:var(--muted)">←</span> <span style="color:var(--text2)">${p.assister}</span>`:''}
         <span style="color:var(--muted);font-size:.62rem;margin-left:2px">${p.half}${p.time?' '+p.time:''}</span>
       </span>`).join('')}</div>`;
 }
@@ -3002,7 +3002,7 @@ function exportCombosCsv() {
 function saveCombos() {
   const mid = document.getElementById('combo-match-select')?.value;
   const status = document.getElementById('combo-save-status');
-  if (!mid) { if(status){status.textContent='âš  Select a match first.';status.style.color='var(--amber)';}return; }
+  if (!mid) { if(status){status.textContent='⚠ Select a match first.';status.style.color='var(--amber)';}return; }
   const h1 = parseGoalText(document.getElementById('combo-h1-input')?.value||'');
   const h2 = parseGoalText(document.getElementById('combo-h2-input')?.value||'');
   goalCombos[mid] = { h1, h2, savedAt: new Date().toISOString() };
@@ -3012,16 +3012,16 @@ function saveCombos() {
   const match = matchList.find(m=>m.id===mid);
   const toText = (pairs, half) => pairs.map(p=>`${half} ${p.time||''} ${p.scorer}${p.assister?' ('+p.assister+')':''}`).join('\n');
   const copyText = [
-    match ? `${match.date} Â· ${match.goalsA}â€“${match.goalsB}` : mid,
+    match ? `${match.date} · ${match.goalsA}–${match.goalsB}` : mid,
     '1st Half', toText(h1,'1H'),
     '2nd Half', toText(h2,'2H'),
   ].filter(Boolean).join('\n');
 
   if(status){
-    status.innerHTML = `âœ… Saved ${h1.length+h2.length} goals.
-      <button onclick="navigator.clipboard.writeText(${JSON.stringify(copyText)}).then(()=>{this.textContent='âœ… Copied!';setTimeout(()=>this.textContent='ðŸ“‹ Copy',2000)})"
+    status.innerHTML = `✅ Saved ${h1.length+h2.length} goals.
+      <button onclick="navigator.clipboard.writeText(${JSON.stringify(copyText)}).then(()=>{this.textContent='✅ Copied!';setTimeout(()=>this.textContent='📋 Copy',2000)})"
         style="margin-left:10px;background:var(--card2);border:1px solid var(--border);color:var(--text);border-radius:5px;padding:3px 10px;font-family:'Barlow Condensed',sans-serif;font-size:.8rem;cursor:pointer">
-        ðŸ“‹ Copy
+        📋 Copy
       </button>`;
     status.style.color='var(--green)';
   }
@@ -3109,7 +3109,7 @@ function drawFormChart(canvasId, matchData, playerName) {
   ctx.fillStyle = 'rgba(100,130,104,0.9)';
   ctx.font = `${10 * dpr / dpr}px Barlow Condensed, sans-serif`;
   ctx.textAlign = 'center';
-  ctx.fillText('Impact score per match â€” higher = bigger contribution to team', W / 2, H - 10);
+  ctx.fillText('Impact score per match — higher = bigger contribution to team', W / 2, H - 10);
 }
 
 function drawSpiderWithSquad(canvasId, labels, playerValues, squadValues, playerName) {
@@ -3368,7 +3368,7 @@ function setGlobalFilter(f) {
   if (currentPage === 'profile') {
     const profName = document.querySelector('.profile-name');
     if (profName) {
-      // profile-name now contains uppercase text â€” find matching player by case-insensitive lookup
+      // profile-name now contains uppercase text — find matching player by case-insensitive lookup
       const rawName = profName.textContent.trim();
       const match = Object.keys(playerStats).find(k => k.toUpperCase() === rawName.toUpperCase()) || rawName;
       renderProfile(match);
@@ -3378,7 +3378,7 @@ function setGlobalFilter(f) {
 
 // Build filtered player stats based on globalFilter
 function computeFilteredStats() {
-  _tagCache = null; // Clear tag cache â€” filters changed
+  _tagCache = null; // Clear tag cache — filters changed
   const allFull = allRows.filter(r => r.half === 'FULL' && r.team !== 'DNP');
   const allHalf = allRows.filter(r => (r.half === '1H' || r.half === '2H') && r.team !== 'DNP');
 
@@ -3561,7 +3561,7 @@ function renderAll() {
     // For weekly/players pages, matches will be rendered on next nav
     default: break;
   }
-  // Always rerender players â€” tags, badges, stats all depend on filter
+  // Always rerender players — tags, badges, stats all depend on filter
   renderPlayers();
 }
 
@@ -3595,8 +3595,8 @@ let weeklyHalfTeams = {};
 // Files should be named exactly as the player: Lachlan.gif, Bailey.png etc.
 const BANNERS_PATH = 'banners/';
 
-let bannerHeights = {}; // player name â†’ height in px, synced via settings.json
-let bannerSlowmo = {};  // player name â†’ true/false, synced via settings.json
+let bannerHeights = {}; // player name → height in px, synced via settings.json
+let bannerSlowmo = {};  // player name → true/false, synced via settings.json
 
 const MVP_WEIGHTS_DEFAULT = {
   goals: 4.0, assists: 3.5, key_passes: 1.0, tackles: 0.8,
@@ -3621,7 +3621,7 @@ function updateDraftBanner() {
   const draftIds = new Set(allRows.filter(r => r.match_id && r.half === 'FULL' && r.team !== 'DNP' && !baseIds.has(r.match_id)).map(r => r.match_id));
   if (draftIds.size > 0) {
     const matchWord = draftIds.size === 1 ? 'match' : 'matches';
-    text.textContent = `${draftIds.size} ${matchWord} imported but not yet published to GitHub â€” only visible on this device.`;
+    text.textContent = `${draftIds.size} ${matchWord} imported but not yet published to GitHub — only visible on this device.`;
     banner.style.cssText = 'display:flex;background:rgba(240,160,48,.12);border-bottom:1px solid rgba(240,160,48,.3);padding:8px 20px;align-items:center;gap:10px;font-family:"Barlow Condensed",sans-serif;font-size:.82rem;letter-spacing:.3px';
   } else {
     banner.style.display = 'none';
@@ -3661,16 +3661,16 @@ function saveSettings() {
   modal.onclick = e => { if (e.target === modal) modal.remove(); };
   modal.innerHTML = `
     <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:24px;width:100%;max-width:580px;max-height:90vh;overflow-y:auto;position:relative">
-      <button onclick="document.getElementById('settings-modal').remove()" style="position:absolute;top:12px;right:14px;background:none;border:none;color:var(--muted);font-size:1.3rem;cursor:pointer">âœ•</button>
-      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.4rem;color:var(--lime);letter-spacing:2px;margin-bottom:4px">âš™ settings.json</div>
+      <button onclick="document.getElementById('settings-modal').remove()" style="position:absolute;top:12px;right:14px;background:none;border:none;color:var(--muted);font-size:1.3rem;cursor:pointer">✕</button>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.4rem;color:var(--lime);letter-spacing:2px;margin-bottom:4px">⚙ settings.json</div>
       <div style="font-size:.75rem;color:var(--muted);margin-bottom:12px;line-height:1.6">
         Push this file to your GitHub repo alongside <code style="color:var(--lime)">index.html</code> and <code style="color:var(--lime)">data.csv</code>.<br>
-        The app loads it on startup â€” everyone gets the same MVP weights and player ratings.
+        The app loads it on startup — everyone gets the same MVP weights and player ratings.
       </div>
       <textarea id="settings-json-text" style="width:100%;height:280px;background:var(--card2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:12px;font-size:.72rem;font-family:monospace;resize:vertical;outline:none;line-height:1.5;box-sizing:border-box" readonly spellcheck="false">${json}</textarea>
       <div style="display:flex;gap:8px;margin-top:12px">
-        <button onclick="navigator.clipboard.writeText(document.getElementById('settings-json-text').value).then(()=>{this.textContent='âœ… Copied!';setTimeout(()=>this.textContent='ðŸ“‹ Copy',2000)})"
-          style="background:var(--green);color:#071009;border:none;border-radius:7px;padding:9px 18px;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:1px;cursor:pointer">ðŸ“‹ Copy</button>
+        <button onclick="navigator.clipboard.writeText(document.getElementById('settings-json-text').value).then(()=>{this.textContent='✅ Copied!';setTimeout(()=>this.textContent='📋 Copy',2000)})"
+          style="background:var(--green);color:#071009;border:none;border-radius:7px;padding:9px 18px;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:1px;cursor:pointer">📋 Copy</button>
         <button onclick="document.getElementById('settings-modal').remove()"
           style="background:var(--card2);border:1px solid var(--border);color:var(--muted);border-radius:7px;padding:9px 14px;font-family:'Barlow Condensed',sans-serif;font-size:.82rem;cursor:pointer">Close</button>
       </div>
@@ -3729,16 +3729,16 @@ function renderMatches() {
     const goalsA = m.goalsA ?? (m.teamA.reduce((s, r) => s + n(r.goals), 0) + m.teamB.reduce((s, r) => s + n(r.own_goals), 0));
     const goalsB = m.goalsB ?? (m.teamB.reduce((s, r) => s + n(r.goals), 0) + m.teamA.reduce((s, r) => s + n(r.own_goals), 0));
     const ogList = [...m.teamA,...m.teamB].filter(r=>n(r.own_goals)>0).map(r=>`${r.player} (OG)`);
-    const ogNote = ogList.length ? `<span style="font-size:.7rem;color:var(--red);margin-left:6px">âš½ ${ogList.join(', ')}</span>` : '';
+    const ogNote = ogList.length ? `<span style="font-size:.7rem;color:var(--red);margin-left:6px">⚽ ${ogList.join(', ')}</span>` : '';
     const topA = [...m.teamA].sort((a,b) => n(b.goals)+n(b.assists) - n(a.goals)-n(a.assists)).slice(0,3);
     const topB = [...m.teamB].sort((a,b) => n(b.goals)+n(b.assists) - n(a.goals)-n(a.assists)).slice(0,3);
-    const outcomeLabel = goalsA > goalsB ? 'ðŸŸ¢ Team A Win' : goalsB > goalsA ? 'ðŸ”µ Team B Win' : 'ðŸŸ¡ Draw';
+    const outcomeLabel = goalsA > goalsB ? '🟢 Team A Win' : goalsB > goalsA ? '🔵 Team B Win' : '🟡 Draw';
     const unbalancedTag = m.unbalanced ? `<span style="font-size:.68rem;background:rgba(240,160,48,.15);border:1px solid rgba(240,160,48,.3);color:var(--amber);border-radius:4px;padding:1px 7px;margin-left:6px;font-family:'Barlow Condensed',sans-serif;letter-spacing:.5px">UNBALANCED</span>` : '';
-    const swapTag = m.swappedPlayers?.length ? `<span style="font-size:.68rem;background:rgba(96,165,250,.12);border:1px solid rgba(96,165,250,.3);color:#60a5fa;border-radius:4px;padding:1px 7px;margin-left:6px;font-family:'Barlow Condensed',sans-serif;letter-spacing:.5px" title="${m.swappedPlayers.map(s=>`${s.player}: Team ${s.from} â†’ Team ${s.to}`).join(', ')}">ðŸ”„ SWAP</span>` : '';
+    const swapTag = m.swappedPlayers?.length ? `<span style="font-size:.68rem;background:rgba(96,165,250,.12);border:1px solid rgba(96,165,250,.3);color:#60a5fa;border-radius:4px;padding:1px 7px;margin-left:6px;font-family:'Barlow Condensed',sans-serif;letter-spacing:.5px" title="${m.swappedPlayers.map(s=>`${s.player}: Team ${s.from} → Team ${s.to}`).join(', ')}">🔄 SWAP</span>` : '';
     const mvpChip = m.mvpList && m.mvpList.length ? `
       <div style="display:flex;flex-direction:column;gap:3px;margin-right:8px">
         ${m.mvpList.map((entry, i) => {
-          const medals = ['ðŸ‘‘','ðŸ¥ˆ','ðŸ¥‰'];
+          const medals = ['👑','🥈','🥉'];
           const colors = ['var(--gold)','#c0c8c0','#c08040'];
           const bgColors = ['rgba(240,192,64,.15)','rgba(192,200,192,.1)','rgba(192,128,64,.1)'];
           const borderColors = ['rgba(240,192,64,.4)','rgba(192,200,192,.3)','rgba(192,128,64,.3)'];
@@ -3750,7 +3750,7 @@ function renderMatches() {
     const allStatsTH = `<th>Player</th><th>Goals</th><th>OG</th><th>Assists</th><th>Key Passes</th><th>Shots</th><th>On Target</th><th>Off Target</th><th>Shot Conv %</th><th>Total Saves</th><th>GK Saves</th><th>Blocks</th><th>Tackles</th><th>Interceptions</th><th>Nutmegs</th><th>Post</th>`;
     const allStatsTD = r => {
       const mvpIdx = m.mvpList ? m.mvpList.findIndex(e => e.player === r.player) : -1;
-      const medals = ['ðŸ‘‘','ðŸ¥ˆ','ðŸ¥‰'];
+      const medals = ['👑','🥈','🥉'];
       const medalSpan = mvpIdx >= 0 ? `<span style="margin-right:4px">${medals[mvpIdx]}</span>` : '';
       const mvpEntry = mvpIdx >= 0 ? m.mvpList[mvpIdx] : null;
       return `
@@ -3809,7 +3809,7 @@ function renderMatches() {
     return `
     <div class="match-card" onclick="toggleMatchDetail('${m.id.replace(/[#]/g,'__')}')">
       <div class="match-card-header">
-        <div class="match-date-badge">ðŸ“… ${m.date}</div>
+        <div class="match-date-badge">📅 ${m.date}</div>
         <div style="flex:1;display:flex;flex-wrap:wrap;gap:4px;padding:0 12px">
           ${topA.map(r => `<span class="mp-chip mp-a">${r.player} ${n(r.goals)}G ${n(r.assists)}A</span>`).join('')}
           ${topB.map(r => `<span class="mp-chip mp-b">${r.player} ${n(r.goals)}G ${n(r.assists)}A</span>`).join('')}
@@ -3818,7 +3818,7 @@ function renderMatches() {
         ${mvpChip}
         <div class="match-score">
           <span class="score-a">${goalsA}</span>
-          <span class="score-sep">â€“</span>
+          <span class="score-sep">–</span>
           <span class="score-b">${goalsB}</span>
         </div>
       </div>
@@ -3857,14 +3857,14 @@ function renderMatches() {
           // Comeback
           let maxDA=0,maxDB=0,comebackMsg='';
           rows.forEach(r=>{maxDA=Math.max(maxDA,r.scoreB-r.scoreA);maxDB=Math.max(maxDB,r.scoreA-r.scoreB);});
-          if(maxDA>=3&&fA>=fB) comebackMsg='ðŸ”„ Team A came back from '+maxDA+' down';
-          else if(maxDB>=3&&fB>=fA) comebackMsg='ðŸ”„ Team B came back from '+maxDB+' down';
+          if(maxDA>=3&&fA>=fB) comebackMsg='🔄 Team A came back from '+maxDA+' down';
+          else if(maxDB>=3&&fB>=fA) comebackMsg='🔄 Team B came back from '+maxDB+' down';
           // Goalless stretch
           let maxStr=0,strS='',strE='';
           for(let i=0;i<rows.length-1;i++){const g=rows[i+1].secs-rows[i].secs;if(g>maxStr){maxStr=g;strS=rows[i].time;strE=rows[i+1].time;}}
           // Combos
           const pH={};
-          rows.filter(r=>r.assister).forEach(r=>{const k=r.scorer+'â†’'+r.assister;if(!pH[k]) pH[k]={name:k,times:[]};pH[k].times.push(r.half+' '+r.time);});
+          rows.filter(r=>r.assister).forEach(r=>{const k=r.scorer+'→'+r.assister;if(!pH[k]) pH[k]={name:k,times:[]};pH[k].times.push(r.half+' '+r.time);});
           const comboPairs=Object.values(pH).filter(p=>p.times.length>=2);
 
           // Store data globally for drawing when panel opens
@@ -3875,13 +3875,13 @@ function renderMatches() {
           window._wormData[mid] = {rows, fA, fB, matchDur, ytId};
 
           const insights=[];
-          runs.forEach(r=>insights.push({col:'var(--amber)',text:'âš¡ Team '+r.team+' scored '+r.cnt+' in '+r.span+' mins ('+r.from+'â€“'+r.to+')'}));
+          runs.forEach(r=>insights.push({col:'var(--amber)',text:'⚡ Team '+r.team+' scored '+r.cnt+' in '+r.span+' mins ('+r.from+'–'+r.to+')'}));
           if(comebackMsg) insights.push({col:'#60a5fa',text:comebackMsg});
-          if(maxStr>180) insights.push({col:'var(--muted)',text:'â± Goalless '+Math.round(maxStr/60)+' mins ('+strS+'â€“'+strE+')'});
-          comboPairs.forEach(p=>insights.push({col:'var(--amber)',text:'ðŸ¤ '+p.name+' combined '+p.times.length+'Ã— ('+p.times.join(', ')+')'}));
+          if(maxStr>180) insights.push({col:'var(--muted)',text:'⏱ Goalless '+Math.round(maxStr/60)+' mins ('+strS+'–'+strE+')'});
+          comboPairs.forEach(p=>insights.push({col:'var(--amber)',text:'🤝 '+p.name+' combined '+p.times.length+'× ('+p.times.join(', ')+')'}));
 
           return '<div style="margin-bottom:14px">'
-            +'<div style="font-size:.62rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:6px;font-family:\'Barlow Condensed\',sans-serif">Score Worm'+(ytId?' Â· click dot to seek video':'')+'</div>'
+            +'<div style="font-size:.62rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:6px;font-family:\'Barlow Condensed\',sans-serif">Score Worm'+(ytId?' · click dot to seek video':'')+'</div>'
             +'<canvas id="'+canvasId+'" style="width:100%;height:280px;display:block;border-radius:8px"></canvas>'
             // Goal chips row
             +'<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:8px">'
@@ -3895,12 +3895,12 @@ function renderMatches() {
               const displayAssister = e.isOG ? null : e.assister; // don't show assister separately for OGs
               return '<div style="display:inline-flex;align-items:center;gap:3px;background:var(--card2);border:1px solid '+(e.isOG?'rgba(240,96,96,.4)':e.team==='A'?'rgba(57,211,83,.3)':'rgba(96,165,250,.3)')
                 +';border-radius:5px;padding:2px 8px;font-size:.68rem;'+(ytSecs?'cursor:pointer':'')+'"'
-                +(ytSecs?' onclick="seekYtVideo(\''+matchKey+'\',\''+ytId+'\','+ytSecs+')" title="â–¶ Watch"':'')+'>'
+                +(ytSecs?' onclick="seekYtVideo(\''+matchKey+'\',\''+ytId+'\','+ytSecs+')" title="▶ Watch"':'')+'>'
                 +'<span style="color:var(--muted);font-size:.6rem">'+mins+"'</span>"
                 +'<span style="color:'+(e.isOG?'var(--red)':e.team==='A'?'#4ade80':'#60a5fa')+';font-weight:600;margin-left:2px">'+displayName+'</span>'
                 +ogLabel
                 +(displayAssister?'<span style="color:var(--muted);font-size:.6rem"> ('+displayAssister+')</span>':'')
-                +(ytSecs?'<span style="color:var(--amber);font-size:.55rem;margin-left:2px">â–¶</span>':'')
+                +(ytSecs?'<span style="color:var(--amber);font-size:.55rem;margin-left:2px">▶</span>':'')
                 +'</div>';
             }).join('')
             +'</div>'
@@ -3913,9 +3913,9 @@ function renderMatches() {
 
         <div style="overflow-x:auto">
           <div style="display:flex;gap:6px;margin-bottom:10px;font-family:'Barlow Condensed',sans-serif;font-size:.8rem;letter-spacing:1px">
-            <span style="color:var(--green)">â–Œ TEAM A â€” ${goalsA} Goals</span>
+            <span style="color:var(--green)">▌ TEAM A — ${goalsA} Goals</span>
             <span style="color:var(--muted);margin:0 8px">vs</span>
-            <span style="color:var(--blue)">â–Œ TEAM B â€” ${goalsB} Goals</span>
+            <span style="color:var(--blue)">▌ TEAM B — ${goalsB} Goals</span>
           </div>
           <table class="detail-table" style="min-width:700px">
             <thead><tr>${allStatsTH}</tr></thead>
@@ -3930,7 +3930,7 @@ function renderMatches() {
           </table>
         </div>
         ${m.dnp.length ? `<div style="margin-top:10px;font-size:.75rem;color:var(--muted)">DNP: ${m.dnp.map(r=>r.player).join(', ')}</div>` : ''}
-        ${m.swappedPlayers?.length ? `<div style="margin-top:6px;font-size:.75rem;color:#60a5fa">ðŸ”„ Team swap: ${m.swappedPlayers.map(s=>`${s.player} (Team ${s.from} â†’ Team ${s.to})`).join(', ')}</div>` : ''}
+        ${m.swappedPlayers?.length ? `<div style="margin-top:6px;font-size:.75rem;color:#60a5fa">🔄 Team swap: ${m.swappedPlayers.map(s=>`${s.player} (Team ${s.from} → Team ${s.to})`).join(', ')}</div>` : ''}
 
         <!-- Video section -->
         <div style="margin-top:14px" onclick="event.stopPropagation()">
@@ -3943,8 +3943,8 @@ function renderMatches() {
               allowfullscreen loading="lazy"></iframe>
           </div>
           ${adminMode ? `<div style="display:flex;gap:8px;margin-bottom:6px">
-            <button onclick="openVideoModal('${m.id.replace(/'/g,"\\'")}','${m.date}')" class="print-btn">ðŸ“º Change Video</button>
-            <button onclick="removeMatchVideo('${m.id.replace(/'/g,"\\'")}');event.stopPropagation()" class="print-btn" style="color:var(--red);border-color:rgba(240,96,96,.3)">âœ• Remove</button>
+            <button onclick="openVideoModal('${m.id.replace(/'/g,"\\'")}','${m.date}')" class="print-btn">📺 Change Video</button>
+            <button onclick="removeMatchVideo('${m.id.replace(/'/g,"\\'")}');event.stopPropagation()" class="print-btn" style="color:var(--red);border-color:rgba(240,96,96,.3)">✕ Remove</button>
             <div style="display:flex;align-items:center;gap:6px;font-size:.72rem;color:var(--muted)">
               <span>2H offset:</span>
               <input type="number" value="${Math.round((window._ytHalfOffset!=null?window._ytHalfOffset:1620)/60)}" min="0" max="60" style="width:46px;background:var(--card2);border:1px solid var(--border);color:var(--text);border-radius:5px;padding:2px 6px;font-size:.72rem;text-align:center"
@@ -3953,17 +3953,17 @@ function renderMatches() {
             </div>
           </div>` : ''}` : adminMode ? `
           <button onclick="openVideoModal('${m.id.replace(/'/g,"\\'")}','${m.date}')" class="print-btn" style="display:flex;align-items:center;gap:7px">
-            <span>ðŸ“º</span> Link Match Video
+            <span>📺</span> Link Match Video
           </button>` : ''}
         </div>
 
 
         <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border);display:flex;gap:8px;flex-wrap:wrap">
-          <button class="print-btn" onclick="event.stopPropagation();printMatchCard('${m.id.replace(/'/g,"\\'")}')">ðŸ–¨ Print Match Card</button>
-          <button class="print-btn" onclick="event.stopPropagation();generateMatchReport('${m.id.replace(/'/g,"\\'")}')">ðŸ“ Match Report</button>
+          <button class="print-btn" onclick="event.stopPropagation();printMatchCard('${m.id.replace(/'/g,"\\'")}')">🖨 Print Match Card</button>
+          <button class="print-btn" onclick="event.stopPropagation();generateMatchReport('${m.id.replace(/'/g,"\\'")}')">📝 Match Report</button>
           ${adminMode ? `
-          <button class="print-btn" onclick="event.stopPropagation();editMatchDate('${m.id.replace(/'/g,"\\'")}','${m.date}')" style="color:var(--lime);border-color:rgba(168,224,80,.3)">âœ Edit Date</button>
-          <button class="print-btn" onclick="event.stopPropagation();deleteMatch('${m.id.replace(/'/g,"\\'")}','${m.date}')" style="color:var(--red);border-color:rgba(240,96,96,.3)">ðŸ—‘ Delete</button>
+          <button class="print-btn" onclick="event.stopPropagation();editMatchDate('${m.id.replace(/'/g,"\\'")}','${m.date}')" style="color:var(--lime);border-color:rgba(168,224,80,.3)">✏ Edit Date</button>
+          <button class="print-btn" onclick="event.stopPropagation();deleteMatch('${m.id.replace(/'/g,"\\'")}','${m.date}')" style="color:var(--red);border-color:rgba(240,96,96,.3)">🗑 Delete</button>
           ` : ''}
         </div>
       </div>
@@ -3977,7 +3977,7 @@ function editMatchDate(matchId, currentDate) {
   modal.onclick = e => { if (e.target === modal) modal.remove(); };
   modal.innerHTML = `
     <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:24px;width:100%;max-width:360px">
-      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;color:var(--lime);letter-spacing:2px;margin-bottom:16px">âœ Edit Match Date</div>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;color:var(--lime);letter-spacing:2px;margin-bottom:16px">✏ Edit Match Date</div>
       <div style="font-size:.8rem;color:var(--muted);margin-bottom:8px">Match ID: ${matchId}</div>
       <input type="date" id="edit-date-input" value="${currentDate}"
         style="width:100%;background:var(--card2);border:1px solid var(--border);color:var(--text);border-radius:7px;padding:10px 12px;font-size:.9rem;font-family:'Barlow',sans-serif;outline:none;box-sizing:border-box;margin-bottom:16px">
@@ -4034,7 +4034,7 @@ function restoreFromBackup() {
   const input = document.getElementById('restore-csv-input');
   const status = document.getElementById('restore-status');
   const csv = input?.value?.trim();
-  if (!csv) { if (status) { status.textContent = 'âš  Paste a backup CSV first.'; status.style.color = 'var(--amber)'; } return; }
+  if (!csv) { if (status) { status.textContent = '⚠ Paste a backup CSV first.'; status.style.color = 'var(--amber)'; } return; }
 
   try {
     const rows = parseCSV(csv);
@@ -4043,7 +4043,7 @@ function restoreFromBackup() {
     // Validate it looks like our format
     const firstRow = rows[0];
     if (!firstRow.match_id || !firstRow.match_date || !firstRow.player) {
-      throw new Error('CSV doesn\'t look like an Aero Soccer backup â€” missing required columns');
+      throw new Error('CSV doesn\'t look like an Aero Soccer backup — missing required columns');
     }
 
     // Merge: base RAW_CSV rows + all rows from backup (deduplicated)
@@ -4076,12 +4076,12 @@ function restoreFromBackup() {
     const genuinelyNew = [...newMatchIds].filter(id => !baseIds.has(id)).length;
 
     if (status) {
-      status.textContent = `âœ… Restored ${newMatchIds.size} matches (${genuinelyNew} new). All stats updated.`;
+      status.textContent = `✅ Restored ${newMatchIds.size} matches (${genuinelyNew} new). All stats updated.`;
       status.style.color = 'var(--green)';
     }
     input.value = '';
   } catch(e) {
-    if (status) { status.textContent = 'âŒ ' + e.message; status.style.color = 'var(--red)'; }
+    if (status) { status.textContent = '❌ ' + e.message; status.style.color = 'var(--red)'; }
   }
 }
 
@@ -4093,7 +4093,7 @@ function toggleMatchDetail(id) {
     // Use setTimeout to let the browser paint the panel visible first
     setTimeout(async () => {
       el.querySelectorAll('canvas[id^="timeline-"]').forEach(c => {
-        // Extract match ID from canvas ID: "timeline-2026-04-23__1" â†’ "2026-04-23#1"
+        // Extract match ID from canvas ID: "timeline-2026-04-23__1" → "2026-04-23#1"
         const matchId = c.id.replace('timeline-','').replace(/__/g,'#').replace(/_/g,',');
         // Try both separator formats
         const mid = Object.keys(window._wormData||{}).find(k =>
@@ -4135,19 +4135,19 @@ function renderPlayers() {
     if (sort === 'stamina') return n(customStats[b.player]?.stamina) - n(customStats[a.player]?.stamina);
     return (b[sort] ?? 0) - (a[sort] ?? 0);
   });
-  document.getElementById('player-count').textContent = list.length + ' players' + (globalFilter==='last10'?' Â· Last 10 games':'');
+  document.getElementById('player-count').textContent = list.length + ' players' + (globalFilter==='last10'?' · Last 10 games':'');
   const grid = document.getElementById('player-grid');
   if (!grid) return;
   grid.innerHTML = list.map(p => {
     const cs = customStats[p.player] || {};
-    const wl = p.wins + p.losses + (p.draws||0) > 0 ? `<div class="wl-badge"><span class="wl-w">${p.wins}W</span><span class="wl-d">${p.draws||0}D</span><span class="wl-l">${p.losses}L</span>${(p.mvps||0)>0?`<span class="mvp-counter">ðŸ‘‘${p.mvps}</span>`:''}</div>` : '';
+    const wl = p.wins + p.losses + (p.draws||0) > 0 ? `<div class="wl-badge"><span class="wl-w">${p.wins}W</span><span class="wl-d">${p.draws||0}D</span><span class="wl-l">${p.losses}L</span>${(p.mvps||0)>0?`<span class="mvp-counter">👑${p.mvps}</span>`:''}</div>` : '';
     const trend = p.formTrend;
     const mom = p.momentum;
     const momArrow = mom !== null && mom !== undefined
-      ? `<span data-tip="Momentum: ${mom > 0 ? '+' : ''}${mom}% â€” stats compared to 5 games ago" style="font-size:.72rem;cursor:help;margin-left:4px;${mom >= 15 ? 'color:var(--green)' : mom >= 0 ? 'color:var(--lime)' : mom >= -15 ? 'color:var(--amber)' : 'color:var(--red)'}">
-        ${mom >= 15 ? 'â–²â–²' : mom >= 0 ? 'â–²' : mom >= -15 ? 'â–¼' : 'â–¼â–¼'} ${mom > 0 ? '+' : ''}${mom}%
+      ? `<span data-tip="Momentum: ${mom > 0 ? '+' : ''}${mom}% — stats compared to 5 games ago" style="font-size:.72rem;cursor:help;margin-left:4px;${mom >= 15 ? 'color:var(--green)' : mom >= 0 ? 'color:var(--lime)' : mom >= -15 ? 'color:var(--amber)' : 'color:var(--red)'}">
+        ${mom >= 15 ? '▲▲' : mom >= 0 ? '▲' : mom >= -15 ? '▼' : '▼▼'} ${mom > 0 ? '+' : ''}${mom}%
       </span>` : '';
-    const trendHtml = trend ? `<span style="font-size:.75rem;${trend==='up'?'color:var(--green)':trend==='down'?'color:var(--red)':'color:var(--muted)'}">${trend==='up'?'â–² Trending up':trend==='down'?'â–¼ Trending down':'â— Neutral'}</span>${momArrow}` : '';
+    const trendHtml = trend ? `<span style="font-size:.75rem;${trend==='up'?'color:var(--green)':trend==='down'?'color:var(--red)':'color:var(--muted)'}">${trend==='up'?'▲ Trending up':trend==='down'?'▼ Trending down':'● Neutral'}</span>${momArrow}` : '';
     return `<div class="pcard" onclick="nav('profile','${p.player}')">
       <div style="display:flex;align-items:baseline;gap:6px;flex-wrap:wrap">
         <div class="pcard-name">${p.player}</div>
@@ -4166,8 +4166,8 @@ function renderPlayers() {
       ${adminMode && (p.synergyScore !== null && p.synergyPairs >= 3) ? (() => {
         const sc = p.synergyScore;
         const col = sc >= 8 ? '#4ade80' : sc >= 2 ? '#a3e635' : sc >= -2 ? '#facc15' : sc >= -8 ? '#fb923c' : '#f87171';
-        const lbl = sc >= 8 ? 'ðŸ”¥ Elevates teams' : sc >= 2 ? 'âš¡ Good teammate' : sc >= -2 ? 'âš– Neutral' : sc >= -8 ? 'ðŸ˜¤ Mixed' : 'â„ Drags teams';
-        const conf = p.synergyPairs >= 8 ? '' : p.synergyPairs >= 5 ? ' Â·' : ' Â· early data';
+        const lbl = sc >= 8 ? '🔥 Elevates teams' : sc >= 2 ? '⚡ Good teammate' : sc >= -2 ? '⚖ Neutral' : sc >= -8 ? '😤 Mixed' : '❄ Drags teams';
+        const conf = p.synergyPairs >= 8 ? '' : p.synergyPairs >= 5 ? ' ·' : ' · early data';
         return `<div class="stat-row" title="Team synergy score based on ${p.synergyPairs} partnerships">
           <span class="stat-lbl">Synergy</span>
           <span class="stat-val" style="color:${col}">${sc > 0 ? '+' : ''}${sc}% ${lbl}${conf}</span>
@@ -4177,7 +4177,7 @@ function renderPlayers() {
         <div style="font-size:.72rem">${trendHtml}</div>
         ${streakHtml(p)}
       </div>
-      <span class="games-badge">${p.games} games${p.attendanceRate != null && p.attendanceGames > 0 ? ` Â· ${p.attendanceRate}% attendance` : ''}</span>
+      <span class="games-badge">${p.games} games${p.attendanceRate != null && p.attendanceGames > 0 ? ` · ${p.attendanceRate}% attendance` : ''}</span>
       ${wl}
     </div>`;
   }).join('');
@@ -4212,7 +4212,7 @@ function renderProfile(name) {
   const bgMatchId = bg?.match_id?.replace(/[#]/g,'__');
   const bestGameHtml = bg ? `
     <div class="best-game-card" style="cursor:pointer" onclick="navToMatch('${bg.match_id}')" title="Click to view match">
-      <div class="best-game-title">ðŸ† Best Game Â· ${bg.match_date} Â· ${bg.team==='A'?'Team A':'Team B'} Â· Score: ${s.bestGameScore}pts <span style="font-size:.7rem;opacity:.6;margin-left:6px">â†— View match</span></div>
+      <div class="best-game-title">🏆 Best Game · ${bg.match_date} · ${bg.team==='A'?'Team A':'Team B'} · Score: ${s.bestGameScore}pts <span style="font-size:.7rem;opacity:.6;margin-left:6px">↗ View match</span></div>
       <div class="best-game-stats">
         ${[['Goals',n(bg.goals)],['Assists',n(bg.assists)],['Key Passes',n(bg.key_passes)],
            ['Shots',n(bg.total_shots)],['Tackles',n(bg.tackles)],['Nutmegs',n(bg.nutmegs)],
@@ -4237,8 +4237,8 @@ function renderProfile(name) {
   document.getElementById('profile-content').innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;flex-wrap:wrap;gap:10px">
       <div style="display:flex;gap:10px;flex-wrap:wrap">
-        <button class="print-btn" onclick="printPlayerCard('${safeName}')">ðŸ–¨ Print Profile Card</button>
-        <button class="print-btn" onclick="nav('compare');setTimeout(()=>{const s=document.getElementById('compare-p1');if(s)s.value='${safeName}';renderComparePage();},50)">âš– Compare</button>
+        <button class="print-btn" onclick="printPlayerCard('${safeName}')">🖨 Print Profile Card</button>
+        <button class="print-btn" onclick="nav('compare');setTimeout(()=>{const s=document.getElementById('compare-p1');if(s)s.value='${safeName}';renderComparePage();},50)">⚖ Compare</button>
       </div>
     </div>
 
@@ -4258,7 +4258,7 @@ function renderProfile(name) {
              onerror="this.src='${BANNERS_PATH}${name}.png';this.onerror=function(){this.src='${BANNERS_PATH}${name}.jpg';this.onerror=function(){this.style.display='none';document.getElementById('banner-placeholder-${gifKey}').style.display='flex'}}"
            >
            <div id="banner-placeholder-${gifKey}" style="width:100%;height:100%;flex-direction:column;align-items:center;justify-content:center;gap:8px;position:absolute;inset:0;display:none;background:var(--card2)">
-             <div style="font-size:2rem;opacity:.2">ðŸŽ­</div>
+             <div style="font-size:2rem;opacity:.2">🎭</div>
              <div style="font-size:.72rem;color:var(--muted);font-family:'Barlow Condensed',sans-serif;letter-spacing:1px;text-transform:uppercase;opacity:.5;text-align:center;padding:0 20px">Add ${name}.mp4, .gif, or .png to banners/ on GitHub</div>
            </div>`
       }
@@ -4274,13 +4274,13 @@ function renderProfile(name) {
           <span id="banner-h-val-${gifKey}" style="font-size:.68rem;color:var(--lime);font-family:'Bebas Neue',sans-serif;min-width:36px">${bannerHeights[name]||180}px</span>
         </div>
         <button id="slowmo-btn-${gifKey}"
-          onclick="const v=document.getElementById('banner-video-${gifKey}');const on=!bannerSlowmo['${name.replace(/'/g,"\\'")}'];if(v&&v._toggleSlowmo)v._toggleSlowmo(on);else{bannerSlowmo['${name.replace(/'/g,"\\'")}']= on;saveSettings()};this.style.background=on?'var(--lime)':'rgba(0,0,0,.55)';this.style.color=on?'#071009':'rgba(255,255,255,.6)';this.textContent=on?'â± Slowmo ON':'â± Slowmo OFF'"
+          onclick="const v=document.getElementById('banner-video-${gifKey}');const on=!bannerSlowmo['${name.replace(/'/g,"\\'")}'];if(v&&v._toggleSlowmo)v._toggleSlowmo(on);else{bannerSlowmo['${name.replace(/'/g,"\\'")}']= on;saveSettings()};this.style.background=on?'var(--lime)':'rgba(0,0,0,.55)';this.style.color=on?'#071009':'rgba(255,255,255,.6)';this.textContent=on?'⏱ Slowmo ON':'⏱ Slowmo OFF'"
           style="font-size:.65rem;font-family:'Barlow Condensed',sans-serif;letter-spacing:.5px;padding:4px 10px;border-radius:6px;border:none;cursor:pointer;backdrop-filter:blur(4px);background:${bannerSlowmo[name]?'var(--lime)':'rgba(0,0,0,.55)'};color:${bannerSlowmo[name]?'#071009':'rgba(255,255,255,.6)'};white-space:nowrap"
-          title="Gradually slow the video to a freeze on the last frame, then restart">${bannerSlowmo[name]?'â± Slowmo ON':'â± Slowmo OFF'}</button>
+          title="Gradually slow the video to a freeze on the last frame, then restart">${bannerSlowmo[name]?'⏱ Slowmo ON':'⏱ Slowmo OFF'}</button>
         ${playerGifs[name]
-          ? `<button class="gif-del-btn" onclick="event.stopPropagation();removeGif('${safeName}')" style="font-size:.7rem;padding:3px 8px">âœ•</button>
+          ? `<button class="gif-del-btn" onclick="event.stopPropagation();removeGif('${safeName}')" style="font-size:.7rem;padding:3px 8px">✕</button>
              <button class="gif-del-btn" onclick="event.stopPropagation();triggerGifUpload('${safeName}')" style="background:var(--green);color:#071009;font-size:.7rem;padding:3px 8px">Change</button>`
-          : `<button class="gif-del-btn" onclick="triggerGifUpload('${safeName}')" style="background:var(--green);color:#071009;font-size:.7rem;padding:3px 8px;cursor:pointer">â¬† Upload override</button>`
+          : `<button class="gif-del-btn" onclick="triggerGifUpload('${safeName}')" style="background:var(--green);color:#071009;font-size:.7rem;padding:3px 8px;cursor:pointer">⬆ Upload override</button>`
         }
       </div>` : ''}
     </div>
@@ -4301,10 +4301,10 @@ function renderProfile(name) {
           <div class="profile-name" style="font-family:'Bebas Neue',sans-serif;font-size:2.2rem;letter-spacing:3px;color:var(--text);line-height:1;margin-bottom:6px">${s.player.toUpperCase()}</div>
           <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
             ${renderTags(tags)}
-            ${(s.mvps||0) > 0 ? `<span style="background:rgba(240,192,64,.15);border:1px solid rgba(240,192,64,.4);color:var(--gold);font-family:'Barlow Condensed',sans-serif;font-size:.72rem;letter-spacing:1px;padding:2px 8px;border-radius:4px">â˜… ${s.mvps} MVP${s.mvps>1?'S':''}</span>` : ''}
+            ${(s.mvps||0) > 0 ? `<span style="background:rgba(240,192,64,.15);border:1px solid rgba(240,192,64,.4);color:var(--gold);font-family:'Barlow Condensed',sans-serif;font-size:.72rem;letter-spacing:1px;padding:2px 8px;border-radius:4px">★ ${s.mvps} MVP${s.mvps>1?'S':''}</span>` : ''}
             ${getLeaderTags(s.player).map(t => `<span data-tip="${t.tip}" style="font-size:.72rem;color:var(--gold);cursor:help;font-family:'Barlow Condensed',sans-serif;letter-spacing:.5px">${t.label}</span>`).join('')}
           </div>
-          <div style="font-size:.78rem;color:var(--muted)">${s.games} games played${s.attendanceRate != null ? ` Â· ðŸ—“ ${s.attendanceRate}% attendance` : ''}${s.gd != null ? ` Â· <span style="color:${s.gd>=0?'var(--green)':'var(--red)'}">GD ${s.gd>0?'+':''}${s.gd}</span>` : ''}</div>
+          <div style="font-size:.78rem;color:var(--muted)">${s.games} games played${s.attendanceRate != null ? ` · 🗓 ${s.attendanceRate}% attendance` : ''}${s.gd != null ? ` · <span style="color:${s.gd>=0?'var(--green)':'var(--red)'}">GD ${s.gd>0?'+':''}${s.gd}</span>` : ''}</div>
         </div>
         <!-- Key stats bar -->
         <div style="display:flex;gap:24px;flex-wrap:wrap">
@@ -4312,7 +4312,7 @@ function renderProfile(name) {
             ['GAMES', s.games, ''],
             ['GOALS', s.goals, (s.goals/g).toFixed(2)+' per game'],
             ['ASSISTS', s.assists, (s.assists/g).toFixed(2)+' per game'],
-            ['WIN %', wPct+'%', `${s.wins}W Â· ${s.draws||0}D Â· ${s.losses}L`],
+            ['WIN %', wPct+'%', `${s.wins}W · ${s.draws||0}D · ${s.losses}L`],
           ].map(([lbl,val,sub]) => `
             <div style="text-align:center">
               <div style="font-family:'Bebas Neue',sans-serif;font-size:2rem;color:var(--green);line-height:1">${val}</div>
@@ -4345,7 +4345,7 @@ function renderProfile(name) {
       <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
           <div style="font-family:'Barlow Condensed',sans-serif;font-size:.7rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted)">Form</div>
-          <div style="font-size:.62rem;color:var(--muted);opacity:.6">Â· Last 12 matches</div>
+          <div style="font-size:.62rem;color:var(--muted);opacity:.6">· Last 12 matches</div>
         </div>
         <canvas id="form-chart-${name.replace(/\s/g,'_')}" width="480" height="160" style="width:100%;height:auto"></canvas>
         <div style="display:flex;gap:10px;margin-top:8px;flex-wrap:wrap">
@@ -4359,7 +4359,7 @@ function renderProfile(name) {
       <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
           <div style="font-family:'Barlow Condensed',sans-serif;font-size:.7rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted)">Attribute Profile</div>
-          ${adminMode ? `<div style="font-size:.62rem;color:var(--muted);opacity:.6">Â· vs Squad Avg</div>` : ''}
+          ${adminMode ? `<div style="font-size:.62rem;color:var(--muted);opacity:.6">· vs Squad Avg</div>` : ''}
         </div>
         <div id="spider-${name.replace(/\s/g,'_')}-wrap" style="display:flex;justify-content:center">
           <canvas id="spider-${name.replace(/\s/g,'_')}" class="spider" width="240" height="240"></canvas>
@@ -4384,9 +4384,9 @@ function renderProfile(name) {
     <!-- Form stats row -->
     <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 20px;margin-bottom:14px;display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px">
       ${[
-        ['Win Rate (L5)', s._formRate5 != null ? s._formRate5+'%' : 'â€“', s._formRate5!=null&&s._formRate5>=60?'var(--green)':s._formRate5!=null&&s._formRate5>=40?'var(--amber)':'var(--red)', 'Win rate across the most recent 5 games'],
-        ['Trend', s.formTrend==='up'?'â–² Improving':s.formTrend==='down'?'â–¼ Declining':'â— Consistent', s.formTrend==='up'?'var(--green)':s.formTrend==='down'?'var(--red)':'var(--muted)', 'Compares win rate of last 5 vs 5 before'],
-        ['Streak', s.currentStreak > 0 ? s.currentStreak+(s.streakType==='W'?' W':s.streakType==='L'?' L':' D') : 'â€“', s.streakType==='W'?'var(--green)':s.streakType==='L'?'var(--red)':'var(--amber)', 'Current consecutive result streak'],
+        ['Win Rate (L5)', s._formRate5 != null ? s._formRate5+'%' : '–', s._formRate5!=null&&s._formRate5>=60?'var(--green)':s._formRate5!=null&&s._formRate5>=40?'var(--amber)':'var(--red)', 'Win rate across the most recent 5 games'],
+        ['Trend', s.formTrend==='up'?'▲ Improving':s.formTrend==='down'?'▼ Declining':'● Consistent', s.formTrend==='up'?'var(--green)':s.formTrend==='down'?'var(--red)':'var(--muted)', 'Compares win rate of last 5 vs 5 before'],
+        ['Streak', s.currentStreak > 0 ? s.currentStreak+(s.streakType==='W'?' W':s.streakType==='L'?' L':' D') : '–', s.streakType==='W'?'var(--green)':s.streakType==='L'?'var(--red)':'var(--amber)', 'Current consecutive result streak'],
         ...(s.momentum !== null ? [['Momentum', (s.momentum>0?'+':'')+s.momentum+'%', s.momentum>=15?'var(--green)':s.momentum>=0?'var(--lime)':s.momentum>=-15?'var(--amber)':'var(--red)', 'Stats vs 4 games ago']] : []),
         ['Consistency', s.consistency+'/100', s.consistency>=75?'var(--green)':s.consistency>=50?'var(--amber)':'var(--red)', 'How similar performance is game to game'],
         ...(s.synergyScore !== null && s.synergyPairs >= 3 ? [['Synergy', (s.synergyScore>0?'+':'')+s.synergyScore+'%', s.synergyScore>=8?'var(--green)':s.synergyScore>=2?'var(--lime)':'var(--red)', `Win rate impact across ${s.synergyPairs} partnerships`]] : []),
@@ -4415,13 +4415,13 @@ function renderProfile(name) {
       const insight = (() => {
         const goalDiff = h2.goals/g2 - h1.goals/g1;
         if (Math.abs(goalDiff) >= 0.4) return goalDiff > 0
-          ? 'ðŸ”¥ Scores more in the 2nd half â€” gets stronger as the game goes on'
-          : 'âš¡ Scores more in the 1st half â€” fast starter';
+          ? '🔥 Scores more in the 2nd half — gets stronger as the game goes on'
+          : '⚡ Scores more in the 1st half — fast starter';
         const defDiff = (h2.tackles/g2 + h2.interceptions/g2) - (h1.tackles/g1 + h1.interceptions/g1);
         if (Math.abs(defDiff) >= 1) return defDiff > 0
-          ? 'ðŸ›¡ More defensive in the 2nd half â€” digs in when it matters'
-          : 'ðŸ›¡ More defensive in the 1st half â€” sets the tone early';
-        return 'âš– Consistent across both halves';
+          ? '🛡 More defensive in the 2nd half — digs in when it matters'
+          : '🛡 More defensive in the 1st half — sets the tone early';
+        return '⚖ Consistent across both halves';
       })();
       const rows = statDefs.map(({ key, label }) => {
         const f1 = h1[key] / g1, f2 = h2[key] / g2;
@@ -4447,7 +4447,7 @@ function renderProfile(name) {
       }).join('');
       return `<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:14px">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-          <div style="font-family:'Barlow Condensed',sans-serif;font-size:.7rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted)">ðŸ• 1st vs 2nd Half</div>
+          <div style="font-family:'Barlow Condensed',sans-serif;font-size:.7rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted)">🕐 1st vs 2nd Half</div>
           <div style="font-size:.62rem;color:var(--muted);opacity:.7">(${h1.games} games)</div>
         </div>
         <div style="background:rgba(57,211,83,.06);border:1px solid rgba(57,211,83,.15);border-radius:7px;padding:8px 12px;margin-bottom:12px;font-size:.76rem;color:var(--green)">${insight}</div>
@@ -4466,10 +4466,10 @@ function renderProfile(name) {
       if (!scoredFrom.length && !assistedTo.length) return '';
       const partnerCard = (p, type) => {
         const col = type === 'scored' ? 'var(--green)' : 'var(--lime)';
-        // Arrow: Scorer â† Assister (assister feeds scorer)
+        // Arrow: Scorer ← Assister (assister feeds scorer)
         const relationship = type === 'scored'
-          ? `<span style="color:var(--text)">${name}</span> <span style="color:var(--muted)">â†</span> <span style="color:${col}">${p.name}</span>`
-          : `<span style="color:${col}">${p.name}</span> <span style="color:var(--muted)">â†</span> <span style="color:var(--text)">${name}</span>`;
+          ? `<span style="color:var(--text)">${name}</span> <span style="color:var(--muted)">←</span> <span style="color:${col}">${p.name}</span>`
+          : `<span style="color:${col}">${p.name}</span> <span style="color:var(--muted)">←</span> <span style="color:var(--text)">${name}</span>`;
         const label = type === 'scored'
           ? `${p.goals} goal${p.goals>1?'s':''} in ${p.comboMatches} of ${p.sharedGames} games together`
           : `${p.goals} goal${p.goals>1?'s':''} in ${p.comboMatches} of ${p.sharedGames} games together`;
@@ -4487,9 +4487,9 @@ function renderProfile(name) {
       assistedTo.forEach(p => { allPartners[p.name] = (allPartners[p.name]||0) + p.goals; });
       const best = Object.entries(allPartners).sort((a,b)=>b[1]-a[1])[0];
       return `<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:14px">
-        <div style="font-family:'Barlow Condensed',sans-serif;font-size:.7rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:12px">ðŸ¤ Strike Partnerships</div>
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:.7rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:12px">🤝 Strike Partnerships</div>
         ${best && best[1] >= 2 ? `<div style="background:rgba(168,224,80,.07);border:1px solid rgba(168,224,80,.2);border-radius:7px;padding:8px 12px;margin-bottom:12px;font-size:.76rem;color:var(--lime)">
-          ðŸ”— Best partnership: <strong>${best[0]}</strong> â€” ${best[1]} combined goal involvements
+          🔗 Best partnership: <strong>${best[0]}</strong> — ${best[1]} combined goal involvements
         </div>` : ''}
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
           <div>
@@ -4523,46 +4523,46 @@ function renderProfile(name) {
       }));
       const peak = windows.reduce((best,w) => w.count > best.count ? w : best, windows[0]);
 
-      // Build insights array â€” pick the most interesting ones
+      // Build insights array — pick the most interesting ones
       const insights = [];
 
       // Half preference (strong signal if 60%+)
       const h1pct = h1Goals/total, h2pct = h2Goals/total;
-      if (h1pct >= 0.65) insights.push({ icon:'1ï¸âƒ£', text:`${Math.round(h1pct*100)}% of goals in the first half â€” hits the ground running and builds early leads` });
-      else if (h2pct >= 0.65) insights.push({ icon:'2ï¸âƒ£', text:`${Math.round(h2pct*100)}% of goals in the second half â€” improves as the game goes on and wears teams down` });
+      if (h1pct >= 0.65) insights.push({ icon:'1️⃣', text:`${Math.round(h1pct*100)}% of goals in the first half — hits the ground running and builds early leads` });
+      else if (h2pct >= 0.65) insights.push({ icon:'2️⃣', text:`${Math.round(h2pct*100)}% of goals in the second half — improves as the game goes on and wears teams down` });
 
       // Early burst (first 15 mins)
-      if (earlyGoals/total >= 0.35) insights.push({ icon:'âš¡', text:`${Math.round(earlyGoals/total*100)}% of goals in the first 15 mins â€” one of the fastest starters in the group` });
+      if (earlyGoals/total >= 0.35) insights.push({ icon:'⚡', text:`${Math.round(earlyGoals/total*100)}% of goals in the first 15 mins — one of the fastest starters in the group` });
 
       // Late scorer (after 40)
-      if (lateGoals/total >= 0.35) insights.push({ icon:'ðŸ’ª', text:`${Math.round(lateGoals/total*100)}% of goals after the 40-minute mark â€” most dangerous when matches are in the balance` });
+      if (lateGoals/total >= 0.35) insights.push({ icon:'💪', text:`${Math.round(lateGoals/total*100)}% of goals after the 40-minute mark — most dangerous when matches are in the balance` });
 
-      // Peak window (only mention if clearly dominant â€” 25%+ of goals in one 10-min block)
+      // Peak window (only mention if clearly dominant — 25%+ of goals in one 10-min block)
       if (peak.count/total >= 0.25 && total >= 5) {
         const label = peak.start < 15 ? 'opening minutes' :
                       peak.start < 30 ? `${peak.start}-${peak.start+10} minute window` :
                       peak.start < 40 ? `crucial ${peak.start}-${peak.start+10} minute spell` :
                       `late ${peak.start}-${peak.start+10} minute window`;
-        insights.push({ icon:'ðŸŽ¯', text:`Scores ${Math.round(peak.count/total*100)}% of goals in the ${label} â€” a clear danger zone for opponents to watch` });
+        insights.push({ icon:'🎯', text:`Scores ${Math.round(peak.count/total*100)}% of goals in the ${label} — a clear danger zone for opponents to watch` });
       }
 
       // Mid-game specialist (lots of goals in 15-40 window, few early or late)
       if (midGoals/total >= 0.65 && earlyGoals/total < 0.2 && lateGoals/total < 0.2) {
-        insights.push({ icon:'âš–', text:`Most goals come in the middle of matches (15-40 min) â€” builds into games before finding a rhythm` });
+        insights.push({ icon:'⚖', text:`Most goals come in the middle of matches (15-40 min) — builds into games before finding a rhythm` });
       }
 
       // Even spread fallback
       if (insights.length === 0) {
         const spread = Math.max(...bucketKeys.map(b => buckets[b]||0)) / (total/bucketKeys.filter(b=>b<60).length);
-        if (spread < 1.8) insights.push({ icon:'ðŸ“Š', text:`Goals spread evenly across all parts of the match â€” no clear pattern, dangerous at any time` });
-        else insights.push({ icon:'ðŸ“Š', text:`Goals arrive in clusters rather than evenly â€” tends to have quiet spells then sudden bursts` });
+        if (spread < 1.8) insights.push({ icon:'📊', text:`Goals spread evenly across all parts of the match — no clear pattern, dangerous at any time` });
+        else insights.push({ icon:'📊', text:`Goals arrive in clusters rather than evenly — tends to have quiet spells then sudden bursts` });
       }
 
       // Pick the single most interesting insight
       const insight = insights[0];
 
       return `<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:14px">
-        <div style="font-family:'Barlow Condensed',sans-serif;font-size:.7rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:8px">â± When ${name.split(' ')[0]} Scores</div>
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:.7rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:8px">⏱ When ${name.split(' ')[0]} Scores</div>
         <div style="background:rgba(57,211,83,.06);border:1px solid rgba(57,211,83,.15);border-radius:7px;padding:7px 12px;margin-bottom:12px;font-size:.75rem;color:var(--green)">${insight.icon} ${insight.text}</div>
         <div style="display:flex;align-items:flex-end;gap:2px;height:50px;margin-bottom:4px">
           ${bucketKeys.map(b => {
@@ -4591,11 +4591,11 @@ function renderProfile(name) {
       const lateA  = allAssists.filter(a=>a.min>=40).length;
       const total  = allAssists.length;
       let insight = '';
-      if (earlyA/total>=0.35) insight = `âš¡ ${Math.round(earlyA/total*100)}% of assists in the first 15 mins â€” sets teammates up early`;
-      else if (lateA/total>=0.35) insight = `ðŸ’ª ${Math.round(lateA/total*100)}% of assists after 40 mins â€” most creative when it matters`;
-      else insight = `ðŸ“Š Creates across the whole match â€” no strong timing pattern`;
+      if (earlyA/total>=0.35) insight = `⚡ ${Math.round(earlyA/total*100)}% of assists in the first 15 mins — sets teammates up early`;
+      else if (lateA/total>=0.35) insight = `💪 ${Math.round(lateA/total*100)}% of assists after 40 mins — most creative when it matters`;
+      else insight = `📊 Creates across the whole match — no strong timing pattern`;
       return `<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:14px">
-        <div style="font-family:'Barlow Condensed',sans-serif;font-size:.7rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:8px">ðŸŽ¯ When ${name.split(' ')[0]} Assists</div>
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:.7rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:8px">🎯 When ${name.split(' ')[0]} Assists</div>
         <div style="background:rgba(168,224,80,.06);border:1px solid rgba(168,224,80,.15);border-radius:7px;padding:7px 12px;margin-bottom:12px;font-size:.75rem;color:var(--lime)">${insight}</div>
         <div style="display:flex;align-items:flex-end;gap:2px;height:50px;margin-bottom:4px">
           ${bucketKeys.map(b=>{
@@ -4619,35 +4619,35 @@ function renderProfile(name) {
       const highlights = getPlayerHighlights(name);
       if (!highlights.length) return '';
       return `<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:14px">
-        <div style="font-family:'Barlow Condensed',sans-serif;font-size:.7rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:12px">â­ Highlights</div>
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:.7rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:12px">⭐ Highlights</div>
         <div style="display:flex;flex-wrap:wrap;gap:8px">
           ${highlights.map(h=>{
             const matchKey=h.mid.replace(/[#,]/g,'_');
             const ytSecs=h.ytId&&h.time?timeToYtSeconds(h.time,h.half):null;
             const col=h.type==='goal'?'var(--green)':'var(--lime)';
-            const icon=h.type==='goal'?'âš½':'ðŸŽ¯';
+            const icon=h.type==='goal'?'⚽':'🎯';
             const mins=h.time?h.time.split(':')[0].replace(/^0/,''):'?';
             return `<div style="background:var(--card2);border:1px solid ${h.type==='goal'?'rgba(57,211,83,.3)':'rgba(168,224,80,.3)'};border-radius:8px;padding:10px 12px;min-width:140px;${ytSecs!==null?'cursor:pointer':''}"
-              ${ytSecs!==null?`onclick="seekYtVideo('${matchKey}','${h.ytId}',${ytSecs})" title="â–¶ Watch highlight"`:''}>
+              ${ytSecs!==null?`onclick="seekYtVideo('${matchKey}','${h.ytId}',${ytSecs})" title="▶ Watch highlight"`:''}>
               <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
                 <span style="font-size:.9rem">${icon}</span>
                 <span style="font-family:'Bebas Neue',sans-serif;font-size:1rem;color:${col}">${mins}'</span>
                 <span style="font-size:.6rem;color:var(--muted)">${h.half}</span>
-                ${ytSecs!==null?`<span style="margin-left:auto;color:var(--amber);font-size:.75rem">â–¶</span>`:''}
+                ${ytSecs!==null?`<span style="margin-left:auto;color:var(--amber);font-size:.75rem">▶</span>`:''}
               </div>
               <div style="font-size:.72rem;font-weight:600;color:var(--text)">${h.scorer}</div>
-              ${h.assister?`<div style="font-size:.65rem;color:var(--muted)">â† ${h.assister}</div>`:''}
+              ${h.assister?`<div style="font-size:.65rem;color:var(--muted)">← ${h.assister}</div>`:''}
               <div style="font-size:.6rem;color:var(--muted);margin-top:4px">${h.match.date}</div>
             </div>`;
           }).join('')}
         </div>
-        ${!highlights.some(h=>h.ytId)?`<div style="font-size:.65rem;color:var(--muted);margin-top:8px">Link match videos to enable â–¶ playback</div>`:''}
+        ${!highlights.some(h=>h.ytId)?`<div style="font-size:.65rem;color:var(--muted);margin-top:8px">Link match videos to enable ▶ playback</div>`:''}
         <div style="font-size:.62rem;color:var(--muted);margin-top:6px;opacity:.7">Flag goals with ! and assists with * in the Goal Combos importer</div>
       </div>`;
     })()}
 
       <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:14px">
-        <div style="font-family:'Barlow Condensed',sans-serif;font-size:.7rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:14px">âš½ Attacking</div>
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:.7rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:14px">⚽ Attacking</div>
         ${(()=>{
           const pool = Object.values(getDisplayStats()).filter(p=>p.games>=3);
           const avgPg = (key) => pool.reduce((s,p)=>s+p[key]/Math.max(p.games,1),0)/Math.max(pool.length,1);
@@ -4681,7 +4681,7 @@ function renderProfile(name) {
 
       <!-- DEFENCE & PLAYMAKING -->
       <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px">
-        <div style="font-family:'Barlow Condensed',sans-serif;font-size:.7rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:14px">ðŸ›¡ Defence &amp; Playmaking</div>
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:.7rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:14px">🛡 Defence &amp; Playmaking</div>
         ${(()=>{
           const pool = Object.values(getDisplayStats()).filter(p=>p.games>=3);
           const avgPg = (key) => pool.reduce((s,p)=>s+p[key]/Math.max(p.games,1),0)/Math.max(pool.length,1);
@@ -4711,7 +4711,7 @@ function renderProfile(name) {
             </div>`;
           }).join('');
         })()}
-        <div style="font-size:.62rem;color:var(--muted);margin-top:4px;opacity:.6">Bright bar = above squad average Â· faint bar = below Â· white line = squad average</div>
+        <div style="font-size:.62rem;color:var(--muted);margin-top:4px;opacity:.6">Bright bar = above squad average · faint bar = below · white line = squad average</div>
       </div>
 
     </div>
@@ -4726,7 +4726,7 @@ function renderProfile(name) {
           return `<div style="background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:12px">
             <div style="font-size:.6rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:6px">${lbl}</div>
             <div style="font-family:'Bebas Neue',sans-serif;font-size:2rem;color:var(--green);line-height:1;margin-bottom:4px">${val}</div>
-            ${best?.match_date ? `<div style="font-size:.65rem;color:var(--muted)">vs Team ${best.team==='A'?'B':'A'} Â· ${best.match_date}</div>` : ''}
+            ${best?.match_date ? `<div style="font-size:.65rem;color:var(--muted)">vs Team ${best.team==='A'?'B':'A'} · ${best.match_date}</div>` : ''}
           </div>`;
         }).join('')}
         <div style="background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:12px">
@@ -4744,16 +4744,16 @@ function renderProfile(name) {
 
     <!-- Notes + Spider (full width) -->
     <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:14px">
-      <div style="font-family:'Barlow Condensed',sans-serif;font-size:.7rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:8px">ðŸ“ Notes</div>
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:.7rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:8px">📝 Notes</div>
       <textarea id="profile-notes-${name.replace(/\s/g,'_')}"
-        placeholder="Add a note about this player â€” injury status, role preference, availabilityâ€¦"
+        placeholder="Add a note about this player — injury status, role preference, availability…"
         onblur="savePlayerNote('${name}',this.value)"
         style="width:100%;background:var(--card2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'Barlow',sans-serif;font-size:.82rem;padding:10px 12px;resize:vertical;min-height:60px;outline:none;box-sizing:border-box;line-height:1.5">${(playerNotes[name]||'').replace(/</g,'&lt;')}</textarea>
     </div>
 
     ${adminMode && s.synergyPairs >= 3 ? `
     <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:14px">
-      <div style="font-family:'Barlow Condensed',sans-serif;font-size:.7rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:10px">ðŸ¤ Chemistry</div>
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:.7rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:10px">🤝 Chemistry</div>
       <div id="synergy-pairs-${name.replace(/\s/g,'_')}"></div>
     </div>` : ''}
 
@@ -4761,7 +4761,7 @@ function renderProfile(name) {
     <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:14px">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
         <div style="font-family:'Barlow Condensed',sans-serif;font-size:.7rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted)">Recent Matches</div>
-        <div style="font-size:.62rem;color:var(--muted);opacity:.6">Â· click for full match</div>
+        <div style="font-size:.62rem;color:var(--muted);opacity:.6">· click for full match</div>
       </div>
 
       <!-- Desktop table -->
@@ -4782,7 +4782,7 @@ function renderProfile(name) {
               const resultCol = won?'var(--green)':drew?'var(--amber)':'var(--red)';
               const resultLbl = won?'W':drew?'D':'L';
               const isMvp = m?.mvpList?.[0]?.player === name;
-              const mvpBadge = isMvp ? `<span style="background:rgba(240,192,64,.2);color:var(--gold);font-size:.6rem;padding:1px 5px;border-radius:3px;margin-left:4px">â˜… MVP</span>` : '';
+              const mvpBadge = isMvp ? `<span style="background:rgba(240,192,64,.2);color:var(--gold);font-size:.6rem;padding:1px 5px;border-radius:3px;margin-left:4px">★ MVP</span>` : '';
               const isSwapped = m?.swappedPlayers?.some(sp => sp.player === name);
               const teamDisplay = isSwapped
                 ? `${r.team} <span style="font-size:.58rem;color:#60a5fa;background:rgba(96,165,250,.15);padding:1px 4px;border-radius:3px">swap</span>`
@@ -4790,10 +4790,10 @@ function renderProfile(name) {
               const h1 = m ? m.rows.find(x => x.player === name && x.half === '1H') : null;
               const h2 = m ? m.rows.find(x => x.player === name && x.half === '2H') : null;
               const halfStr = h1 && h2
-                ? `<div style="font-size:.58rem;color:var(--muted);opacity:.7;margin-top:1px">1H: ${n(h1.goals)}G ${n(h1.assists)}A Â· 2H: ${n(h2.goals)}G ${n(h2.assists)}A</div>`
+                ? `<div style="font-size:.58rem;color:var(--muted);opacity:.7;margin-top:1px">1H: ${n(h1.goals)}G ${n(h1.assists)}A · 2H: ${n(h2.goals)}G ${n(h2.assists)}A</div>`
                 : '';
               const td = (val, col='var(--text2)', bold=false) =>
-                `<td style="padding:6px 8px;text-align:center;font-size:.78rem;color:${val===0||val==='0'?'var(--muted)':col};${bold?'font-weight:700':''};">${val===0||val==='0'?'â€“':val}</td>`;
+                `<td style="padding:6px 8px;text-align:center;font-size:.78rem;color:${val===0||val==='0'?'var(--muted)':col};${bold?'font-weight:700':''};">${val===0||val==='0'?'–':val}</td>`;
               return `<tr style="border-bottom:1px solid rgba(255,255,255,.04);cursor:pointer;transition:background .1s" onclick="navToMatch('${r.match_id}')" onmouseover="this.style.background='rgba(255,255,255,.03)'" onmouseout="this.style.background=''">
                 <td style="padding:6px 8px;font-size:.75rem;white-space:nowrap">
                   <div><span style="color:var(--text)">${r.match_date?.replace(/(\d{4})-(\d{2})-(\d{2})/, '$3/$2')}</span> <span style="color:var(--muted);font-size:.68rem">${r.match_date?.slice(0,4)}</span></div>
@@ -4804,7 +4804,7 @@ function renderProfile(name) {
                   <span style="background:${won?'rgba(57,211,83,.2)':drew?'rgba(240,160,48,.2)':'rgba(240,96,96,.2)'};color:${resultCol};font-family:'Bebas Neue',sans-serif;font-size:.9rem;padding:2px 8px;border-radius:4px">${resultLbl}</span>
                   ${mvpBadge}
                 </td>
-                <td style="padding:6px 8px;text-align:center;font-size:.75rem;color:var(--muted)">${m?`${m.goalsA}â€“${m.goalsB}`:''}</td>
+                <td style="padding:6px 8px;text-align:center;font-size:.75rem;color:var(--muted)">${m?`${m.goalsA}–${m.goalsB}`:''}</td>
                 ${td(n(r.goals), 'var(--green)', true)}
                 ${td(n(r.assists), 'var(--text2)')}
                 ${td(n(r.total_shots))}
@@ -4829,7 +4829,7 @@ function renderProfile(name) {
           const resultCol = won?'var(--green)':drew?'var(--amber)':'var(--red)';
           const resultLbl = won?'W':drew?'D':'L';
           const isMvp = m?.mvpList?.[0]?.player === name;
-          const score = m ? `${m.goalsA}â€“${m.goalsB}` : '';
+          const score = m ? `${m.goalsA}–${m.goalsB}` : '';
           const dateStr = r.match_date?.replace(/(\d{4})-(\d{2})-(\d{2})/, '$3/$2/$1') || '';
           const statGrid = [
             ['G',  n(r.goals),              'var(--green)'],
@@ -4843,7 +4843,7 @@ function renderProfile(name) {
             ['BLK',n(r.blocks),             'var(--muted)'],
           ].map(([lbl,val,col]) => `
             <div style="text-align:center">
-              <div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:${val>0?col:'rgba(255,255,255,.15)'};line-height:1">${val||'â€“'}</div>
+              <div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:${val>0?col:'rgba(255,255,255,.15)'};line-height:1">${val||'–'}</div>
               <div style="font-size:.55rem;color:var(--muted);letter-spacing:.5px;text-transform:uppercase">${lbl}</div>
             </div>`).join('');
           return `<div onclick="navToMatch('${r.match_id}')" style="border:1px solid var(--border);border-radius:9px;padding:10px 12px;margin-bottom:8px;cursor:pointer;background:${won?'rgba(57,211,83,.04)':drew?'rgba(240,160,48,.04)':'rgba(240,96,96,.04)'}">
@@ -4851,7 +4851,7 @@ function renderProfile(name) {
               <div style="display:flex;align-items:center;gap:8px">
                 <span style="background:${won?'rgba(57,211,83,.2)':drew?'rgba(240,160,48,.2)':'rgba(240,96,96,.2)'};color:${resultCol};font-family:'Bebas Neue',sans-serif;font-size:1rem;padding:2px 10px;border-radius:4px">${resultLbl}</span>
                 <span style="font-size:.8rem;color:var(--muted)">${score}</span>
-                ${isMvp?`<span style="background:rgba(240,192,64,.2);color:var(--gold);font-size:.6rem;padding:1px 5px;border-radius:3px">â˜… MVP</span>`:''}
+                ${isMvp?`<span style="background:rgba(240,192,64,.2);color:var(--gold);font-size:.6rem;padding:1px 5px;border-radius:3px">★ MVP</span>`:''}
               </div>
               <span style="font-size:.68rem;color:var(--muted)">${dateStr}</span>
             </div>
@@ -4866,7 +4866,7 @@ function renderProfile(name) {
 
   // Draw charts after DOM paint
   setTimeout(async () => {
-    // Form chart â€” build performance index per match
+    // Form chart — build performance index per match
     const formMatches = [...s.matches]
       .sort((a, b) => (a.match_date||'').localeCompare(b.match_date||''))
       .slice(-12)
@@ -4879,7 +4879,7 @@ function renderProfile(name) {
       });
     drawFormChart(`form-chart-${name.replace(/\s/g,'_')}`, formMatches, name);
 
-    // Spider â€” with squad average overlay for admins
+    // Spider — with squad average overlay for admins
     if (adminMode) {
       // Compute squad average spider values
       const allPs = Object.values(playerStats).filter(p => p.games >= 5);
@@ -4910,7 +4910,7 @@ function saveCustomStat(player, key, val) {
     const tip = document.createElement('div');
     tip.id = 'settings-reminder';
     tip.style.cssText = 'position:fixed;bottom:20px;right:20px;z-index:400;background:var(--card);border:1px solid var(--lime);border-radius:9px;padding:10px 16px;font-size:.75rem;color:var(--lime);display:flex;align-items:center;gap:10px;box-shadow:0 4px 16px rgba(0,0,0,.4)';
-    tip.innerHTML = `âš™ Player ratings updated â€” <button onclick="saveSettings();document.getElementById('settings-reminder')?.remove()" style="background:var(--lime);color:#071009;border:none;border-radius:5px;padding:3px 10px;font-family:'Bebas Neue',sans-serif;font-size:.9rem;cursor:pointer;letter-spacing:1px">Download settings.json</button> <button onclick="document.getElementById('settings-reminder')?.remove()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:1rem">âœ•</button>`;
+    tip.innerHTML = `⚙ Player ratings updated — <button onclick="saveSettings();document.getElementById('settings-reminder')?.remove()" style="background:var(--lime);color:#071009;border:none;border-radius:5px;padding:3px 10px;font-family:'Bebas Neue',sans-serif;font-size:.9rem;cursor:pointer;letter-spacing:1px">Download settings.json</button> <button onclick="document.getElementById('settings-reminder')?.remove()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:1rem">✕</button>`;
     document.body.appendChild(tip);
     setTimeout(() => tip.remove(), 8000);
   }
@@ -4920,11 +4920,11 @@ function saveCustomStat(player, key, val) {
 // LEADERBOARD
 // =====================================================================
 const LB_STATS = [
-  ['rating','Rating'],['goals','Goals'],['assists','Assists'],['combo_assists','ðŸ¤ Goal Combos'],
+  ['rating','Rating'],['goals','Goals'],['assists','Assists'],['combo_assists','🤝 Goal Combos'],
   ['total_shots','Shots'],['shot_accuracy','Shot Accuracy %'],['shot_conversion','Shot Conv %'],
   ['tackles','Tackles'],['interceptions','Intercepts'],
   ['nutmegs','Nutmegs'],['key_passes','Key Passes'],['blocks','Blocks'],
-  ['goalkeeper_saves','GK Saves'],['wins','Wins'],['mvps','MVPs ðŸ‘‘'],
+  ['goalkeeper_saves','GK Saves'],['wins','Wins'],['mvps','MVPs 👑'],
   ['gd','Goal Difference'],['attendance','Attendance %'],
 ];
 let lbStat = 'goals';
@@ -4947,7 +4947,7 @@ function renderLeaderboard() {
       <button onclick="setLbActiveOnly(!lbActiveOnly)"
         style="padding:5px 12px;border:1px solid ${lbActiveOnly?'var(--lime)':'var(--border)'};border-radius:6px;cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-size:.78rem;letter-spacing:.5px;text-transform:uppercase;background:var(--card2);color:${lbActiveOnly?'var(--lime)':'var(--muted)'};transition:all .15s"
         title="Show only players active in the last 2 months of the selected season">
-        ${lbActiveOnly ? 'â— Active' : 'â—‹ Active'}
+        ${lbActiveOnly ? '● Active' : '○ Active'}
       </button>
     </div>
     <div style="display:flex;flex-wrap:wrap;gap:4px">
@@ -5015,7 +5015,7 @@ function renderLeaderboard() {
 
   // Special segmented view for MVPs
   if (lbStat === 'mvps') {
-    // Sort by weighted podium score: 1stÃ—3 + 2ndÃ—2 + 3rdÃ—1
+    // Sort by weighted podium score: 1st×3 + 2nd×2 + 3rd×1
     players.sort((a, b) =>
       ((b.mvps||0)*3 + (b.mvp2s||0)*2 + (b.mvp3s||0)) -
       ((a.mvps||0)*3 + (a.mvp2s||0)*2 + (a.mvp3s||0))
@@ -5031,9 +5031,9 @@ function renderLeaderboard() {
         <div class="lb-rank ${rankCls}">${i+1}</div>
         <div class="lb-name" onclick="nav('profile','${p.player}')">${p.player}</div>
         <div style="display:flex;gap:6px;align-items:center;flex:1">
-          ${t1 > 0 ? `<div style="display:flex;align-items:center;gap:3px;background:rgba(240,192,64,.15);border:1px solid rgba(240,192,64,.4);border-radius:5px;padding:3px 10px;font-family:'Barlow Condensed',sans-serif;font-size:.82rem;font-weight:700;color:var(--gold)">ðŸ‘‘ ${t1}</div>` : ''}
-          ${t2 > 0 ? `<div style="display:flex;align-items:center;gap:3px;background:rgba(192,200,192,.1);border:1px solid rgba(192,200,192,.3);border-radius:5px;padding:3px 10px;font-family:'Barlow Condensed',sans-serif;font-size:.82rem;font-weight:700;color:#c0c8c0">ðŸ¥ˆ ${t2}</div>` : ''}
-          ${t3 > 0 ? `<div style="display:flex;align-items:center;gap:3px;background:rgba(192,128,64,.1);border:1px solid rgba(192,128,64,.3);border-radius:5px;padding:3px 10px;font-family:'Barlow Condensed',sans-serif;font-size:.82rem;font-weight:700;color:#c08040">ðŸ¥‰ ${t3}</div>` : ''}
+          ${t1 > 0 ? `<div style="display:flex;align-items:center;gap:3px;background:rgba(240,192,64,.15);border:1px solid rgba(240,192,64,.4);border-radius:5px;padding:3px 10px;font-family:'Barlow Condensed',sans-serif;font-size:.82rem;font-weight:700;color:var(--gold)">👑 ${t1}</div>` : ''}
+          ${t2 > 0 ? `<div style="display:flex;align-items:center;gap:3px;background:rgba(192,200,192,.1);border:1px solid rgba(192,200,192,.3);border-radius:5px;padding:3px 10px;font-family:'Barlow Condensed',sans-serif;font-size:.82rem;font-weight:700;color:#c0c8c0">🥈 ${t2}</div>` : ''}
+          ${t3 > 0 ? `<div style="display:flex;align-items:center;gap:3px;background:rgba(192,128,64,.1);border:1px solid rgba(192,128,64,.3);border-radius:5px;padding:3px 10px;font-family:'Barlow Condensed',sans-serif;font-size:.82rem;font-weight:700;color:#c08040">🥉 ${t3}</div>` : ''}
         </div>
         <div class="lb-bar-wrap" style="flex:2">
           <div style="display:flex;height:7px;border-radius:4px;overflow:hidden;width:${barScale}%">
@@ -5068,7 +5068,7 @@ function renderLeaderboard() {
     const v = getVal(p);
     const rankCls = i===0?'r1':i===1?'r2':i===2?'r3':'';
     const streak = p.currentStreak >= 3 && p.streakType === 'W'
-      ? `<span title="${p.currentStreak} win streak" style="font-size:.8rem;margin-left:4px">ðŸ”¥</span>` : '';
+      ? `<span title="${p.currentStreak} win streak" style="font-size:.8rem;margin-left:4px">🔥</span>` : '';
     const leaderBadges = getLeaderTags(p.player).map(t =>
       `<span data-tip="${t.tip}" style="font-size:.65rem;color:var(--gold);opacity:.8;cursor:help;margin-left:5px;white-space:nowrap">${t.label}</span>`
     ).join('');
@@ -5077,8 +5077,8 @@ function renderLeaderboard() {
     let trendArrow = '';
     if (atRank && globalFilter !== 'all' && seasonFilter === 'all') {
       const diff = atRank - (i+1); // positive = improved (was lower, now higher)
-      if (diff >= 2) trendArrow = `<span style="font-size:.7rem;color:var(--green);margin-left:4px" title="Up ${diff} from all-time rank">â–²${diff}</span>`;
-      else if (diff <= -2) trendArrow = `<span style="font-size:.7rem;color:var(--red);margin-left:4px" title="Down ${Math.abs(diff)} from all-time rank">â–¼${Math.abs(diff)}</span>`;
+      if (diff >= 2) trendArrow = `<span style="font-size:.7rem;color:var(--green);margin-left:4px" title="Up ${diff} from all-time rank">▲${diff}</span>`;
+      else if (diff <= -2) trendArrow = `<span style="font-size:.7rem;color:var(--red);margin-left:4px" title="Down ${Math.abs(diff)} from all-time rank">▼${Math.abs(diff)}</span>`;
     }
     return `<div class="lb-row">
       <div class="lb-rank ${rankCls}">${i+1}</div>
@@ -5100,17 +5100,17 @@ function setLbStat(s) { lbStat = s; renderLeaderboard(); }
 // TEAM BUILDER
 // =====================================================================
 // ---- Custom Players ----
-let customPlayers = {}; // name â†’ { attack, defense, enforcer, stamina, goalkeeping, playmaking }
+let customPlayers = {}; // name → { attack, defense, enforcer, stamina, goalkeeping, playmaking }
 
 function openCustomPlayerModal() {
   const modal = document.getElementById('custom-player-modal');
   const sliderDefs = [
-    ['cp-attack',     'Attack',      'âš½', 'Goals and finishing â€” 5 = average scorer (~1.5 goals/game)'],
-    ['cp-defense',    'Defense',     'ðŸ›¡', 'Tackles and interceptions â€” 5 = average defender'],
-    ['cp-enforcer',   'Enforcing',   'ðŸ’ª', 'Physical presence in duels'],
-    ['cp-stamina',    'Stamina',     'ðŸ«', 'Work rate and endurance'],
-    ['cp-goalkeeping','Goalkeeping', 'ðŸ§¤', 'Shot-stopping â€” 5 = average GK'],
-    ['cp-playmaking', 'Playmaking',  'ðŸŽ¯', 'Key passes and creativity â€” 5 = average creator'],
+    ['cp-attack',     'Attack',      '⚽', 'Goals and finishing — 5 = average scorer (~1.5 goals/game)'],
+    ['cp-defense',    'Defense',     '🛡', 'Tackles and interceptions — 5 = average defender'],
+    ['cp-enforcer',   'Enforcing',   '💪', 'Physical presence in duels'],
+    ['cp-stamina',    'Stamina',     '🫁', 'Work rate and endurance'],
+    ['cp-goalkeeping','Goalkeeping', '🧤', 'Shot-stopping — 5 = average GK'],
+    ['cp-playmaking', 'Playmaking',  '🎯', 'Key passes and creativity — 5 = average creator'],
   ];
   document.getElementById('cp-sliders').innerHTML = sliderDefs.map(([id, lbl, icon, tip]) => `
     <div style="margin-bottom:12px">
@@ -5124,17 +5124,17 @@ function openCustomPlayerModal() {
     </div>`).join('') + `
     <div style="border-top:1px solid var(--border);margin:14px 0 12px;padding-top:14px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-        <label style="font-size:.7rem;color:var(--muted);font-family:'Barlow Condensed',sans-serif;letter-spacing:1px;text-transform:uppercase">â­ Rating Override</label>
-        <span style="font-size:.72rem;color:var(--muted)">Auto: <span id="cp-rating-preview" style="color:var(--amber);font-family:'Bebas Neue',sans-serif;font-size:1rem">â€“</span></span>
+        <label style="font-size:.7rem;color:var(--muted);font-family:'Barlow Condensed',sans-serif;letter-spacing:1px;text-transform:uppercase">⭐ Rating Override</label>
+        <span style="font-size:.72rem;color:var(--muted)">Auto: <span id="cp-rating-preview" style="color:var(--amber);font-family:'Bebas Neue',sans-serif;font-size:1rem">–</span></span>
       </div>
       <div style="display:flex;align-items:center;gap:8px">
         <input type="range" id="cp-rating-override" min="5" max="60" value="0" step="0.5"
           oninput="document.getElementById('cp-override-val').textContent=parseFloat(this.value).toFixed(1)"
           style="flex:1;accent-color:var(--amber)">
-        <span id="cp-override-val" style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:var(--amber);min-width:34px">â€“</span>
+        <span id="cp-override-val" style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:var(--amber);min-width:34px">–</span>
         <button onclick="resetRatingOverride()" style="padding:3px 8px;border-radius:5px;border:1px solid var(--border);background:none;color:var(--muted);font-size:.7rem;cursor:pointer;font-family:'Barlow Condensed',sans-serif">Auto</button>
       </div>
-      <div style="font-size:.62rem;color:var(--muted);margin-top:5px">Typical range: 12 (weak) â†’ 45 (elite). Average â‰ˆ 33. Drag to override, or click Auto to use sliders.</div>
+      <div style="font-size:.62rem;color:var(--muted);margin-top:5px">Typical range: 12 (weak) → 45 (elite). Average ≈ 33. Drag to override, or click Auto to use sliders.</div>
     </div>`;
   modal.style.display = 'flex';
   updateCustomRatingPreview();
@@ -5144,7 +5144,7 @@ function openCustomPlayerModal() {
 function updateCustomRatingPreview() {
   // Calculate what the auto rating would be from current sliders
   // Scale: slider 1-10, where 5 = average player stat output
-  // Real player averages: goals/gâ‰ˆ1.5, assists/gâ‰ˆ0.9, shots/gâ‰ˆ7, def/gâ‰ˆ6, saves/gâ‰ˆ1.5, kp/gâ‰ˆ2
+  // Real player averages: goals/g≈1.5, assists/g≈0.9, shots/g≈7, def/g≈6, saves/g≈1.5, kp/g≈2
   const atk = parseInt(document.getElementById('cp-attack')?.value||5);
   const def = parseInt(document.getElementById('cp-defense')?.value||5);
   const enf = parseInt(document.getElementById('cp-enforcer')?.value||5);
@@ -5161,12 +5161,12 @@ function resetRatingOverride() {
   const el = document.getElementById('cp-rating-override');
   const valEl = document.getElementById('cp-override-val');
   if (el) el.value = 0;
-  if (valEl) valEl.textContent = 'â€“';
+  if (valEl) valEl.textContent = '–';
 }
 
 function buildCustomSynth(sliders) {
   // Map slider 1-10 to stat per game values calibrated so 5=average, 10=elite
-  // Real ranges: goals/g â‰ˆ 0.3â€“4.2, shots/g â‰ˆ 2â€“17, def/g â‰ˆ 2â€“12, saves/g â‰ˆ 0â€“4, kp/g â‰ˆ 0.5â€“5.5
+  // Real ranges: goals/g ≈ 0.3–4.2, shots/g ≈ 2–17, def/g ≈ 2–12, saves/g ≈ 0–4, kp/g ≈ 0.5–5.5
   const scale = (slider, min, max) => min + (slider-1)/(10-1)*(max-min);
   return {
     player: '__synth__',
@@ -5214,7 +5214,7 @@ function addCustomPlayer() {
   // Rating override via range slider (value=0 means auto)
   const overrideEl = document.getElementById('cp-rating-override');
   const overrideVal = overrideEl ? parseFloat(overrideEl.value) : 0;
-  const overrideActive = overrideVal > 0 && document.getElementById('cp-override-val')?.textContent !== 'â€“';
+  const overrideActive = overrideVal > 0 && document.getElementById('cp-override-val')?.textContent !== '–';
   if (overrideActive) {
     synth._ratingOverride = overrideVal;
     synth.rating = overrideVal;
@@ -5240,7 +5240,7 @@ function openEditCustomPlayer(name, e) {
   if (!p) return;
   const s = p._sliders || {};
   const cs = customStats[name] || {};
-  // Remove old entry â€” new one will be added when form is submitted
+  // Remove old entry — new one will be added when form is submitted
   delete customPlayers[name];
   selectedForTeams.delete(name);
   openCustomPlayerModal();
@@ -5267,17 +5267,17 @@ function renderTeamBuilder() {
     return `<div class="${cls}" onclick="toggleTeamPlayer('${p.player}')">
       ${p.player}
       ${adminMode ? `<span class="cr">${p.rating}</span>` : ''}
-      ${note ? `<span class="inj" title="${note}">âš </span>` : ''}
+      ${note ? `<span class="inj" title="${note}">⚠</span>` : ''}
     </div>`;
   }).join('');
 
   const customChips = Object.values(customPlayers).map(p => {
     const cls = selectedForTeams.has(p.player) ? 'pchip sel-a' : 'pchip';
     return `<div class="${cls}" onclick="toggleTeamPlayer('${p.player}')" style="border-color:var(--amber);position:relative">
-      <span style="color:var(--amber)">â˜…</span> ${p.player}
+      <span style="color:var(--amber)">★</span> ${p.player}
       ${adminMode ? `<span class="cr">${p.rating}</span>` : ''}
-      <span onclick="openEditCustomPlayer('${p.player}',event)" title="Edit" style="margin-left:4px;opacity:.6;font-size:.7rem;cursor:pointer">âœ</span>
-      <span onclick="removeCustomPlayer('${p.player}',event)" title="Remove" style="margin-left:2px;opacity:.6;font-size:.7rem;cursor:pointer;color:var(--red)">âœ•</span>
+      <span onclick="openEditCustomPlayer('${p.player}',event)" title="Edit" style="margin-left:4px;opacity:.6;font-size:.7rem;cursor:pointer">✏</span>
+      <span onclick="removeCustomPlayer('${p.player}',event)" title="Remove" style="margin-left:2px;opacity:.6;font-size:.7rem;cursor:pointer;color:var(--red)">✕</span>
     </div>`;
   }).join('');
 
@@ -5287,7 +5287,7 @@ function renderTeamBuilder() {
   const countEl = document.getElementById('team-player-count');
   if (countEl) {
     const sel = [...selectedForTeams];
-    countEl.textContent = sel.length > 0 ? ` Â· ${sel.length} selected` : '';
+    countEl.textContent = sel.length > 0 ? ` · ${sel.length} selected` : '';
   }
 
   const notesSec = document.getElementById('notes-section');
@@ -5298,7 +5298,7 @@ function renderTeamBuilder() {
     notesRows.innerHTML = sel.map(name => `
       <div class="note-row">
         <span class="note-player-name">${name}</span>
-        <input class="note-input" placeholder="e.g. injured, 50% fit, doubtfulâ€¦"
+        <input class="note-input" placeholder="e.g. injured, 50% fit, doubtful…"
           value="${(playerNotes[name]||'').replace(/"/g,'&quot;')}"
           oninput="savePlayerNote('${name}',this.value)"
           onblur="savePlayerNote('${name}',this.value,true)"
@@ -5327,13 +5327,13 @@ function savePlayerNote(name, val, rebalance = false) {
       return `<div class="${cls}" onclick="toggleTeamPlayer('${p.player}')">
         ${p.player}
         ${adminMode ? `<span class="cr">${p.rating}</span>` : ''}
-        ${note ? `<span class="inj" title="${note}">âš </span>` : ''}
+        ${note ? `<span class="inj" title="${note}">⚠</span>` : ''}
       </div>`;
     }).join('');
   }
   // Rebalance when note is committed (blur/enter), just rerender on keystrokes
   if (currentPage === 'teams' && selectedForTeams.size >= 2) {
-    if (rebalance) autoBalance(true); // rebalanceOnly â€” skip enforcer gate
+    if (rebalance) autoBalance(true); // rebalanceOnly — skip enforcer gate
     else if (teamA.length || teamB.length) renderTeamResult(teamA, teamB);
   }
 }
@@ -5429,7 +5429,7 @@ function teamDimensions(team) {
     }
   });
 
-  // Also factor in goal combo frequency â€” pairs that score together often have real chemistry
+  // Also factor in goal combo frequency — pairs that score together often have real chemistry
   const comboChemBonus = {};
   const comboStats = getComboStats();
   comboStats.forEach(c => {
@@ -5461,13 +5461,13 @@ function teamDimensions(team) {
 }
 
 let streakAugmentEnabled = true;
-let winRateAugStrength = 0.20; // max modifier â€” 0.20 = Â±20% rating adjustment
+let winRateAugStrength = 0.20; // max modifier — 0.20 = ±20% rating adjustment
 
 function toggleStreakAugment() {
   streakAugmentEnabled = !streakAugmentEnabled;
   const btn = document.getElementById('streak-aug-btn');
   if (btn) {
-    btn.textContent = `âš– Win Rate Balance: ${streakAugmentEnabled ? 'ON' : 'OFF'}`;
+    btn.textContent = `⚖ Win Rate Balance: ${streakAugmentEnabled ? 'ON' : 'OFF'}`;
     btn.style.borderColor = streakAugmentEnabled ? 'var(--lime)' : 'var(--border)';
     btn.style.background  = streakAugmentEnabled ? 'rgba(168,224,80,.1)' : 'transparent';
     btn.style.color       = streakAugmentEnabled ? 'var(--lime)' : 'var(--muted)';
@@ -5487,7 +5487,7 @@ function autoBalance(rebalanceOnly = false) {
     const pen = getPenalty(playerNotes[name]);
 
     // Win-rate modifier: players with higher win rate get a small nerf,
-    // lower win rate get a buff â€” encourages balanced teams
+    // lower win rate get a buff — encourages balanced teams
     let streakMod = 1.0;
     let streakLabel = null;
     if (streakAugmentEnabled && p.games >= 5) {
@@ -5510,7 +5510,7 @@ function autoBalance(rebalanceOnly = false) {
         const dir = deviation > 0 ? 'buff' : 'nerf';
         streakLabel = {
           type: dir,
-          text: `${dir === 'buff' ? 'â–²' : 'â–¼'} ${pct}% (${Math.round(winRate*100)}% WR L10)`
+          text: `${dir === 'buff' ? '▲' : '▼'} ${pct}% (${Math.round(winRate*100)}% WR L10)`
         };
       }
     }
@@ -5553,7 +5553,7 @@ function autoBalance(rebalanceOnly = false) {
     const gkScore = (team) => team.reduce((s,p) => s + ((p.goalkeeper_saves||0) / Math.max(p.games,1)), 0);
     const gkA = gkScore(a), gkB = gkScore(b);
 
-    // Chemistry imbalance â€” heavily weighted so teams with stacked good pairs get split
+    // Chemistry imbalance — heavily weighted so teams with stacked good pairs get split
     const synergyDiff = Math.abs(dA.synergy - dB.synergy) * 5.0;
 
     return (
@@ -5566,7 +5566,7 @@ function autoBalance(rebalanceOnly = false) {
     );
   };
 
-  // Enforcer score for a split â€” even teams: minimise diff; uneven: smaller team needs >= enforcer
+  // Enforcer score for a split — even teams: minimise diff; uneven: smaller team needs >= enforcer
   const enforcerDiff = (a, b) => {
     const eA = a.reduce((s,p) => s + p.enforcer, 0);
     const eB = b.reduce((s,p) => s + p.enforcer, 0);
@@ -5583,8 +5583,8 @@ function autoBalance(rebalanceOnly = false) {
 
   if (total <= 14) {
     // Generate all combinations, two passes:
-    // Pass 1 â€” find the minimum enforcer diff achievable
-    // Pass 2 â€” from all splits at that min diff, pick best secondary score
+    // Pass 1 — find the minimum enforcer diff achievable
+    // Pass 2 — from all splits at that min diff, pick best secondary score
     const allSplits = [];
     const combos = (arr, k, start, cur) => {
       if (cur.length === k) {
@@ -5602,7 +5602,7 @@ function autoBalance(rebalanceOnly = false) {
     combos(sel, sizeA, 0, []);
 
     // Phase 1: find minimum enforcer diff across all splits
-    // Skip enforcer gate when rebalancing due to injury/note changes â€” just optimise balance
+    // Skip enforcer gate when rebalancing due to injury/note changes — just optimise balance
     let minEnfDiff = rebalanceOnly ? 0 : Infinity;
     if (!rebalanceOnly) {
       allSplits.forEach(({ a, b }) => {
@@ -5774,7 +5774,7 @@ function dropToTeam(toTeam, event) {
 function getPenalty(note) {
   if (!note) return 0;
   const low = note.toLowerCase();
-  // Check for explicit fitness percentage â€” e.g. "15%", "50% fit", "75"
+  // Check for explicit fitness percentage — e.g. "15%", "50% fit", "75"
   const pctMatch = low.match(/(\d+)\s*%?\s*(fit)?/);
   if (pctMatch) {
     const fitness = Math.min(Math.max(parseInt(pctMatch[1]), 0), 100);
@@ -5810,9 +5810,9 @@ function renderTeamResult(tA, tB) {
   const pctA = total > 0 ? (sumA / total * 100).toFixed(0) : 50;
   const pctB = total > 0 ? (sumB / total * 100).toFixed(0) : 50;
   let balCls, balMsg;
-  if (diff < 1.5) { balCls = 'bal-good'; balMsg = adminMode ? `âš½ Well balanced â€” difference: ${diff.toFixed(1)} pts` : `âš½ Well balanced`; }
-  else if (diff < 3.5) { balCls = 'bal-ok'; balMsg = adminMode ? `âš  Slightly unbalanced â€” difference: ${diff.toFixed(1)} pts` : `âš  Slightly unbalanced`; }
-  else { balCls = 'bal-poor'; balMsg = adminMode ? `âš¡ Significant imbalance â€” difference: ${diff.toFixed(1)} pts` : `âš¡ Significant imbalance`; }
+  if (diff < 1.5) { balCls = 'bal-good'; balMsg = adminMode ? `⚽ Well balanced — difference: ${diff.toFixed(1)} pts` : `⚽ Well balanced`; }
+  else if (diff < 3.5) { balCls = 'bal-ok'; balMsg = adminMode ? `⚠ Slightly unbalanced — difference: ${diff.toFixed(1)} pts` : `⚠ Slightly unbalanced`; }
+  else { balCls = 'bal-poor'; balMsg = adminMode ? `⚡ Significant imbalance — difference: ${diff.toFixed(1)} pts` : `⚡ Significant imbalance`; }
 
   document.getElementById('balance-msg-area').innerHTML = `
     <div class="balance-msg ${balCls}">${balMsg}</div>
@@ -5824,7 +5824,7 @@ function renderTeamResult(tA, tB) {
       ${adminMode ? `<span style="color:var(--green)">Team A ${pctA}%</span><span style="color:var(--blue)">Team B ${pctB}%</span>` : '<span></span><span></span>'}
     </div>`;
 
-  const roleIcon = { scorer:'âš½', creator:'ðŸŽ¯', defender:'ðŸ›¡ï¸', goalkeeper:'ðŸ§¤', flair:'ðŸª„', allrounder:'â­' };
+  const roleIcon = { scorer:'⚽', creator:'🎯', defender:'🛡️', goalkeeper:'🧤', flair:'🪄', allrounder:'⭐' };
   const roleLabel = { scorer:'Scorer', creator:'Creator', defender:'Defender', goalkeeper:'Goalkeeper', flair:'Flair', allrounder:'All-Rounder' };
 
   const renderRows = (team, teamKey) => team.map(p => {
@@ -5836,30 +5836,30 @@ function renderTeamResult(tA, tB) {
       ontouchstart="touchStartDrag('${p.player}','${teamKey}',this,event)"
       ontouchmove="touchMoveDrag(event)"
       ontouchend="touchEndDrag(this,event)">
-      <span style="font-size:.8rem;opacity:.5;cursor:grab;margin-right:2px">â ¿</span>
+      <span style="font-size:.8rem;opacity:.5;cursor:grab;margin-right:2px">⠿</span>
       <span class="tp-name" onclick="nav('profile','${p.player}')" style="cursor:pointer">${p.player}</span>
       <span style="font-size:.7rem;opacity:.55">${roleIcon[role]} ${roleLabel[role]}</span>
-      ${p.streakLabel ? `<span style="font-size:.65rem;font-weight:600;padding:1px 6px;border-radius:4px;${p.streakLabel.type==='buff'?'background:rgba(96,165,250,.15);color:#60a5fa':'background:rgba(239,68,68,.12);color:#f87171'}" title="${p.streakLabel.type==='buff'?'Win rate is low â€” rating buffed to help balance teams':'Win rate is high â€” rating slightly nerfed to help balance teams'}">WR ${p.streakLabel.text}</span>` : ''}
+      ${p.streakLabel ? `<span style="font-size:.65rem;font-weight:600;padding:1px 6px;border-radius:4px;${p.streakLabel.type==='buff'?'background:rgba(96,165,250,.15);color:#60a5fa':'background:rgba(239,68,68,.12);color:#f87171'}" title="${p.streakLabel.type==='buff'?'Win rate is low — rating buffed to help balance teams':'Win rate is high — rating slightly nerfed to help balance teams'}">WR ${p.streakLabel.text}</span>` : ''}
       ${(() => {
         const ps = playerStats[p.player];
         if (!ps || ps.momentum == null || isNaN(ps.momentum)) return '';
         const m = ps.momentum;
         const col = m >= 15 ? '#4ade80' : m >= 0 ? '#a3e635' : m >= -15 ? '#fb923c' : '#f87171';
-        const icon = m >= 15 ? 'ðŸ“ˆ' : m >= 0 ? 'âž¡' : 'ðŸ“‰';
+        const icon = m >= 15 ? '📈' : m >= 0 ? '➡' : '📉';
         return `<span style="font-size:.68rem;color:${col}" title="Form momentum: stats last 5 games vs previous 5 games">${icon} ${m > 0 ? '+' : ''}${m}%</span>`;
       })()}
       ${note ? (() => {
         const pen = getPenalty(note);
         const penLabel = pen > 0 ? ` (${Math.round((1-pen)*100)}% fit)` : '';
-        return `<span class="tp-note" style="font-size:.7rem" title="${note}">âš  ${note.slice(0,30)}${note.length>30?'â€¦':''}${penLabel}</span>`;
+        return `<span class="tp-note" style="font-size:.7rem" title="${note}">⚠ ${note.slice(0,30)}${note.length>30?'…':''}${penLabel}</span>`;
       })() : ''}
       <span class="tp-rating">${adminMode ? (() => {
         const base = p.weightedRating.toFixed(1);
         const eff = p.effectiveRating.toFixed(1);
         const penNote = (1 - (p.effectiveRating / (p.weightedRating * p.streakMod || 1))) > 0.01
-          ? ` Â· injury ${Math.round((1-(p.effectiveRating/(p.weightedRating*p.streakMod||1)))*100)}% off` : '';
-        const wrNote = p.streakMod !== 1 ? ` Â· WR ${p.streakMod > 1 ? '+' : ''}${Math.round((p.streakMod-1)*100)}%` : '';
-        const tip = p._isCustom ? `Custom player Â· Effective: ${eff}` : `Base: ${base}${wrNote}${penNote} â†’ Effective: ${eff}`;
+          ? ` · injury ${Math.round((1-(p.effectiveRating/(p.weightedRating*p.streakMod||1)))*100)}% off` : '';
+        const wrNote = p.streakMod !== 1 ? ` · WR ${p.streakMod > 1 ? '+' : ''}${Math.round((p.streakMod-1)*100)}%` : '';
+        const tip = p._isCustom ? `Custom player · Effective: ${eff}` : `Base: ${base}${wrNote}${penNote} → Effective: ${eff}`;
         const display = p._isCustom ? parseFloat(eff).toFixed(1) : eff;
         return `<span data-tip="${tip}" style="cursor:help">${display}</span>`;
       })() : ''}</span>
@@ -5882,7 +5882,7 @@ function renderTeamResult(tA, tB) {
     const synCol = d.synergy >= 5 ? '#4ade80' : d.synergy >= 0 ? '#a3e635' : d.synergy >= -5 ? '#fb923c' : '#f87171';
     const synLabel = d.synergyPairs > 0
       ? `${d.synergy >= 0 ? '+' : ''}${d.synergy.toFixed(1)}%`
-      : 'â€“';
+      : '–';
     const synBar = d.synergyPairs > 0 ? `
       <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
         <div style="font-size:.62rem;color:var(--muted);min-width:56px;text-align:right;font-family:'Barlow Condensed',sans-serif;letter-spacing:.5px;text-transform:uppercase">Synergy</div>
@@ -5904,7 +5904,7 @@ function renderTeamResult(tA, tB) {
       ${synBar}`;
   };
 
-  // Enforcer comparison note â€” admin only
+  // Enforcer comparison note — admin only
   const dA2 = teamDimensions(tA), dB2 = teamDimensions(tB);
   const uneven = tA.length !== tB.length;
   const smallTeamEnf = tA.length <= tB.length ? dA2.enforcer : dB2.enforcer;
@@ -5913,13 +5913,13 @@ function renderTeamResult(tA, tB) {
   if (adminMode) {
     if (uneven) {
       enfNote = smallTeamEnf >= bigTeamEnf
-        ? `<div style="font-size:.72rem;color:var(--green);margin-top:4px">âœ“ Smaller team has higher Enforcer (${smallTeamEnf.toFixed(0)} vs ${bigTeamEnf.toFixed(0)}) â€” compensating correctly</div>`
-        : `<div style="font-size:.72rem;color:var(--amber);margin-top:4px">âš  Smaller team has lower Enforcer (${smallTeamEnf.toFixed(0)} vs ${bigTeamEnf.toFixed(0)}) â€” consider manual adjustment</div>`;
+        ? `<div style="font-size:.72rem;color:var(--green);margin-top:4px">✓ Smaller team has higher Enforcer (${smallTeamEnf.toFixed(0)} vs ${bigTeamEnf.toFixed(0)}) — compensating correctly</div>`
+        : `<div style="font-size:.72rem;color:var(--amber);margin-top:4px">⚠ Smaller team has lower Enforcer (${smallTeamEnf.toFixed(0)} vs ${bigTeamEnf.toFixed(0)}) — consider manual adjustment</div>`;
     } else {
       const enfDiff = Math.abs(dA2.enforcer - dB2.enforcer);
       enfNote = enfDiff <= 3
-        ? `<div style="font-size:.72rem;color:var(--green);margin-top:4px">âœ“ Enforcer balanced (A: ${dA2.enforcer.toFixed(0)} Â· B: ${dB2.enforcer.toFixed(0)})</div>`
-        : `<div style="font-size:.72rem;color:var(--amber);margin-top:4px">âš  Enforcer gap (A: ${dA2.enforcer.toFixed(0)} Â· B: ${dB2.enforcer.toFixed(0)}) â€” drag to adjust</div>`;
+        ? `<div style="font-size:.72rem;color:var(--green);margin-top:4px">✓ Enforcer balanced (A: ${dA2.enforcer.toFixed(0)} · B: ${dB2.enforcer.toFixed(0)})</div>`
+        : `<div style="font-size:.72rem;color:var(--amber);margin-top:4px">⚠ Enforcer gap (A: ${dA2.enforcer.toFixed(0)} · B: ${dB2.enforcer.toFixed(0)}) — drag to adjust</div>`;
     }
   }
 
@@ -5970,7 +5970,7 @@ function renderAttackComboPrediction(tA, tB) {
         return `<div style="display:flex;align-items:center;gap:10px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:.76rem">
           <div style="flex:1">
             <span style="color:${color}">${c.scorer}</span>
-            <span style="color:var(--muted)"> â† </span>
+            <span style="color:var(--muted)"> ← </span>
             <span style="color:var(--text2)">${c.assister}</span>
           </div>
           <span style="color:var(--muted);font-size:.65rem">${c.goals} goals in ${c.matchCount}/${shared || c.matchCount} games</span>
@@ -5981,8 +5981,8 @@ function renderAttackComboPrediction(tA, tB) {
   sec.style.display = 'block';
   sec.innerHTML = `
     <div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-top:12px">
-      <div style="font-family:'Barlow Condensed',sans-serif;font-size:.7rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:4px">âš½ Historical Goal Combos Within Each Team</div>
-      <div style="font-size:.65rem;color:var(--muted);margin-bottom:10px;opacity:.7">Scorer â† Assister Â· based on past matches, not a prediction</div>
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:.7rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:4px">⚽ Historical Goal Combos Within Each Team</div>
+      <div style="font-size:.65rem;color:var(--muted);margin-bottom:10px;opacity:.7">Scorer ← Assister · based on past matches, not a prediction</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
         <div>
           <div style="font-size:.65rem;color:var(--green);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;font-family:'Barlow Condensed',sans-serif">Team A</div>
@@ -6043,7 +6043,7 @@ function renderTeamSynergy(tA, tB) {
   const synB = avgSyn(pairsB);
 
   const synCol = (v) => v === null ? 'var(--muted)' : v >= 8 ? '#4ade80' : v >= 2 ? '#a3e635' : v >= -2 ? '#facc15' : v >= -8 ? '#fb923c' : '#f87171';
-  const synIcon = (v) => v === null ? 'â€“' : v >= 8 ? 'ðŸ”¥' : v >= 2 ? 'âš¡' : v >= -2 ? 'âš–' : 'â„';
+  const synIcon = (v) => v === null ? '–' : v >= 8 ? '🔥' : v >= 2 ? '⚡' : v >= -2 ? '⚖' : '❄';
 
   const renderPairs = (pairs, teamCol) => {
     if (!pairs.length) return '<div style="font-size:.78rem;color:var(--muted)">No pairs yet.</div>';
@@ -6062,7 +6062,7 @@ function renderTeamSynergy(tA, tB) {
           <span style="font-size:.8rem;color:var(--text2);font-weight:500">${p.p1} <span style="color:var(--muted);font-size:.72rem">&amp;</span> ${p.p2}</span>
           <div style="text-align:right">
             <span style="font-family:'Bebas Neue',sans-serif;font-size:1rem;color:${col}">${sign}${p.delta}%</span>
-            <span style="font-size:.65rem;color:var(--muted);margin-left:4px">${p.winRate}% WR Â· ${p.games}G</span>
+            <span style="font-size:.65rem;color:var(--muted);margin-left:4px">${p.winRate}% WR · ${p.games}G</span>
           </div>
         </div>
         <div style="background:var(--bg2);border-radius:2px;height:3px;overflow:hidden;position:relative">
@@ -6081,14 +6081,14 @@ function renderTeamSynergy(tA, tB) {
       <div style="background:rgba(57,211,83,.06);border:1px solid rgba(57,211,83,.2);border-radius:8px;padding:12px 14px">
         <div style="font-size:.65rem;color:var(--green);font-family:'Barlow Condensed',sans-serif;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">Team A Chemistry</div>
         <div style="font-family:'Bebas Neue',sans-serif;font-size:2rem;color:${synCol(synA ? parseFloat(synA) : null)};line-height:1">
-          ${synA !== null ? (parseFloat(synA) >= 0 ? '+' : '') + synA + '%' : 'â€“'}
+          ${synA !== null ? (parseFloat(synA) >= 0 ? '+' : '') + synA + '%' : '–'}
         </div>
         <div style="font-size:.72rem;color:var(--muted);margin-top:2px">${synIcon(synA ? parseFloat(synA) : null)} ${pairsA.filter(p=>p.delta!==null).length} of ${pairsA.length} pairs tracked</div>
       </div>
       <div style="background:rgba(79,163,232,.06);border:1px solid rgba(79,163,232,.2);border-radius:8px;padding:12px 14px">
         <div style="font-size:.65rem;color:var(--blue);font-family:'Barlow Condensed',sans-serif;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">Team B Chemistry</div>
         <div style="font-family:'Bebas Neue',sans-serif;font-size:2rem;color:${synCol(synB ? parseFloat(synB) : null)};line-height:1">
-          ${synB !== null ? (parseFloat(synB) >= 0 ? '+' : '') + synB + '%' : 'â€“'}
+          ${synB !== null ? (parseFloat(synB) >= 0 ? '+' : '') + synB + '%' : '–'}
         </div>
         <div style="font-size:.72rem;color:var(--muted);margin-top:2px">${synIcon(synB ? parseFloat(synB) : null)} ${pairsB.filter(p=>p.delta!==null).length} of ${pairsB.length} pairs tracked</div>
       </div>
@@ -6159,7 +6159,7 @@ function predictResult(tA, tB) {
   const outcomeColor = !favourite ? 'var(--amber)' : favourite === 'A' ? 'var(--green)' : 'var(--blue)';
 
   // Confidence level
-  const confidence = margin < 8 ? 'ðŸŸ¡ Low confidence â€” very close matchup' : margin < 18 ? 'ðŸŸ¢ Moderate confidence' : 'ðŸ”µ High confidence â€” clear favourite';
+  const confidence = margin < 8 ? '🟡 Low confidence — very close matchup' : margin < 18 ? '🟢 Moderate confidence' : '🔵 High confidence — clear favourite';
 
   // Dimensional edges
   const edges = [];
@@ -6207,8 +6207,8 @@ function predictResult(tA, tB) {
         <span>${e.label}</span>
       </div>`).join('')}
     </div>
-    <div style="margin-top:10px;font-size:.66rem;color:var(--muted);opacity:.55">Based on per-game stats + weighted form Â· Football is unpredictable ðŸŽ²</div>
-    ${streakNotes.length ? `<div style="margin-top:6px;font-size:.66rem;color:var(--muted);border-top:1px solid var(--border);padding-top:6px">âš– Streak adjustments: ${streakNotes.join(' Â· ')}</div>` : ''}`;
+    <div style="margin-top:10px;font-size:.66rem;color:var(--muted);opacity:.55">Based on per-game stats + weighted form · Football is unpredictable 🎲</div>
+    ${streakNotes.length ? `<div style="margin-top:6px;font-size:.66rem;color:var(--muted);border-top:1px solid var(--border);padding-top:6px">⚖ Streak adjustments: ${streakNotes.join(' · ')}</div>` : ''}`;
 
   sec.style.display = 'block';
 }
@@ -6262,8 +6262,8 @@ function initBannerSlowmo(videoId, playerName) {
       }
       const pct = vid.currentTime / vid.duration;
       if (pct >= 0.75) {
-        // Ease from 1.0â†’ 0.05 over the last 25% of the video
-        const t = (pct - 0.75) / 0.25; // 0â†’1
+        // Ease from 1.0→ 0.05 over the last 25% of the video
+        const t = (pct - 0.75) / 0.25; // 0→1
         const rate = Math.max(1 - (t * t * 0.95), 0.05);
         vid.playbackRate = rate;
         if (pct >= 0.99) {
@@ -6303,7 +6303,7 @@ function initBannerSlowmo(videoId, playerName) {
 }
 
 function loadFallbackBanner(gifKey, playerName) {
-  // Video failed â€” try gif, then png, then jpg
+  // Video failed — try gif, then png, then jpg
   const img = document.getElementById('banner-img-' + gifKey);
   if (img) img.style.display = 'block';
 }
@@ -6333,16 +6333,16 @@ function removeGif(name) {
 }
 
 // =====================================================================
-// BACKUP â€” modal copy approach (download links blocked in sandbox)
+// BACKUP — modal copy approach (download links blocked in sandbox)
 // =====================================================================
 function bakeToHTML() {
   const hasGifs = Object.keys(window._playerGifs || {}).length > 0;
   if (hasGifs) {
-    if (!confirm('âš ï¸ Baking will remove player GIF banners to keep file size small. GIFs are saved in your browser and will still show when you open the baked file on this device â€” but they won\'t appear on other devices.\n\nContinue baking?')) return;
+    if (!confirm('⚠️ Baking will remove player GIF banners to keep file size small. GIFs are saved in your browser and will still show when you open the baked file on this device — but they won\'t appear on other devices.\n\nContinue baking?')) return;
   }
   const btn = document.getElementById('bake-btn');
   const orig = btn?.textContent;
-  if (btn) { btn.textContent = 'â³ Bakingâ€¦'; btn.disabled = true; }
+  if (btn) { btn.textContent = '⏳ Baking…'; btn.disabled = true; }
 
   setTimeout(async () => {
     try {
@@ -6371,10 +6371,10 @@ function bakeToHTML() {
 
       console.log(`Bake: ${rowsForBake.length} total rows, ${uniqueMatchIds.size} matches (${newMatchIds.length} new since last bake)`);
       sortedRecent.forEach(id => {
-        console.log(newCSV.includes(id) ? `âœ“ ${id} in baked CSV` : `âŒ WARNING: ${id} MISSING from baked CSV`);
+        console.log(newCSV.includes(id) ? `✓ ${id} in baked CSV` : `❌ WARNING: ${id} MISSING from baked CSV`);
       });
 
-      if (!confirm(`Bake ready:\nâ€¢ ${uniqueMatchIds.size} total matches\nâ€¢ ${newMatchIds.length} new since last bake\n\nMost recent: ${sortedRecent.slice(0,2).join(', ')}\n\nDownload?`)) {
+      if (!confirm(`Bake ready:\n• ${uniqueMatchIds.size} total matches\n• ${newMatchIds.length} new since last bake\n\nMost recent: ${sortedRecent.slice(0,2).join(', ')}\n\nDownload?`)) {
         if (btn) { btn.textContent = orig; btn.disabled = false; }
         return;
       }
@@ -6384,7 +6384,7 @@ function bakeToHTML() {
         .map(([k, v]) => `    ${k}:{enforcer:${n(v?.enforcer)||5},stamina:${n(v?.stamina)||5}}`)
         .join(',\n');
 
-      // Read script 1 from DOM directly â€” works even in baked files
+      // Read script 1 from DOM directly — works even in baked files
       const liveS1 = await getAppJsSource();
 
       let s1 = liveS1
@@ -6396,7 +6396,7 @@ function bakeToHTML() {
           /let matchVideos = \{[^;]*\};/,
           `let matchVideos = ${JSON.stringify(matchVideos)};`
         )
-        // Mark as baked â€” skip localStorage extra rows merge on load
+        // Mark as baked — skip localStorage extra rows merge on load
         .replace(/const _IS_BAKED = false;/, 'const _IS_BAKED = true;')
         // Always reset to logged-out state in baked file
         .replace(/let adminMode = (true|false);/, 'let adminMode = false;')
@@ -6428,7 +6428,7 @@ function bakeToHTML() {
       // Reset admin button to locked state
       const adminBtnClone = bodyClone.querySelector('#admin-btn');
       if (adminBtnClone) {
-        adminBtnClone.textContent = 'ðŸ”’ Admin';
+        adminBtnClone.textContent = '🔒 Admin';
         adminBtnClone.style.color = '';
         adminBtnClone.style.borderColor = '';
       }
@@ -6436,13 +6436,13 @@ function bakeToHTML() {
       // Reset bake button to normal state
       const bakeBtnClone = bodyClone.querySelector('#bake-btn');
       if (bakeBtnClone) {
-        bakeBtnClone.textContent = 'ðŸ’¾ Bake to HTML';
+        bakeBtnClone.textContent = '💾 Bake to HTML';
         bakeBtnClone.disabled = false;
         bakeBtnClone.style.color = '';
         bakeBtnClone.style.display = 'none'; // hidden until admin login
       }
 
-      // Remove banner images (base64 GIFs are huge â€” they reload from localStorage)
+      // Remove banner images (base64 GIFs are huge — they reload from localStorage)
       bodyClone.querySelectorAll('img[src^="data:"]').forEach(img => {
         img.removeAttribute('src');
       });
@@ -6482,15 +6482,15 @@ function bakeToHTML() {
       }
 
       if (btn) {
-        btn.textContent = `âœ… Baked ${uniqueMatchIds.size} matches`;
+        btn.textContent = `✅ Baked ${uniqueMatchIds.size} matches`;
         btn.style.color = 'var(--green)';
       }
-      // Draft is now embedded â€” hide the banner
+      // Draft is now embedded — hide the banner
       const banner = document.getElementById('draft-banner');
       if (banner) banner.style.display = 'none';
     } catch(e) {
       console.error('Bake failed:', e);
-      if (btn) { btn.textContent = 'âŒ Failed'; btn.style.color = 'var(--red)'; }
+      if (btn) { btn.textContent = '❌ Failed'; btn.style.color = 'var(--red)'; }
       alert('Bake failed: ' + e.message);
     }
     setTimeout(async () => {
@@ -6527,15 +6527,15 @@ function showBackupModal(csv) {
   modal.onclick = e => { if (e.target === modal) modal.remove(); };
   modal.innerHTML = `
     <div style="background:#162018;border:1px solid #253527;border-radius:14px;padding:28px;width:100%;max-width:660px;position:relative;max-height:90vh;overflow-y:auto">
-      <button onclick="document.getElementById('backup-modal').remove()" style="position:absolute;top:14px;right:16px;background:none;border:none;color:#6b8a6e;font-size:1.4rem;cursor:pointer">âœ•</button>
-      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.6rem;color:#39d353;letter-spacing:2px;margin-bottom:4px">ðŸ“‹ Full Data Backup</div>
-      <div style="font-size:.78rem;color:#6b8a6e;margin-bottom:12px">${matchIds.size} matches Â· ${totalRows} rows${extraCount > 0 ? ` Â· <span style="color:var(--amber)">${extraCount} matches from imports (not yet baked)</span>` : ' Â· all data baked'}</div>
+      <button onclick="document.getElementById('backup-modal').remove()" style="position:absolute;top:14px;right:16px;background:none;border:none;color:#6b8a6e;font-size:1.4rem;cursor:pointer">✕</button>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.6rem;color:#39d353;letter-spacing:2px;margin-bottom:4px">📋 Full Data Backup</div>
+      <div style="font-size:.78rem;color:#6b8a6e;margin-bottom:12px">${matchIds.size} matches · ${totalRows} rows${extraCount > 0 ? ` · <span style="color:var(--amber)">${extraCount} matches from imports (not yet baked)</span>` : ' · all data baked'}</div>
 
       <div style="background:rgba(57,211,83,.08);border:1px solid rgba(57,211,83,.2);border-radius:8px;padding:12px;margin-bottom:14px;font-size:.78rem;color:#9ab89c;line-height:1.7">
-        <strong style="color:#d4ead6">GitHub workflow â€” update for everyone:</strong><br>
-        1. Click <strong style="color:var(--lime)">â¬‡ Download data.csv</strong><br>
+        <strong style="color:#d4ead6">GitHub workflow — update for everyone:</strong><br>
+        1. Click <strong style="color:var(--lime)">⬇ Download data.csv</strong><br>
         2. Replace <code style="background:#111e13;padding:1px 5px;border-radius:3px;color:#a8e050">data.csv</code> in your GitHub repo with this file<br>
-        3. Push to GitHub â€” everyone sees the new match on next refresh âœ“<br>
+        3. Push to GitHub — everyone sees the new match on next refresh ✓<br>
         <span style="color:#6b8a6e;font-size:.72rem">The app automatically loads data.csv from GitHub on startup</span>
       </div>
 
@@ -6544,9 +6544,9 @@ function showBackupModal(csv) {
       <div style="display:flex;gap:10px;margin-top:14px;align-items:center;flex-wrap:wrap">
         <button id="backup-copy-btn" onclick="
           navigator.clipboard.writeText(document.getElementById('backup-csv-text').value)
-            .then(() => { const b=document.getElementById('backup-copy-btn'); b.textContent='âœ… Copied!'; b.style.background='#22c55e'; setTimeout(()=>{b.textContent='ðŸ“‹ Copy All';b.style.background='';},2500); })
+            .then(() => { const b=document.getElementById('backup-copy-btn'); b.textContent='✅ Copied!'; b.style.background='#22c55e'; setTimeout(()=>{b.textContent='📋 Copy All';b.style.background='';},2500); })
             .catch(() => { const t=document.getElementById('backup-csv-text'); t.select(); document.execCommand('copy'); });
-        " style="background:var(--green);border:none;color:#071009;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;padding:10px 22px;border-radius:7px;cursor:pointer">ðŸ“‹ Copy All</button>
+        " style="background:var(--green);border:none;color:#071009;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;padding:10px 22px;border-radius:7px;cursor:pointer">📋 Copy All</button>
         <button onclick="
           const csv = document.getElementById('backup-csv-text').value;
           const blob = new Blob([csv], {type:'text/csv'});
@@ -6554,7 +6554,7 @@ function showBackupModal(csv) {
           const a = document.createElement('a'); a.href=url; a.download='data.csv';
           document.body.appendChild(a); a.click(); document.body.removeChild(a);
           URL.revokeObjectURL(url);
-        " style="background:var(--lime);border:none;color:#071009;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;padding:10px 22px;border-radius:7px;cursor:pointer">â¬‡ Download data.csv</button>
+        " style="background:var(--lime);border:none;color:#071009;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;padding:10px 22px;border-radius:7px;cursor:pointer">⬇ Download data.csv</button>
         <button onclick="document.getElementById('backup-modal').remove()" style="background:var(--card2);border:1px solid var(--border);color:var(--muted);font-family:'Barlow Condensed',sans-serif;font-size:.85rem;letter-spacing:1px;text-transform:uppercase;padding:10px 16px;border-radius:7px;cursor:pointer">Close</button>
       </div>
     </div>`;
@@ -6563,7 +6563,7 @@ function showBackupModal(csv) {
 }
 
 // =====================================================================
-// ANALYTICS â€” streaks, form, consistency, best game, chemistry, H2H
+// ANALYTICS — streaks, form, consistency, best game, chemistry, H2H
 // =====================================================================
 function computeAnalytics() {
   const players = Object.values(playerStats);
@@ -6596,7 +6596,7 @@ function computeAnalytics() {
     outs.forEach(o=>{ if(o==='W'){cur++;maxW=Math.max(maxW,cur);}else cur=0;});
     p.longestWinStreak = maxW;
 
-    // Last 8 form (most recent first) â€” store rich data for display
+    // Last 8 form (most recent first) — store rich data for display
     p._form8 = outs.slice(-8).reverse();
     p._form8Rich = orderedMatches.slice(-8).reverse().map((m, i) => {
       const outcome = p._form8[i];
@@ -6715,7 +6715,7 @@ function computeAnalytics() {
         if (!chemMap[key].gamesApart) chemMap[key].gamesApart = 0;
         if (!chemMap[key].winsApart) chemMap[key].winsApart = 0;
         // "wins apart" = how many times their side won when on opposite teams
-        // (ambiguous â€” track just games apart count)
+        // (ambiguous — track just games apart count)
         chemMap[key].gamesApart++;
       }
     }));
@@ -6738,7 +6738,7 @@ function computeAnalytics() {
   const synergyMap = {}; // { playerName: { weightedDeltaSum, totalWeight } }
   window._chemistry.forEach(c => {
     if (c.games < 2) return;
-    const weight = c.games / (c.games + 5); // Bayesian shrinkage: 3gâ†’0.38, 10gâ†’0.67, 20gâ†’0.80
+    const weight = c.games / (c.games + 5); // Bayesian shrinkage: 3g→0.38, 10g→0.67, 20g→0.80
     [c.p1, c.p2].forEach(name => {
       if (!synergyMap[name]) synergyMap[name] = { sum: 0, weight: 0, pairs: 0 };
       synergyMap[name].sum    += c.delta * weight;
@@ -6746,7 +6746,7 @@ function computeAnalytics() {
       synergyMap[name].pairs++;
     });
   });
-  // Store synergy on playerStats â€” range roughly -50 to +50, normalise to -10 to +10 for display
+  // Store synergy on playerStats — range roughly -50 to +50, normalise to -10 to +10 for display
   Object.values(playerStats).forEach(p => {
     const s = synergyMap[p.player];
     if (s && s.weight > 0) {
@@ -6790,14 +6790,14 @@ function computeAnalytics() {
 
 function getMilestones(p) {
   const thresholds = [
-    {stat:'goals',   levels:[10,25,50,75,100,150,200], icon:'âš½', label:'Goals'},
-    {stat:'assists', levels:[10,25,50,75,100],          icon:'ðŸŽ¯', label:'Assists'},
-    {stat:'nutmegs', levels:[10,25,50,100],             icon:'ðŸª„', label:'Nutmegs'},
-    {stat:'tackles', levels:[25,50,100,200],            icon:'ðŸ›¡ï¸', label:'Tackles'},
-    {stat:'total_saves',levels:[10,25,50,100],          icon:'ðŸ§¤', label:'Saves'},
-    {stat:'games',   levels:[5,10,20,30,50],            icon:'ðŸƒ', label:'Games'},
-    {stat:'wins',    levels:[5,10,20,30,50],            icon:'ðŸ†', label:'Wins'},
-    {stat:'mvps',    levels:[1,3,5,10],                 icon:'ðŸ‘‘', label:'MVPs'},
+    {stat:'goals',   levels:[10,25,50,75,100,150,200], icon:'⚽', label:'Goals'},
+    {stat:'assists', levels:[10,25,50,75,100],          icon:'🎯', label:'Assists'},
+    {stat:'nutmegs', levels:[10,25,50,100],             icon:'🪄', label:'Nutmegs'},
+    {stat:'tackles', levels:[25,50,100,200],            icon:'🛡️', label:'Tackles'},
+    {stat:'total_saves',levels:[10,25,50,100],          icon:'🧤', label:'Saves'},
+    {stat:'games',   levels:[5,10,20,30,50],            icon:'🏃', label:'Games'},
+    {stat:'wins',    levels:[5,10,20,30,50],            icon:'🏆', label:'Wins'},
+    {stat:'mvps',    levels:[1,3,5,10],                 icon:'👑', label:'MVPs'},
   ];
   const results = [];
   thresholds.forEach(({stat,levels,icon,label})=>{
@@ -6889,7 +6889,7 @@ function formDotsHtml(outcomes8) {
 }
 
 function streakHtml(p) {
-  if (!p.currentStreak) return `<span class="streak-badge streak-none">â€“</span>`;
+  if (!p.currentStreak) return `<span class="streak-badge streak-none">–</span>`;
   const cls = p.streakType==='W'?'streak-w':'streak-l';
   const label = p.streakType==='W'?'Win streak':'Loss streak';
   return `<span class="streak-badge ${cls}">${p.currentStreak} ${label}</span>`;
@@ -6920,11 +6920,11 @@ function renderComparePage() {
   if (!sel1 || !sel2) return;
   const p1v = sel1.value, p2v = sel2.value, p3v = sel3?.value || '';
   [sel1,sel2].forEach((s,si)=>{
-    s.innerHTML = `<option value="">Player ${si+1}â€¦</option>` +
+    s.innerHTML = `<option value="">Player ${si+1}…</option>` +
       names.map(nm=>`<option value="${nm}" ${nm===(si?p2v:p1v)?'selected':''}>${nm}</option>`).join('');
   });
   if (sel3) {
-    sel3.innerHTML = '<option value="">Player 3 (optional)â€¦</option>' +
+    sel3.innerHTML = '<option value="">Player 3 (optional)…</option>' +
       names.map(nm=>`<option value="${nm}" ${nm===p3v?'selected':''}>${nm}</option>`).join('');
   }
 
@@ -6947,7 +6947,7 @@ function renderComparePage() {
   const label = s => pg ? s+'/G' : s;
 
   const groups = [
-    { label: 'âš½ Attacking', stats: [
+    { label: '⚽ Attacking', stats: [
       [label('Goals'), 'goals'],
       [label('Assists'), 'assists'],
       [pg?'G+A/G':'G+A', 'gpa'],
@@ -6956,17 +6956,17 @@ function renderComparePage() {
       [label('Key Passes'), 'key_passes'],
       [label('Nutmegs'), 'nutmegs'],
     ]},
-    { label: 'ðŸ›¡ Defensive', stats: [
+    { label: '🛡 Defensive', stats: [
       [label('Tackles'), 'tackles'],
       [label('Interceptions'), 'interceptions'],
       [label('Blocks'), 'blocks'],
       [label('GK Saves'), 'goalkeeper_saves'],
     ]},
-    { label: 'ðŸ“Š Overall', stats: [
+    { label: '📊 Overall', stats: [
       ['Games', 'games'],
       ['Wins', 'wins'],
       ['Win Rate %', 'winrate'],
-      ['MVPs ðŸ‘‘', 'mvps'],
+      ['MVPs 👑', 'mvps'],
       ['Consistency', 'consistency'],
       ['Win Streak', 'longestWinStreak'],
     ]},
@@ -7025,7 +7025,7 @@ function renderComparePage() {
       <div style="font-size:.7rem;color:var(--muted)">${wins[i]} stat wins</div>
     </div>`).join('<div style="font-size:.9rem;color:var(--muted)">vs</div>');
 
-  // H2H section â€” show for both 2 and 3 player compare
+  // H2H section — show for both 2 and 3 player compare
   let h2hSection = '';
   if (cols === 2) {
     const h2hKey = [p1.player,p2.player].sort().join('|||');
@@ -7039,7 +7039,7 @@ function renderComparePage() {
     const p2pct = h2hTotal>0?Math.round(pw2/h2hTotal*100):0;
     const dpct  = h2hTotal>0?Math.round(h2h.draws/h2hTotal*100):0;
     h2hSection = `<div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:14px">
-      <div style="font-family:'Barlow Condensed',sans-serif;font-size:.8rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:12px">âš”ï¸ Head-to-Head (on opposite teams)</div>
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:.8rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:12px">⚔️ Head-to-Head (on opposite teams)</div>
       ${h2hTotal === 0 ? '<p style="color:var(--muted);font-size:.85rem">No head-to-head data yet.</p>' : `
         <div style="display:flex;justify-content:space-between;margin-bottom:8px">
           <div style="text-align:center"><div style="font-family:'Bebas Neue',sans-serif;font-size:2rem;color:var(--green)">${pw1}</div><div style="font-size:.7rem;color:var(--muted)">${p1.player} wins</div></div>
@@ -7054,7 +7054,7 @@ function renderComparePage() {
         <div style="display:flex;justify-content:space-between;font-size:.72rem;color:var(--muted);margin-top:5px">
           <span style="color:var(--green)">${p1pct}%</span><span>${dpct}% draws</span><span style="color:var(--blue)">${p2pct}%</span>
         </div>
-        ${gl1+gl2>0?`<div style="text-align:center;font-size:.72rem;color:var(--muted);margin-top:6px">Aggregate goals: <span style="color:var(--green)">${gl1}</span> â€“ <span style="color:var(--blue)">${gl2}</span></div>`:''}
+        ${gl1+gl2>0?`<div style="text-align:center;font-size:.72rem;color:var(--muted);margin-top:6px">Aggregate goals: <span style="color:var(--green)">${gl1}</span> – <span style="color:var(--blue)">${gl2}</span></div>`:''}
         `}
     </div>`;
   } else if (cols === 3) {
@@ -7063,7 +7063,7 @@ function renderComparePage() {
     const pairHtml = pairs.map(([pa,pb]) => {
       const key = [pa.player,pb.player].sort().join('|||');
       const h = window._h2h?.[key];
-      if (!h || h.games === 0) return `<div style="padding:8px 0;border-bottom:1px solid var(--border);font-size:.8rem;color:var(--muted)">${pa.player} vs ${pb.player} â€” no data</div>`;
+      if (!h || h.games === 0) return `<div style="padding:8px 0;border-bottom:1px solid var(--border);font-size:.8rem;color:var(--muted)">${pa.player} vs ${pb.player} — no data</div>`;
       const paWins = pa.player===h.p1 ? h.p1wins : h.p2wins;
       const pbWins = pa.player===h.p1 ? h.p2wins : h.p1wins;
       const paGoals= pa.player===h.p1 ? (h.p1goals||0) : (h.p2goals||0);
@@ -7073,14 +7073,14 @@ function renderComparePage() {
       return `<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
         <div style="font-size:.82rem;font-weight:600;color:${col1}">${pa.player}</div>
         <div style="text-align:center;flex:1;padding:0 12px">
-          <div style="font-family:'Bebas Neue',sans-serif;font-size:1.2rem;color:var(--text)">${paWins}â€“${h.draws}â€“${pbWins}</div>
-          ${paGoals+pbGoals>0?`<div style="font-size:.68rem;color:var(--muted)">${paGoals}â€“${pbGoals} goals Â· ${h.games}g</div>`:`<div style="font-size:.68rem;color:var(--muted)">${h.games} games</div>`}
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:1.2rem;color:var(--text)">${paWins}–${h.draws}–${pbWins}</div>
+          ${paGoals+pbGoals>0?`<div style="font-size:.68rem;color:var(--muted)">${paGoals}–${pbGoals} goals · ${h.games}g</div>`:`<div style="font-size:.68rem;color:var(--muted)">${h.games} games</div>`}
         </div>
         <div style="font-size:.82rem;font-weight:600;color:${col2}">${pb.player}</div>
       </div>`;
     }).join('');
     h2hSection = `<div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:14px">
-      <div style="font-family:'Barlow Condensed',sans-serif;font-size:.8rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:12px">âš”ï¸ Head-to-Head Records</div>
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:.8rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:12px">⚔️ Head-to-Head Records</div>
       ${pairHtml}
     </div>`;
   }
@@ -7090,7 +7090,7 @@ function renderComparePage() {
     <div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:14px;text-align:center">
       <canvas id="compare-spider" width="300" height="300" style="max-width:100%"></canvas>
       <div style="display:flex;justify-content:center;gap:20px;margin-top:8px;font-size:.75rem">
-        <span style="color:var(--green)">â— ${p1.player}</span><span style="color:var(--blue)">â— ${p2.player}</span>
+        <span style="color:var(--green)">● ${p1.player}</span><span style="color:var(--blue)">● ${p2.player}</span>
       </div>
     </div>` : '';
 
@@ -7101,7 +7101,7 @@ function renderComparePage() {
         <button onclick="comparePerGame=true;renderComparePage()" style="padding:6px 14px;border:none;border-radius:6px;cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-size:.82rem;letter-spacing:.5px;text-transform:uppercase;background:${pg?'var(--green)':'var(--card2)'};color:${pg?'#071009':'var(--muted)'}">Per Game</button>
       </div>
       <div style="display:flex;gap:12px;align-items:center;margin-left:auto;flex-wrap:wrap">
-        ${players.map((p,i)=>`<span style="font-size:.8rem"><span style="color:${colColors[i]}">â—</span> ${p.player} â€” ${wins[i]} wins</span>`).join('')}
+        ${players.map((p,i)=>`<span style="font-size:.8rem"><span style="color:${colColors[i]}">●</span> ${p.player} — ${wins[i]} wins</span>`).join('')}
       </div>
     </div>
     ${h2hSection}
@@ -7145,14 +7145,14 @@ function drawSpiderDual(canvasId, labels, v1, v2, c1, c2) {
 }
 
 // =====================================================================
-// STATS PAGE â€” records, chemistry, milestones overview
+// STATS PAGE — records, chemistry, milestones overview
 // =====================================================================
 function renderStatsPage() {
   const content = document.getElementById('stats-content');
   if (!content) return;
   const rec = window._records || {};
   const chem = (window._chemistry || []).slice(0,12);
-  const fmtMatch = m => m ? `${m.date} Â· ${m.goalsA}â€“${m.goalsB}` : 'â€“';
+  const fmtMatch = m => m ? `${m.date} · ${m.goalsA}–${m.goalsB}` : '–';
 
   const allMilestones = Object.values(playerStats)
     .flatMap(p=>(p.milestones||[]).filter(m=>m.achieved).map(m=>({...m,player:p.player})))
@@ -7162,10 +7162,10 @@ function renderStatsPage() {
   if (!window._statsTab) window._statsTab = 'records';
 
   const tabs = [
-    { id:'records',   label:'ðŸ† Records' },
-    { id:'chemistry', label:'ðŸ¤ Chemistry' },
-    { id:'rivalries', label:'âš”ï¸ Rivalries' },
-    { id:'milestones',label:'ðŸŽ– Milestones' },
+    { id:'records',   label:'🏆 Records' },
+    { id:'chemistry', label:'🤝 Chemistry' },
+    { id:'rivalries', label:'⚔️ Rivalries' },
+    { id:'milestones',label:'🎖 Milestones' },
   ];
 
   const tabBar = `<div style="display:flex;gap:4px;background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:5px;margin-bottom:20px">
@@ -7185,7 +7185,7 @@ function renderStatsPage() {
         : playerId
         ? `onclick="nav('profile','${playerId}')" style="cursor:pointer"`
         : '';
-      const linkHint = (matchId||playerId) ? `<span style="font-size:.65rem;color:var(--muted);opacity:.6;margin-left:4px">â†—</span>` : '';
+      const linkHint = (matchId||playerId) ? `<span style="font-size:.65rem;color:var(--muted);opacity:.6;margin-left:4px">↗</span>` : '';
       return `<div ${clickHandler} style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px;display:flex;gap:12px;align-items:flex-start;transition:border-color .15s" onmouseover="if(this.onclick)this.style.borderColor='var(--lime)'" onmouseout="this.style.borderColor='var(--border)'">
         <div style="font-size:1.6rem;flex-shrink:0">${icon}</div>
         <div>
@@ -7196,40 +7196,40 @@ function renderStatsPage() {
       </div>`;
     };
     const fmr = (rec) => rec?.row?.match_id || null;
-    const fmd = (rec) => rec?.row ? `${rec.player} Â· ${rec.row.match_date}` : 'â€“';
-    const fmtM = (m) => m ? `${m.date} Â· ${m.goalsA}â€“${m.goalsB}` : 'â€“';
+    const fmd = (rec) => rec?.row ? `${rec.player} · ${rec.row.match_date}` : '–';
+    const fmtM = (m) => m ? `${m.date} · ${m.goalsA}–${m.goalsB}` : '–';
 
     tabContent = `
-      <div style="font-family:'Barlow Condensed',sans-serif;font-size:.75rem;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:10px">Match Records <span style="opacity:.5">Â· click to view match</span></div>
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:.75rem;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:10px">Match Records <span style="opacity:.5">· click to view match</span></div>
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;margin-bottom:24px">
-        ${recCard('ðŸ†','Biggest Win Margin', rec.biggestMargin?.value??'â€“', fmtM(rec.biggestMargin?.match), rec.biggestMargin?.match?.id, null)}
-        ${recCard('ðŸ”¥','Highest Scoring Match', `${rec.highestScoring?.value??'â€“'} goals`, fmtM(rec.highestScoring?.match), rec.highestScoring?.match?.id, null)}
-        ${recCard('ðŸ“…','Total Matches Played', matchList.length, 'All time', null, null)}
-        ${recCard('ðŸ‘¥','Total Players', Object.keys(playerStats).length, 'Ever played', null, null)}
+        ${recCard('🏆','Biggest Win Margin', rec.biggestMargin?.value??'–', fmtM(rec.biggestMargin?.match), rec.biggestMargin?.match?.id, null)}
+        ${recCard('🔥','Highest Scoring Match', `${rec.highestScoring?.value??'–'} goals`, fmtM(rec.highestScoring?.match), rec.highestScoring?.match?.id, null)}
+        ${recCard('📅','Total Matches Played', matchList.length, 'All time', null, null)}
+        ${recCard('👥','Total Players', Object.keys(playerStats).length, 'Ever played', null, null)}
       </div>
-      <div style="font-family:'Barlow Condensed',sans-serif;font-size:.75rem;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:10px">Single-Game Records <span style="opacity:.5">Â· click to view match</span></div>
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:.75rem;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:10px">Single-Game Records <span style="opacity:.5">· click to view match</span></div>
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;margin-bottom:24px">
-        ${recCard('âš½','Most Goals', rec.mostGoalsGame?.value??'â€“', fmd(rec.mostGoalsGame), fmr(rec.mostGoalsGame), null)}
-        ${recCard('ðŸŽ¯','Most Assists', rec.mostAssistsGame?.value??'â€“', fmd(rec.mostAssistsGame), fmr(rec.mostAssistsGame), null)}
-        ${recCard('ðŸ”‘','Most Key Passes', rec.mostKPGame?.value??'â€“', fmd(rec.mostKPGame), fmr(rec.mostKPGame), null)}
-        ${recCard('ðŸ’¥','Most Shots', rec.mostShotsGame?.value??'â€“', fmd(rec.mostShotsGame), fmr(rec.mostShotsGame), null)}
-        ${recCard('ðŸŽ¯','Most Shots On Target', rec.mostShotsOnTgtGame?.value??'â€“', fmd(rec.mostShotsOnTgtGame), fmr(rec.mostShotsOnTgtGame), null)}
-        ${recCard('ðŸ“Š','Best Shot Conv (10+ shots)', rec.bestConvGame?.value??'â€“', rec.bestConvGame?.player&&rec.bestConvGame?.row ? `${rec.bestConvGame.player} Â· ${rec.bestConvGame.row.match_date}` : 'â€“', rec.bestConvGame?.row?.match_id??null, null)}
-        ${recCard('ðŸ›¡','Most Tackles', rec.mostTacklesGame?.value??'â€“', fmd(rec.mostTacklesGame), fmr(rec.mostTacklesGame), null)}
-        ${recCard('âœ‚ï¸','Most Interceptions', rec.mostInterGame?.value??'â€“', fmd(rec.mostInterGame), fmr(rec.mostInterGame), null)}
-        ${recCard('ðŸ§±','Most Blocks', rec.mostBlocksGame?.value??'â€“', fmd(rec.mostBlocksGame), fmr(rec.mostBlocksGame), null)}
-        ${recCard('ðŸ§¤','Most GK Saves', rec.mostGKSavesGame?.value??'â€“', fmd(rec.mostGKSavesGame), fmr(rec.mostGKSavesGame), null)}
-        ${recCard('ðŸª„','Most Nutmegs', rec.mostNutmegsGame?.value??'â€“', fmd(rec.mostNutmegsGame), fmr(rec.mostNutmegsGame), null)}
+        ${recCard('⚽','Most Goals', rec.mostGoalsGame?.value??'–', fmd(rec.mostGoalsGame), fmr(rec.mostGoalsGame), null)}
+        ${recCard('🎯','Most Assists', rec.mostAssistsGame?.value??'–', fmd(rec.mostAssistsGame), fmr(rec.mostAssistsGame), null)}
+        ${recCard('🔑','Most Key Passes', rec.mostKPGame?.value??'–', fmd(rec.mostKPGame), fmr(rec.mostKPGame), null)}
+        ${recCard('💥','Most Shots', rec.mostShotsGame?.value??'–', fmd(rec.mostShotsGame), fmr(rec.mostShotsGame), null)}
+        ${recCard('🎯','Most Shots On Target', rec.mostShotsOnTgtGame?.value??'–', fmd(rec.mostShotsOnTgtGame), fmr(rec.mostShotsOnTgtGame), null)}
+        ${recCard('📊','Best Shot Conv (10+ shots)', rec.bestConvGame?.value??'–', rec.bestConvGame?.player&&rec.bestConvGame?.row ? `${rec.bestConvGame.player} · ${rec.bestConvGame.row.match_date}` : '–', rec.bestConvGame?.row?.match_id??null, null)}
+        ${recCard('🛡','Most Tackles', rec.mostTacklesGame?.value??'–', fmd(rec.mostTacklesGame), fmr(rec.mostTacklesGame), null)}
+        ${recCard('✂️','Most Interceptions', rec.mostInterGame?.value??'–', fmd(rec.mostInterGame), fmr(rec.mostInterGame), null)}
+        ${recCard('🧱','Most Blocks', rec.mostBlocksGame?.value??'–', fmd(rec.mostBlocksGame), fmr(rec.mostBlocksGame), null)}
+        ${recCard('🧤','Most GK Saves', rec.mostGKSavesGame?.value??'–', fmd(rec.mostGKSavesGame), fmr(rec.mostGKSavesGame), null)}
+        ${recCard('🪄','Most Nutmegs', rec.mostNutmegsGame?.value??'–', fmd(rec.mostNutmegsGame), fmr(rec.mostNutmegsGame), null)}
       </div>
-      <div style="font-family:'Barlow Condensed',sans-serif;font-size:.75rem;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:10px">Career Records <span style="opacity:.5">Â· click to view player</span></div>
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:.75rem;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:10px">Career Records <span style="opacity:.5">· click to view player</span></div>
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;margin-bottom:8px">
-        ${recCard('âš½','Most Career Goals', rec.careerGoals?.value??'â€“', rec.careerGoals?.player??'', null, rec.careerGoals?.player)}
-        ${recCard('ðŸŽ¯','Most Career Assists', rec.careerAssists?.value??'â€“', rec.careerAssists?.player??'', null, rec.careerAssists?.player)}
-        ${recCard('ðŸª„','Most Career Nutmegs', rec.careerNutmegs?.value??'â€“', rec.careerNutmegs?.player??'', null, rec.careerNutmegs?.player)}
-        ${recCard('ðŸ›¡','Most Career Tackles', rec.careerTackles?.value??'â€“', rec.careerTackles?.player??'', null, rec.careerTackles?.player)}
-        ${recCard('ðŸ†','Most Career Wins', rec.careerWins?.value??'â€“', rec.careerWins?.player??'', null, rec.careerWins?.player)}
-        ${recCard('ðŸ‘‘','Most MVP Wins', rec.careerMVPs?.value??'â€“', rec.careerMVPs?.player??'', null, rec.careerMVPs?.player)}
-        ${recCard('ðŸƒ','Most Games Played', rec.careerGames?.value??'â€“', rec.careerGames?.player??'', null, rec.careerGames?.player)}
+        ${recCard('⚽','Most Career Goals', rec.careerGoals?.value??'–', rec.careerGoals?.player??'', null, rec.careerGoals?.player)}
+        ${recCard('🎯','Most Career Assists', rec.careerAssists?.value??'–', rec.careerAssists?.player??'', null, rec.careerAssists?.player)}
+        ${recCard('🪄','Most Career Nutmegs', rec.careerNutmegs?.value??'–', rec.careerNutmegs?.player??'', null, rec.careerNutmegs?.player)}
+        ${recCard('🛡','Most Career Tackles', rec.careerTackles?.value??'–', rec.careerTackles?.player??'', null, rec.careerTackles?.player)}
+        ${recCard('🏆','Most Career Wins', rec.careerWins?.value??'–', rec.careerWins?.player??'', null, rec.careerWins?.player)}
+        ${recCard('👑','Most MVP Wins', rec.careerMVPs?.value??'–', rec.careerMVPs?.player??'', null, rec.careerMVPs?.player)}
+        ${recCard('🏃','Most Games Played', rec.careerGames?.value??'–', rec.careerGames?.player??'', null, rec.careerGames?.player)}
       </div>`;
 
   } else if (window._statsTab === 'chemistry') {
@@ -7250,9 +7250,9 @@ function renderStatsPage() {
     const showCount = window._chemShowAll ? filtered.length : Math.min(20, filtered.length);
     filtered = filtered.slice(0, showCount);
 
-    // Theme-safe synergy colours â€” fixed regardless of theme accent
+    // Theme-safe synergy colours — fixed regardless of theme accent
     const synColor = (delta) => delta >= 10 ? '#4ade80' : delta >= 0 ? '#facc15' : '#f87171';
-    const synLabel = (delta) => delta >= 10 ? 'ðŸ”¥ Strong synergy' : delta >= 0 ? 'âš¡ Neutral' : 'â„ Poor synergy';
+    const synLabel = (delta) => delta >= 10 ? '🔥 Strong synergy' : delta >= 0 ? '⚡ Neutral' : '❄ Poor synergy';
     const winRateColor = (wr) => wr >= 60 ? '#4ade80' : wr >= 40 ? '#facc15' : '#f87171';
 
     tabContent = `
@@ -7260,8 +7260,8 @@ function renderStatsPage() {
       <div style="background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:12px 16px;margin-bottom:16px;font-size:.8rem;color:var(--text2);line-height:1.6">
         <div style="font-family:'Barlow Condensed',sans-serif;font-size:.78rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:6px">How chemistry is scored</div>
         Chemistry compares how often two players <strong style="color:var(--text)">win together</strong> vs what you'd expect based on each player's individual win rate.
-        A <span style="color:#4ade80;font-weight:600">positive delta</span> means they win more as a pair than their solo records predict â€” genuine synergy.
-        A <span style="color:#f87171;font-weight:600">negative delta</span> means their combined win rate underperforms â€” they may not complement each other.
+        A <span style="color:#4ade80;font-weight:600">positive delta</span> means they win more as a pair than their solo records predict — genuine synergy.
+        A <span style="color:#f87171;font-weight:600">negative delta</span> means their combined win rate underperforms — they may not complement each other.
         The grey marker on the bar shows the expected (baseline) win rate.
       </div>
 
@@ -7272,9 +7272,9 @@ function renderStatsPage() {
           <option value="">All players</option>
           ${allPlayerNames.map(nm=>`<option value="${nm}" ${nm===window._chemFilter?'selected':''}>${nm}</option>`).join('')}
         </select>
-        ${window._chemFilter?`<button onclick="window._chemFilter='';window._chemShowAll=false;renderStatsPage()" style="background:var(--card2);border:1px solid var(--border);color:var(--muted);font-family:'Barlow Condensed',sans-serif;font-size:.8rem;letter-spacing:1px;text-transform:uppercase;padding:7px 12px;border-radius:6px;cursor:pointer">âœ• Clear</button>`:''}
+        ${window._chemFilter?`<button onclick="window._chemFilter='';window._chemShowAll=false;renderStatsPage()" style="background:var(--card2);border:1px solid var(--border);color:var(--muted);font-family:'Barlow Condensed',sans-serif;font-size:.8rem;letter-spacing:1px;text-transform:uppercase;padding:7px 12px;border-radius:6px;cursor:pointer">✕ Clear</button>`:''}
         <div style="font-size:.78rem;color:var(--muted)">
-          ${window._chemFilter ? `Sorted by chemistry with ${window._chemFilter} Â· ` : ''}${showCount} of ${totalFiltered} pairs
+          ${window._chemFilter ? `Sorted by chemistry with ${window._chemFilter} · ` : ''}${showCount} of ${totalFiltered} pairs
         </div>
       </div>
       ${filtered.length === 0
@@ -7307,7 +7307,7 @@ function renderStatsPage() {
                     <div style="position:absolute;left:0;top:0;height:100%;width:${c.winRate}%;background:${winRateColor(c.winRate)};opacity:.7;border-radius:3px;transition:width .3s"></div>
                   </div>
                   <div style="display:flex;justify-content:space-between;font-size:.68rem;color:var(--muted)">
-                    <span>${c.wins}W Â· ${c.games-c.wins}L from ${c.games} game${c.games!==1?'s':''} together</span>
+                    <span>${c.wins}W · ${c.games-c.wins}L from ${c.games} game${c.games!==1?'s':''} together</span>
                     <span style="opacity:.7">expected ${c.baseline}%</span>
                   </div>
                 </div>
@@ -7375,7 +7375,7 @@ function renderStatsPage() {
             ${allPlayerNames.map(nm=>`<option value="${nm}" ${nm===window._rivalFilter?'selected':''}>${nm}</option>`).join('')}
           </select>
           ${window._rivalFilter ? `<button onclick="window._rivalFilter='';window._rivalShowAll=false;renderStatsPage()"
-            style="${btnStyle(false)}">âœ• Clear</button>` : ''}
+            style="${btnStyle(false)}">✕ Clear</button>` : ''}
           <!-- Divider -->
           <div style="width:1px;height:24px;background:var(--border);margin:0 2px"></div>
           <!-- Sort -->
@@ -7399,7 +7399,7 @@ function renderStatsPage() {
               : `Showing <strong style="color:var(--text)">${showCount}</strong> of <strong style="color:var(--text)">${totalCount}</strong> head-to-head pairs`}
           </div>
           <div style="font-size:.7rem;color:var(--muted)">
-            ðŸ”¥ Fierce 10+ Â· âš¡ Heated 6-9 Â· ðŸŒ± Developing 1-5
+            🔥 Fierce 10+ · ⚡ Heated 6-9 · 🌱 Developing 1-5
           </div>
         </div>
 
@@ -7412,15 +7412,15 @@ function renderStatsPage() {
                 const p1pct  = r.games > 0 ? Math.round(r.p1wins / r.games * 100) : 50;
                 const p2pct  = r.games > 0 ? Math.round(r.p2wins / r.games * 100) : 50;
                 const drawPct = r.games > 0 ? Math.round(r.draws / r.games * 100) : 0;
-                const intensity = r.games >= 10 ? 'ðŸ”¥ Fierce' : r.games >= 6 ? 'âš¡ Heated' : 'ðŸŒ± Developing';
+                const intensity = r.games >= 10 ? '🔥 Fierce' : r.games >= 6 ? '⚡ Heated' : '🌱 Developing';
                 // Highlight the filtered player's side
                 const filterIsP1 = r.p1 === window._rivalFilter;
                 const filterIsP2 = r.p2 === window._rivalFilter;
                 const p1col = filterIsP1 ? 'var(--lime)' : 'var(--green)';
                 const p2col = filterIsP2 ? 'var(--lime)' : 'var(--blue)';
                 const edge = r.leader
-                  ? `<span style="color:var(--lime);font-weight:600">${r.leader}</span> leads ${r.leaderWins}â€“${r.loserWins}`
-                  : `<span style="color:var(--amber)">Dead even</span> ${r.p1wins}â€“${r.p2wins}`;
+                  ? `<span style="color:var(--lime);font-weight:600">${r.leader}</span> leads ${r.leaderWins}–${r.loserWins}`
+                  : `<span style="color:var(--amber)">Dead even</span> ${r.p1wins}–${r.p2wins}`;
                 return `
                 <div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px 16px;cursor:pointer;transition:border-color .15s"
                   onmouseover="this.style.borderColor='var(--green)'" onmouseout="this.style.borderColor=''"
@@ -7435,16 +7435,16 @@ function renderStatsPage() {
                       </div>
                       <div style="display:flex;gap:8px;flex-wrap:wrap;font-size:.72rem;color:var(--muted)">
                         <span>${intensity}</span>
-                        <span>Â·</span>
+                        <span>·</span>
                         <span>${r.games} game${r.games!==1?'s':''}</span>
-                        <span>Â·</span>
+                        <span>·</span>
                         <span>${edge}</span>
                       </div>
                     </div>
                     <div style="text-align:right;flex-shrink:0">
-                      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.6rem;line-height:1;color:var(--text)">${r.p1wins}â€“${r.draws}â€“${r.p2wins}</div>
-                      <div style="font-size:.6rem;color:var(--muted)">Wâ€“Dâ€“W</div>
-                      ${r.p1goals !== undefined ? `<div style="font-size:.65rem;color:var(--muted);margin-top:2px">${r.p1goals}â€“${r.p2goals} goals</div>` : ''}
+                      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.6rem;line-height:1;color:var(--text)">${r.p1wins}–${r.draws}–${r.p2wins}</div>
+                      <div style="font-size:.6rem;color:var(--muted)">W–D–W</div>
+                      ${r.p1goals !== undefined ? `<div style="font-size:.65rem;color:var(--muted);margin-top:2px">${r.p1goals}–${r.p2goals} goals</div>` : ''}
                     </div>
                   </div>
                   <div style="display:flex;gap:1px;height:7px;border-radius:4px;overflow:hidden">
@@ -7468,7 +7468,7 @@ function renderStatsPage() {
                   Show all ${totalCount} rivalries
                 </button>`
               : ''}
-            <div style="margin-top:10px;font-size:.7rem;color:var(--muted);text-align:center;opacity:.7">Click any card to open head-to-head comparison â†—</div>
+            <div style="margin-top:10px;font-size:.7rem;color:var(--muted);text-align:center;opacity:.7">Click any card to open head-to-head comparison ↗</div>
           `}
       `;}
 
@@ -7514,21 +7514,21 @@ function openChemPair(p1, p2) {
 }
 
 // =====================================================================
-// PRINT / SHARE â€” player profile card
+// PRINT / SHARE — player profile card
 // =====================================================================
 // =====================================================================
-// SHARE / DOWNLOAD â€” canvas image approach (no window.open needed)
+// SHARE / DOWNLOAD — canvas image approach (no window.open needed)
 // =====================================================================
 function printMatchCard(matchId) {
   const m = matchList.find(x => x.id === matchId);
   if (!m) return;
 
   const allPlayers = [...m.teamA, ...m.teamB];
-  const outcome = m.goalsA > m.goalsB ? 'ðŸŸ¢ Team A Win' : m.goalsB > m.goalsA ? 'ðŸ”µ Team B Win' : 'ðŸŸ¡ Draw';
+  const outcome = m.goalsA > m.goalsB ? '🟢 Team A Win' : m.goalsB > m.goalsA ? '🔵 Team B Win' : '🟡 Draw';
   const ogList = allPlayers.filter(r => n(r.own_goals) > 0).map(r => `${r.player} (OG)`);
-  const ogNote = ogList.length ? `<div style="font-size:.65rem;color:#f06060;text-align:center;margin-top:6px">âš½ Own goal: ${ogList.join(', ')}</div>` : '';
+  const ogNote = ogList.length ? `<div style="font-size:.65rem;color:#f06060;text-align:center;margin-top:6px">⚽ Own goal: ${ogList.join(', ')}</div>` : '';
 
-  // MVP comment system â€” richer, more specific templates
+  // MVP comment system — richer, more specific templates
   const usedTemplates = new Set();
   const mvpComment = (r, rank, allMatchRows) => {
     const name = r.player;
@@ -7541,10 +7541,10 @@ function printMatchCard(matchId) {
     const teamGoals = r.team === 'A' ? m.goalsA : m.goalsB;
     const won = (r.team === 'A' ? m.goalsA : m.goalsB) > (r.team === 'A' ? m.goalsB : m.goalsA);
 
-    // Rank every player in the match for each stat â€” 0 = best
+    // Rank every player in the match for each stat — 0 = best
     const matchRank = (val, key) => allMatchRows.filter(x => n(x[key]) > val).length;
 
-    // Score each stat by match rank only â€” rank 0 = 10pts, rank 1 = 6pts, rank 2 = 3pts, else 0
+    // Score each stat by match rank only — rank 0 = 10pts, rank 1 = 6pts, rank 2 = 3pts, else 0
     // Weighted by stat importance
     const statDefs = [
       { key:'goals',            val:g,   weight:2.5, label:'goals' },
@@ -7574,7 +7574,7 @@ function printMatchCard(matchId) {
     const topKey = scored[0]?.key;
     const top2Keys = scored.slice(0,2).map(s=>s.key);
 
-    // Build the headline â€” what are their 2-3 best match stats?
+    // Build the headline — what are their 2-3 best match stats?
     const highlights = scored.slice(0,3).map(s => {
       if (s.key === 'goals')            return `${s.val} goal${s.val>1?'s':''}`;
       if (s.key === 'assists')          return `${s.val} assist${s.val>1?'s':''}`;
@@ -7601,53 +7601,53 @@ function printMatchCard(matchId) {
 
     const candidates = [
 
-      // â”€â”€ Dominant defensive + attacking combo â”€â”€
+      // ── Dominant defensive + attacking combo ──
       pick('def_g_combo', isBest('interceptions') && isBest('goals') && g >= 2,
-        `${g} goals and ${int_} interceptions â€” ${name} led the match in both. Dominant at both ends of the pitch, combining defensive excellence with real attacking threat. An exceptional all-round display that earns the ${rankLabel} comfortably.`),
+        `${g} goals and ${int_} interceptions — ${name} led the match in both. Dominant at both ends of the pitch, combining defensive excellence with real attacking threat. An exceptional all-round display that earns the ${rankLabel} comfortably.`),
 
       pick('def_a_combo', isBest('interceptions') && isBest('assists') && a >= 2,
-        `${int_} interceptions and ${a} assists â€” ${name} led the match in both defensive interceptions and chance creation. Winning the ball and immediately making things happen from it. The complete two-way performance.`),
+        `${int_} interceptions and ${a} assists — ${name} led the match in both defensive interceptions and chance creation. Winning the ball and immediately making things happen from it. The complete two-way performance.`),
 
-      // â”€â”€ Interceptions â”€â”€
+      // ── Interceptions ──
       pick('def_int_lead', isBest('interceptions'),
-        `${int_} interceptions â€” the most in the match by some distance. ${name} read every move the opposition tried to make, cutting out pass after pass before attacks could develop. You can't build anything when someone reads the game at that level.`),
+        `${int_} interceptions — the most in the match by some distance. ${name} read every move the opposition tried to make, cutting out pass after pass before attacks could develop. You can't build anything when someone reads the game at that level.`),
 
-      // â”€â”€ Tackles â”€â”€
+      // ── Tackles ──
       pick('def_tkl_lead', isBest('tackles') && !isBest('interceptions'),
-        `${tkl} tackles â€” the most of anyone on the pitch. ${name} dominated every physical duel, winning the ball in direct challenges all game. Relentless pressing and relentless winning of the ball.`),
+        `${tkl} tackles — the most of anyone on the pitch. ${name} dominated every physical duel, winning the ball in direct challenges all game. Relentless pressing and relentless winning of the ball.`),
 
-      // â”€â”€ Blocks â”€â”€
+      // ── Blocks ──
       pick('def_blk_lead', isBest('blocks'),
-        `${blk} blocks â€” more than anyone else in the match. ${name} was the last line of defence, putting their body in front of everything. That kind of sacrifice and positioning is what keeps teams in games.`),
+        `${blk} blocks — more than anyone else in the match. ${name} was the last line of defence, putting their body in front of everything. That kind of sacrifice and positioning is what keeps teams in games.`),
 
-      // â”€â”€ Goal machine â”€â”€
+      // ── Goal machine ──
       pick('g_elite', isBest('goals') && g >= 5,
-        `${g} goals from ${sh} shots â€” the top scorer in the match and it wasn't close. ${name} was simply clinical, needing barely a sight of goal to put it away. That level of finishing wins matches on its own.`),
+        `${g} goals from ${sh} shots — the top scorer in the match and it wasn't close. ${name} was simply clinical, needing barely a sight of goal to put it away. That level of finishing wins matches on its own.`),
 
       pick('g_clinical', isBest('goals') && g >= 3 && conv >= 25,
-        `${g} goals at ${conv.toFixed(0)}% conversion â€” ${name} was the most clinical finisher in the match. Only ${sh} shots, but ${g} goals. That kind of efficiency in front of goal is extremely rare.`),
+        `${g} goals at ${conv.toFixed(0)}% conversion — ${name} was the most clinical finisher in the match. Only ${sh} shots, but ${g} goals. That kind of efficiency in front of goal is extremely rare.`),
 
       pick('g_solid', isBest('goals') && g >= 2,
-        `${g} goals â€” leading the match in scoring. ${name} was the decisive attacking force, finding the net ${g} times${sh>0?' from '+sh+' attempts':''}. ${won?'The team won because of it.':'Gave the team everything they had.'}`),
+        `${g} goals — leading the match in scoring. ${name} was the decisive attacking force, finding the net ${g} times${sh>0?' from '+sh+' attempts':''}. ${won?'The team won because of it.':'Gave the team everything they had.'}`),
 
-      // â”€â”€ GK saves â”€â”€
+      // ── GK saves ──
       pick('gk_elite', isBest('goalkeeper_saves'),
-        `${gks} saves â€” the most in the match. ${name} was outstanding in goal, denying chance after chance. Without that performance the scoreline looks very different. The ${rankLabel} is well earned.`),
+        `${gks} saves — the most in the match. ${name} was outstanding in goal, denying chance after chance. Without that performance the scoreline looks very different. The ${rankLabel} is well earned.`),
 
-      // â”€â”€ Assists / Key passes â”€â”€
+      // ── Assists / Key passes ──
       pick('a_elite', isBest('assists'),
-        `${a} assists â€” the most of any player tonight. ${name} was the creative force the team built everything through, consistently finding the final ball to set up goals. The scorers owe this one.`),
+        `${a} assists — the most of any player tonight. ${name} was the creative force the team built everything through, consistently finding the final ball to set up goals. The scorers owe this one.`),
 
       pick('kp_elite', isBest('key_passes'),
-        `${kp} key passes â€” leading the match in chance creation. ${name} was always finding teammates in dangerous positions, creating opportunities all night. ${a > 0 ? a+' of those led directly to goals.' : 'The final ball doesn\'t always become an assist but the danger was constant.'}`),
+        `${kp} key passes — leading the match in chance creation. ${name} was always finding teammates in dangerous positions, creating opportunities all night. ${a > 0 ? a+' of those led directly to goals.' : 'The final ball doesn\'t always become an assist but the danger was constant.'}`),
 
-      // â”€â”€ Multi-stat â”€â”€
+      // ── Multi-stat ──
       pick('multi_lead', scored.length >= 2,
-        `${statSummary} â€” ${name} led or co-led the match in ${scored.length} different stat categories. That kind of breadth is what earns the ${rankLabel}. Everywhere the game needed a contribution, ${name} delivered.`),
+        `${statSummary} — ${name} led or co-led the match in ${scored.length} different stat categories. That kind of breadth is what earns the ${rankLabel}. Everywhere the game needed a contribution, ${name} delivered.`),
 
-      // â”€â”€ Fallback with actual numbers â”€â”€
+      // ── Fallback with actual numbers ──
       pick('stat_fallback', highlights.length > 0,
-        `${statSummary} for ${name} â€” the stats back up the ${rankLabel} finish. A consistent and impactful performance throughout.`),
+        `${statSummary} for ${name} — the stats back up the ${rankLabel} finish. A consistent and impactful performance throughout.`),
 
       pick('generic', true,
         `${name} earns the ${rankLabel} with a well-rounded display. Contributed effectively across multiple areas and was one of the standout performers on the night.`),
@@ -7663,8 +7663,8 @@ function printMatchCard(matchId) {
 
   // Stats columns
   const cols = [
-    ['Goals',         r => n(r.goals)>0?`<b>${n(r.goals)}</b>`:'â€“'],
-    ['OG',            r => n(r.own_goals)>0?`<span style="color:#f06060;font-weight:700">${n(r.own_goals)}</span>`:'â€“'],
+    ['Goals',         r => n(r.goals)>0?`<b>${n(r.goals)}</b>`:'–'],
+    ['OG',            r => n(r.own_goals)>0?`<span style="color:#f06060;font-weight:700">${n(r.own_goals)}</span>`:'–'],
     ['Assists',       r => n(r.assists)||0],
     ['Key Passes',    r => n(r.key_passes)||0],
     ['Shots',         r => n(r.total_shots)||0],
@@ -7681,7 +7681,7 @@ function printMatchCard(matchId) {
   const tdStyle = `padding:5px 5px;border-bottom:1px solid rgba(37,53,39,.3);font-size:.65rem;text-align:center;color:#d4ead6;white-space:nowrap`;
   const tdNameStyle = `padding:5px 8px;border-bottom:1px solid rgba(37,53,39,.3);font-size:.68rem;font-weight:700;white-space:nowrap;min-width:75px`;
 
-  // Build augmented team rows â€” swapped players appear on both teams with their half-specific stats
+  // Build augmented team rows — swapped players appear on both teams with their half-specific stats
   const buildTeamRows = (teamLetter) => {
     // Start with FULL rows for players who played the whole match on this team
     const swappedNames = new Set((m.swappedPlayers||[]).map(s=>s.player));
@@ -7706,7 +7706,7 @@ function printMatchCard(matchId) {
     const totalsRow = `<tr>
       <td style="${ttd};text-align:left;color:${nameColor};padding-left:8px">TOTAL</td>
       <td style="${ttd}">${totalGoals}</td>
-      <td style="${ttd}">${sum('own_goals')||'â€“'}</td>
+      <td style="${ttd}">${sum('own_goals')||'–'}</td>
       <td style="${ttd}">${sum('assists')}</td>
       <td style="${ttd}">${sum('key_passes')}</td>
       <td style="${ttd}">${totalShots}</td>
@@ -7721,7 +7721,7 @@ function printMatchCard(matchId) {
     const mvpBg = idx => idx===0?'background:rgba(240,192,64,.08)':idx===1?'background:rgba(192,200,192,.05)':idx===2?'background:rgba(192,128,64,.05)':'';
     return `
       <div style="margin-bottom:16px">
-        <div style="font-size:.6rem;letter-spacing:2px;text-transform:uppercase;color:${nameColor};font-weight:700;margin-bottom:6px;padding:6px 8px;background:rgba(0,0,0,.2);border-radius:4px">${teamLabel} â€” ${goalCount} goals</div>
+        <div style="font-size:.6rem;letter-spacing:2px;text-transform:uppercase;color:${nameColor};font-weight:700;margin-bottom:6px;padding:6px 8px;background:rgba(0,0,0,.2);border-radius:4px">${teamLabel} — ${goalCount} goals</div>
 
         <!-- Desktop table -->
         <div class="mobile-hide" style="overflow-x:auto">
@@ -7733,7 +7733,7 @@ function printMatchCard(matchId) {
           <tbody>
             ${rows.map(r => {
               const mvpIdx = m.mvpList ? m.mvpList.findIndex(e => e.player === r.player) : -1;
-              const medals = ['ðŸ‘‘','ðŸ¥ˆ','ðŸ¥‰'];
+              const medals = ['👑','🥈','🥉'];
               const medal = mvpIdx >= 0 ? `${medals[mvpIdx]} ` : '';
               const mvpScore = mvpIdx >= 0 ? `<span style="font-size:.58rem;color:#9ab89c;margin-left:3px">${m.mvpList[mvpIdx].score}pts</span>` : '';
               const halfTag = r._swapHalf ? `<span style="font-size:.55rem;background:rgba(96,165,250,.2);color:#60a5fa;border-radius:3px;padding:1px 4px;margin-left:4px">${r._swapHalf}</span>` : '';
@@ -7751,11 +7751,11 @@ function printMatchCard(matchId) {
         <div class="mobile-cards" style="display:none">
           ${rows.map(r => {
             const mvpIdx = m.mvpList ? m.mvpList.findIndex(e => e.player === r.player) : -1;
-            const medals = ['ðŸ‘‘','ðŸ¥ˆ','ðŸ¥‰'];
+            const medals = ['👑','🥈','🥉'];
             const medal = mvpIdx >= 0 ? medals[mvpIdx]+' ' : '';
             const mvpScore = mvpIdx >= 0 ? `<span style="font-size:.65rem;color:#9ab89c">${m.mvpList[mvpIdx].score}pts</span>` : '';
             const halfTag = r._swapHalf ? `<span style="font-size:.6rem;background:rgba(96,165,250,.2);color:#60a5fa;border-radius:3px;padding:1px 5px;margin-left:4px">${r._swapHalf}</span>` : '';
-            const convPct = n(r.total_shots) > 0 ? (n(r.goals)/n(r.total_shots)*100).toFixed(0)+'%' : 'â€“';
+            const convPct = n(r.total_shots) > 0 ? (n(r.goals)/n(r.total_shots)*100).toFixed(0)+'%' : '–';
             const statGrid = [
               ['G',    n(r.goals),               'var(--green)'],
               ['A',    n(r.assists),              '#a0c4ff'],
@@ -7769,7 +7769,7 @@ function printMatchCard(matchId) {
               ['NM',   n(r.nutmegs),              'var(--muted)'],
             ].map(([lbl, val, col]) => `
               <div style="text-align:center">
-                <div style="font-family:'Bebas Neue',sans-serif;font-size:1.2rem;color:${val>0?col:'rgba(255,255,255,.15)'};line-height:1">${val||'â€“'}</div>
+                <div style="font-family:'Bebas Neue',sans-serif;font-size:1.2rem;color:${val>0?col:'rgba(255,255,255,.15)'};line-height:1">${val||'–'}</div>
                 <div style="font-size:.58rem;color:var(--muted);letter-spacing:.5px;text-transform:uppercase">${lbl}</div>
               </div>`).join('');
             return `<div style="${mvpBg(mvpIdx)};border:1px solid var(--border);border-radius:9px;padding:11px 12px;margin-bottom:8px">
@@ -7778,7 +7778,7 @@ function printMatchCard(matchId) {
                 ${mvpScore}
               </div>
               <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px 4px">${statGrid}</div>
-              ${convPct !== 'â€“' ? `<div style="font-size:.65rem;color:var(--muted);margin-top:8px;padding-top:6px;border-top:1px solid rgba(255,255,255,.05)">Conv ${convPct} Â· ${n(r.shots_on_target)} on target</div>` : ''}
+              ${convPct !== '–' ? `<div style="font-size:.65rem;color:var(--muted);margin-top:8px;padding-top:6px;border-top:1px solid rgba(255,255,255,.05)">Conv ${convPct} · ${n(r.shots_on_target)} on target</div>` : ''}
             </div>`;
           }).join('')}
           <!-- Mobile totals -->
@@ -7805,16 +7805,16 @@ function printMatchCard(matchId) {
     const convRank = matchConvVals.filter(v => v > conv).length;
 
     const statDefs = [
-      { key:'goals',            label:'goals',          icon:'âš½', val:g },
-      { key:'assists',          label:'assists',        icon:'ðŸŽ¯', val:n(row.assists) },
-      { key:'key_passes',       label:'key passes',     icon:'ðŸ”‘', val:n(row.key_passes) },
-      { key:'interceptions',    label:'interceptions',  icon:'ðŸ›¡', val:n(row.interceptions) },
-      { key:'tackles',          label:'tackles',        icon:'ðŸ’ª', val:n(row.tackles) },
-      { key:'blocks',           label:'blocks',         icon:'ðŸ§±', val:n(row.blocks) },
-      { key:'goalkeeper_saves', label:'GK saves',       icon:'ðŸ§¤', val:n(row.goalkeeper_saves) },
-      { key:'total_shots',      label:'shots',          icon:'ðŸ’¥', val:sh },
-      { key:'nutmegs',          label:'nutmegs',        icon:'ðŸª„', val:n(row.nutmegs) },
-      ...(sh >= 5 && conv >= 20 ? [{ key:'_conv', label:`${conv.toFixed(0)}% conversion`, icon:'ðŸŽ¯', val:conv, rank: convRank, matchMax: matchConvVals[0]||1, score:(convRank===0?100:convRank===1?60:convRank===2?30:10)*(conv/(matchConvVals[0]||1)) }] : []),
+      { key:'goals',            label:'goals',          icon:'⚽', val:g },
+      { key:'assists',          label:'assists',        icon:'🎯', val:n(row.assists) },
+      { key:'key_passes',       label:'key passes',     icon:'🔑', val:n(row.key_passes) },
+      { key:'interceptions',    label:'interceptions',  icon:'🛡', val:n(row.interceptions) },
+      { key:'tackles',          label:'tackles',        icon:'💪', val:n(row.tackles) },
+      { key:'blocks',           label:'blocks',         icon:'🧱', val:n(row.blocks) },
+      { key:'goalkeeper_saves', label:'GK saves',       icon:'🧤', val:n(row.goalkeeper_saves) },
+      { key:'total_shots',      label:'shots',          icon:'💥', val:sh },
+      { key:'nutmegs',          label:'nutmegs',        icon:'🪄', val:n(row.nutmegs) },
+      ...(sh >= 5 && conv >= 20 ? [{ key:'_conv', label:`${conv.toFixed(0)}% conversion`, icon:'🎯', val:conv, rank: convRank, matchMax: matchConvVals[0]||1, score:(convRank===0?100:convRank===1?60:convRank===2?30:10)*(conv/(matchConvVals[0]||1)) }] : []),
     ];
 
     return statDefs
@@ -7843,7 +7843,7 @@ function printMatchCard(matchId) {
     const gks = n(row.goalkeeper_saves), sh = n(row.total_shots);
     const conv = sh > 0 ? (g / sh * 100) : 0;
 
-    // Format a stat phrase naturally â€” just the number, no rank mention
+    // Format a stat phrase naturally — just the number, no rank mention
     const phrase = (s) => {
       if (s.key === '_conv')            return `${conv.toFixed(0)}% shot conversion`;
       if (s.key === 'goals')            return `${s.val} goal${s.val>1?'s':''}`;
@@ -7875,56 +7875,56 @@ function printMatchCard(matchId) {
       ? `${phrase(stat1)} and ${phrase(stat2)}.`
       : `${phrase(stat1)}.`;
 
-    // Unique openers â€” pick one that hasn't been used yet
+    // Unique openers — pick one that hasn't been used yet
     const isDefTop = ['interceptions','tackles','blocks','goalkeeper_saves'].includes(stat1?.key);
     const isAtkTop  = ['goals','assists','key_passes','_conv'].includes(stat1?.key);
     const isComplete = top3.some(s => ['goals','assists'].includes(s.key)) &&
                        top3.some(s => ['interceptions','tackles','blocks'].includes(s.key));
 
-    // All openers â€” store as {key, text} so we track the template key, not the rendered string
+    // All openers — store as {key, text} so we track the template key, not the rendered string
     const allOpeners = [
       ...(isComplete ? [
-        { k:'c1', t:`${name} was involved at both ends â€”` },
-        { k:'c2', t:`${name} covered every blade of grass â€”` },
-        { k:'c3', t:`${name} had a hand in everything tonight â€”` },
-        { k:'c4', t:`${name} contributed in attack and defence â€”` },
-        { k:'c5', t:`${name} was all over the pitch â€”` },
+        { k:'c1', t:`${name} was involved at both ends —` },
+        { k:'c2', t:`${name} covered every blade of grass —` },
+        { k:'c3', t:`${name} had a hand in everything tonight —` },
+        { k:'c4', t:`${name} contributed in attack and defence —` },
+        { k:'c5', t:`${name} was all over the pitch —` },
       ] : []),
       ...(isDefTop ? [
-        { k:'d1', t:`${name} shut down attack after attack â€”` },
-        { k:'d2', t:`Nobody read the game better than ${name} tonight â€”` },
-        { k:'d3', t:`${name} was the defensive backbone of the team â€”` },
-        { k:'d4', t:`${name} dominated without the ball â€”` },
-        { k:'d5', t:`${name} made life impossible for the opposition â€”` },
+        { k:'d1', t:`${name} shut down attack after attack —` },
+        { k:'d2', t:`Nobody read the game better than ${name} tonight —` },
+        { k:'d3', t:`${name} was the defensive backbone of the team —` },
+        { k:'d4', t:`${name} dominated without the ball —` },
+        { k:'d5', t:`${name} made life impossible for the opposition —` },
       ] : []),
       ...(isAtkTop ? [
-        { k:'a1', t:`${name} was the driving force going forward â€”` },
-        { k:'a2', t:`${name} caused problems all night long â€”` },
-        { k:'a3', t:`${name} was the standout attacker on the night â€”` },
-        { k:'a4', t:`${name} led the line and delivered â€”` },
-        { k:'a5', t:`Every dangerous move seemed to run through ${name} â€”` },
+        { k:'a1', t:`${name} was the driving force going forward —` },
+        { k:'a2', t:`${name} caused problems all night long —` },
+        { k:'a3', t:`${name} was the standout attacker on the night —` },
+        { k:'a4', t:`${name} led the line and delivered —` },
+        { k:'a5', t:`Every dangerous move seemed to run through ${name} —` },
       ] : []),
-      { k:'g1', t:`${name} delivered when it mattered â€”` },
-      { k:'g2', t:`The numbers tell the story for ${name} â€”` },
-      { k:'g3', t:`${name} put in a standout shift â€”` },
-      { k:'g4', t:`${name} was one of the best on the park â€”` },
-      { k:'g5', t:`${name} was consistently impressive throughout â€”` },
+      { k:'g1', t:`${name} delivered when it mattered —` },
+      { k:'g2', t:`The numbers tell the story for ${name} —` },
+      { k:'g3', t:`${name} put in a standout shift —` },
+      { k:'g4', t:`${name} was one of the best on the park —` },
+      { k:'g5', t:`${name} was consistently impressive throughout —` },
     ];
 
     const chosen = allOpeners.find(o => !usedOpeners.has(o.k));
-    const opener = chosen ? chosen.t : `${name} earns the ${rankLabel} â€”`;
+    const opener = chosen ? chosen.t : `${name} earns the ${rankLabel} —`;
     if (chosen) usedOpeners.add(chosen.k);
 
     // Closer
     let closer = '';
     if (stat1.rank === 0 && stat2?.rank === 0) {
-      closer = `Leading the match in both â€” a performance that made the ${rankLabel} award an easy decision.`;
+      closer = `Leading the match in both — a performance that made the ${rankLabel} award an easy decision.`;
     } else if (isDefTop && stat1.rank === 0) {
       closer = won ? `That defensive output was a huge part of why the team won.` : `Gave absolutely everything at the back.`;
     } else if (g >= 5 && stat1.key === 'goals') {
       closer = `${g} goals in a single game is exceptional by any measure.`;
     } else if (isComplete) {
-      closer = `A complete two-way performance â€” fully deserved ${rankLabel}.`;
+      closer = `A complete two-way performance — fully deserved ${rankLabel}.`;
     } else if (rank === 0) {
       closer = `The standout individual of the match.`;
     } else {
@@ -7940,7 +7940,7 @@ function printMatchCard(matchId) {
       ${(() => {
         const usedOpeners = new Set();
         return m.mvpList.slice(0,3).map((entry, i) => {
-          const medals = ['ðŸ‘‘','ðŸ¥ˆ','ðŸ¥‰'], colors = ['#f0c040','#c0c8c0','#c08040'];
+          const medals = ['👑','🥈','🥉'], colors = ['#f0c040','#c0c8c0','#c08040'];
           const row = allPlayers.find(r => r.player === entry.player);
           if (!row) return '';
           const top3 = getTop3Stats(row);
@@ -7961,10 +7961,10 @@ function printMatchCard(matchId) {
     <div style="background:#0a1509;border:1px solid #1e3020;border-radius:12px;overflow:hidden;font-family:'Segoe UI',Arial,sans-serif;color:#d4ead6;max-width:960px">
       <div style="background:linear-gradient(135deg,#0d1f10,#0a1509);padding:16px 20px;border-bottom:2px solid #1c2b1e;display:flex;justify-content:space-between;align-items:center">
         <div>
-          <div style="font-size:.55rem;letter-spacing:3px;text-transform:uppercase;color:#6b8a6e;margin-bottom:3px">ðŸ“… ${m.date}</div>
+          <div style="font-size:.55rem;letter-spacing:3px;text-transform:uppercase;color:#6b8a6e;margin-bottom:3px">📅 ${m.date}</div>
           <div style="display:flex;align-items:center;gap:12px">
             <span style="font-family:'Bebas Neue',sans-serif;font-size:2.8rem;color:#4ade80;letter-spacing:2px;line-height:1">${m.goalsA}</span>
-            <span style="font-size:1.2rem;color:#4a6a4c">â€“</span>
+            <span style="font-size:1.2rem;color:#4a6a4c">–</span>
             <span style="font-family:'Bebas Neue',sans-serif;font-size:2.8rem;color:#60a5fa;letter-spacing:2px;line-height:1">${m.goalsB}</span>
             <span style="font-size:.75rem;color:#9ab89c;margin-left:8px">${outcome}</span>
           </div>
@@ -8006,8 +8006,8 @@ function showCardModal(htmlContent, filename) {
   const toolbar = document.createElement('div');
   toolbar.style.cssText = 'display:flex;gap:10px;align-items:center;flex-wrap:wrap;';
   toolbar.innerHTML = `
-    <button id="card-dl-btn" style="background:linear-gradient(135deg,#f43f5e,#fb7185);border:none;color:#071009;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;padding:10px 24px;border-radius:7px;cursor:pointer">â¬‡ Download Image</button>
-    <button onclick="document.getElementById('card-modal').remove()" style="background:#1c2b1e;border:1px solid #253527;color:#9ab89c;font-family:'Barlow Condensed',sans-serif;font-size:.85rem;letter-spacing:1px;text-transform:uppercase;padding:10px 16px;border-radius:7px;cursor:pointer">âœ• Close</button>
+    <button id="card-dl-btn" style="background:linear-gradient(135deg,#f43f5e,#fb7185);border:none;color:#071009;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;padding:10px 24px;border-radius:7px;cursor:pointer">⬇ Download Image</button>
+    <button onclick="document.getElementById('card-modal').remove()" style="background:#1c2b1e;border:1px solid #253527;color:#9ab89c;font-family:'Barlow Condensed',sans-serif;font-size:.85rem;letter-spacing:1px;text-transform:uppercase;padding:10px 16px;border-radius:7px;cursor:pointer">✕ Close</button>
     <span id="card-dl-status" style="font-size:.8rem;color:#6b8a6e"></span>`;
 
   const frame = document.createElement('div');
@@ -8022,7 +8022,7 @@ function showCardModal(htmlContent, filename) {
   document.getElementById('card-dl-btn').onclick = async () => {
     const btn = document.getElementById('card-dl-btn');
     const status = document.getElementById('card-dl-status');
-    btn.textContent = 'â³ Renderingâ€¦';
+    btn.textContent = '⏳ Rendering…';
     status.textContent = '';
     try {
       await loadHtml2Canvas();
@@ -8039,11 +8039,11 @@ function showCardModal(htmlContent, filename) {
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      btn.textContent = 'âœ… Downloaded!';
-      setTimeout(async () => { btn.textContent = 'â¬‡ Download Image'; }, 3000);
+      btn.textContent = '✅ Downloaded!';
+      setTimeout(async () => { btn.textContent = '⬇ Download Image'; }, 3000);
     } catch(err) {
-      btn.textContent = 'â¬‡ Download Image';
-      status.textContent = 'âš  ' + (err.message || 'Failed to render');
+      btn.textContent = '⬇ Download Image';
+      status.textContent = '⚠ ' + (err.message || 'Failed to render');
     }
   };
 }
@@ -8086,7 +8086,7 @@ function printPlayerCard(name) {
       color:${tagTextColors[t.cls]||'#b0b8b0'}">${t.label}</span>`).join('');
 
   // Per-game stat grid
-  const shotConv = p.total_shots>0 ? (p.goals/p.total_shots*100).toFixed(1)+'%' : 'â€“';
+  const shotConv = p.total_shots>0 ? (p.goals/p.total_shots*100).toFixed(1)+'%' : '–';
   const pgStats = [
     ['Goals/G',   pg(p.goals)],
     ['Assists/G', pg(p.assists)],
@@ -8127,10 +8127,10 @@ function printPlayerCard(name) {
       <div style="display:flex;gap:14px;align-items:flex-start;margin-bottom:14px">
         ${gifSrc
           ? `<img src="${gifSrc}" style="width:80px;height:80px;border-radius:10px;object-fit:cover;border:2px solid rgba(80,20,20,.6);flex-shrink:0">`
-          : `<div style="width:80px;height:80px;border-radius:10px;background:#2a1818;border:2px solid rgba(80,20,20,.6);display:flex;align-items:center;justify-content:center;font-size:2rem;flex-shrink:0">âš½</div>`}
+          : `<div style="width:80px;height:80px;border-radius:10px;background:#2a1818;border:2px solid rgba(80,20,20,.6);display:flex;align-items:center;justify-content:center;font-size:2rem;flex-shrink:0">⚽</div>`}
         <div style="flex:1;min-width:0">
           <div style="font-size:2.4rem;letter-spacing:3px;color:#39d353;line-height:1;font-family:'Bebas Neue',sans-serif;font-weight:400">${name.toUpperCase()}</div>
-          <div style="font-size:.75rem;color:#8b5a5a;margin:4px 0 4px">${p.games} games${adminMode ? ` Â· Rating <strong style="color:#fb7185">${rating}</strong>` : ''}</div>
+          <div style="font-size:.75rem;color:#8b5a5a;margin:4px 0 4px">${p.games} games${adminMode ? ` · Rating <strong style="color:#fb7185">${rating}</strong>` : ''}</div>
           <div style="font-size:.6rem;color:rgba(244,63,94,.5);letter-spacing:1px;text-transform:uppercase;margin-bottom:5px">Per Game Stats</div>
           <div>${tagsHtml}</div>
         </div>
@@ -8147,7 +8147,7 @@ function printPlayerCard(name) {
               </div>`).join('')}
           </div>
           <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px">
-            ${[['Goals',p.goals],['Assists',p.assists],['Nutmegs',p.nutmegs],['MVPs ðŸ‘‘',p.mvps||0]].map(([l,v])=>`
+            ${[['Goals',p.goals],['Assists',p.assists],['Nutmegs',p.nutmegs],['MVPs 👑',p.mvps||0]].map(([l,v])=>`
               <div style="background:rgba(11,26,15,.3);border:1px solid rgba(37,53,39,.3);border-radius:7px;padding:5px 4px;text-align:center">
                 <div style="font-size:.95rem;color:#7ab88a;line-height:1;font-weight:700">${v}</div>
                 <div style="font-size:.45rem;color:#4a6a4e;text-transform:uppercase;letter-spacing:.6px;margin-top:2px">${l} total</div>
@@ -8164,11 +8164,11 @@ function printPlayerCard(name) {
                 </div>
                 <div style="font-size:.58rem;color:#6b8a6e">${wPct}% win rate</div>
               </div>
-              ${totalMvp>0?`<div style="text-align:right"><div style="font-size:.58rem;color:#8b5a5a;margin-bottom:1px">Podiums</div>${mvpBar}<div style="font-size:.58rem;color:#f0c040">ðŸ‘‘${t1} ðŸ¥ˆ${t2} ðŸ¥‰${t3}</div></div>`:''}
+              ${totalMvp>0?`<div style="text-align:right"><div style="font-size:.58rem;color:#8b5a5a;margin-bottom:1px">Podiums</div>${mvpBar}<div style="font-size:.58rem;color:#f0c040">👑${t1} 🥈${t2} 🥉${t3}</div></div>`:''}
             </div>
             ${p.bestGame?`<div style="border-top:1px solid rgba(37,53,39,.5);padding-top:5px;font-size:.65rem">
               <span style="color:#f0c040;text-transform:uppercase;letter-spacing:.8px">Best Game</span>
-              <span style="color:#9ab89c;margin-left:6px">${p.bestGame.match_date} Â· ${n(p.bestGame.goals)}G ${n(p.bestGame.assists)}A</span>
+              <span style="color:#9ab89c;margin-left:6px">${p.bestGame.match_date} · ${n(p.bestGame.goals)}G ${n(p.bestGame.assists)}A</span>
             </div>`:''}
           </div>
         </div>
@@ -8218,18 +8218,18 @@ function generateMatchReport(matchId) {
   const openers = [
     `A ${margin === 0 ? 'tightly contested' : margin <= 2 ? 'hard-fought' : margin <= 5 ? 'convincing' : 'dominant'} ${m.goalsA + m.goalsB}-goal game at Aero Soccer on ${m.date}.`,
     `${m.date} delivered ${margin === 0 ? 'a closely fought draw' : `a ${margin <= 2 ? 'narrow' : 'clear'} ${outcome}`} as goals flew in at both ends.`,
-    `The ${m.date} session produced ${m.goalsA + m.goalsB} goals in total â€” ${m.goalsA > m.goalsB ? 'Team A' : m.goalsB > m.goalsA ? 'Team B' : 'neither side'} leaving with the points.`,
+    `The ${m.date} session produced ${m.goalsA + m.goalsB} goals in total — ${m.goalsA > m.goalsB ? 'Team A' : m.goalsB > m.goalsA ? 'Team B' : 'neither side'} leaving with the points.`,
   ];
   const opener = openers[Math.floor(Math.abs(m.goalsA - m.goalsB + m.goalsA) % openers.length)];
 
-  const scoringLine = `The final score of ${m.goalsA}â€“${m.goalsB} tells the story${margin >= 5 ? ', though the game was decided well before the final whistle' : margin === 0 ? ', with both sides unable to find a winner despite sustained pressure' : ''}.`;
+  const scoringLine = `The final score of ${m.goalsA}–${m.goalsB} tells the story${margin >= 5 ? ', though the game was decided well before the final whistle' : margin === 0 ? ', with both sides unable to find a winner despite sustained pressure' : ''}.`;
 
   const scorerLine = n(topScorer.goals) > 0
     ? `${topScorer.player} led the way in front of goal with ${n(topScorer.goals)} goal${n(topScorer.goals)>1?'s':''}.`
     : '';
 
   const creatorLine = n(topCreator.assists) + n(topCreator.key_passes) > 0 && topCreator.player !== topScorer.player
-    ? `${topCreator.player} was the creative force â€” ${n(topCreator.assists)} assist${n(topCreator.assists)!==1?'s':''} and ${n(topCreator.key_passes)} key passes kept the attack ticking.`
+    ? `${topCreator.player} was the creative force — ${n(topCreator.assists)} assist${n(topCreator.assists)!==1?'s':''} and ${n(topCreator.key_passes)} key passes kept the attack ticking.`
     : topCreator.player === topScorer.player && n(topCreator.assists) > 0
     ? `${topScorer.player} was involved at both ends, also contributing ${n(topCreator.assists)} assist${n(topCreator.assists)!==1?'s':''}.`
     : '';
@@ -8262,7 +8262,7 @@ function generateMatchReport(matchId) {
     if (n(r.goals) > 0 && n(r.goals) > (ps.maxGoalsInGame || 0) && ps.games > 1)
       recordNotes.push(`${r.player} scored a personal best ${n(r.goals)} goals`);
   });
-  const recordsLine = recordNotes.length ? `\n\nðŸ“ˆ Records: ${recordNotes.join('; ')}.` : '';
+  const recordsLine = recordNotes.length ? `\n\n📈 Records: ${recordNotes.join('; ')}.` : '';
 
   const reportText = [opener, scoringLine, scorerLine, creatorLine, defLine, gkLine, flairLine, ogLine, mvpLine]
     .filter(Boolean).join(' ') + recordsLine;
@@ -8285,7 +8285,7 @@ function generateMatchReport(matchId) {
       for(let i=0;i<rows.length;i++){
         let j=i,cnt=1;
         while(j+1<rows.length&&rows[j+1].team===rows[i].team&&rows[j+1].secs-rows[i].secs<=480){j++;cnt++;}
-        if(cnt>=3){ insights.push(`Team ${rows[i].team} went on a ${cnt}-goal run (${rows[i].time}â€“${rows[j].time})`); i=j; }
+        if(cnt>=3){ insights.push(`Team ${rows[i].team} went on a ${cnt}-goal run (${rows[i].time}–${rows[j].time})`); i=j; }
       }
       // Comeback
       if(maxDA>=3&&sA>=sB) insights.push(`Team A came back from ${maxDA} goals down`);
@@ -8297,7 +8297,7 @@ function generateMatchReport(matchId) {
         const [sc,as]=k.split('+');
         insights.push(`${sc} and ${as} combined ${v} times`);
       });
-      if(insights.length) timelineSection = '\n\nâ± ' + insights.join('. ') + '.';
+      if(insights.length) timelineSection = '\n\n⏱ ' + insights.join('. ') + '.';
     }
   }
 
@@ -8307,15 +8307,15 @@ function generateMatchReport(matchId) {
   modal.style.cssText = 'position:fixed;inset:0;z-index:500;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center;padding:20px';
   modal.onclick = e => { if (e.target === modal) modal.remove(); };
   const copyBtn = document.createElement('button');
-  copyBtn.textContent = 'ðŸ“‹ Copy Report';
+  copyBtn.textContent = '📋 Copy Report';
   copyBtn.style.cssText = 'background:var(--card2);border:1px solid var(--border);color:var(--text2);padding:8px 16px;border-radius:7px;cursor:pointer;font-family:"Barlow Condensed",sans-serif;font-size:.82rem;letter-spacing:1px;text-transform:uppercase';
-  copyBtn.onclick = () => navigator.clipboard.writeText(fullReport).then(() => { copyBtn.textContent = 'âœ… Copied!'; });
+  copyBtn.onclick = () => navigator.clipboard.writeText(fullReport).then(() => { copyBtn.textContent = '✅ Copied!'; });
 
   modal.innerHTML = `
     <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:26px;width:100%;max-width:560px;position:relative;max-height:90vh;overflow-y:auto">
-      <button onclick="this.closest('[style*=fixed]').remove()" style="position:absolute;top:12px;right:14px;background:none;border:none;color:var(--muted);font-size:1.4rem;cursor:pointer">âœ•</button>
-      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.4rem;color:var(--green);letter-spacing:2px;margin-bottom:4px">ðŸ“ Match Report</div>
-      <div style="font-size:.75rem;color:var(--muted);margin-bottom:16px">${m.date} Â· Team A ${m.goalsA}â€“${m.goalsB} Team B</div>
+      <button onclick="this.closest('[style*=fixed]').remove()" style="position:absolute;top:12px;right:14px;background:none;border:none;color:var(--muted);font-size:1.4rem;cursor:pointer">✕</button>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.4rem;color:var(--green);letter-spacing:2px;margin-bottom:4px">📝 Match Report</div>
+      <div style="font-size:.75rem;color:var(--muted);margin-bottom:16px">${m.date} · Team A ${m.goalsA}–${m.goalsB} Team B</div>
       <div style="font-size:.9rem;color:var(--text);line-height:1.7;white-space:pre-line;margin-bottom:16px">${fullReport}</div>
     </div>`;
   modal.querySelector('div > div:last-of-type').after(copyBtn);
@@ -8398,9 +8398,9 @@ function weeklyUpdateTeamAssignments() {
 
   container.innerHTML = `
     <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
-      <button onclick="weeklySetAllTeam('A')" class="btn-secondary" style="padding:5px 12px;font-size:.78rem">All â†’ A</button>
-      <button onclick="weeklySetAllTeam('B')" class="btn-secondary" style="padding:5px 12px;font-size:.78rem">All â†’ B</button>
-      <button onclick="weeklySetAllTeam('DNP')" class="btn-secondary" style="padding:5px 12px;font-size:.78rem">All â†’ DNP</button>
+      <button onclick="weeklySetAllTeam('A')" class="btn-secondary" style="padding:5px 12px;font-size:.78rem">All → A</button>
+      <button onclick="weeklySetAllTeam('B')" class="btn-secondary" style="padding:5px 12px;font-size:.78rem">All → B</button>
+      <button onclick="weeklySetAllTeam('DNP')" class="btn-secondary" style="padding:5px 12px;font-size:.78rem">All → DNP</button>
     </div>
     ${players.map(p => `
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
@@ -8499,7 +8499,7 @@ function weeklyRenderSwapRows() {
   container.innerHTML = window._weeklySwaps.map((row, i) => `
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
       <select onchange="weeklySwapUpdate(${i},'player',this.value)" style="${selStyle};min-width:100px">
-        <option value="">Playerâ€¦</option>
+        <option value="">Player…</option>
         ${players.map(p => `<option value="${p}" ${p===row.player?'selected':''}>${p}</option>`).join('')}
       </select>
       <div style="font-size:.72rem;color:var(--muted)">1H:</div>
@@ -8512,7 +8512,7 @@ function weeklyRenderSwapRows() {
         <option value="A" ${row.h2team==='A'?'selected':''}>Team A</option>
         <option value="B" ${row.h2team==='B'?'selected':''}>Team B</option>
       </select>
-      <button onclick="weeklyRemoveSwap(${i})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:1rem;padding:0 4px">âœ•</button>
+      <button onclick="weeklyRemoveSwap(${i})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:1rem;padding:0 4px">✕</button>
     </div>`).join('');
 }
 
@@ -8591,7 +8591,7 @@ function generateWeeklyCSV() {
       const s1 = h1stats[player] || {};
       const s2 = h2stats[player] || {};
 
-      // 1H stats â†’ Game 1 FULL row
+      // 1H stats → Game 1 FULL row
       if (team === 'DNP') {
         rows.push([matchId1, matchDate, 'DNP', player, 'DNP', 0,0,0,0,0,'N/A',0,0,0,0,0,0,0,0].join(','));
         rows.push([matchId2, matchDate, 'DNP', player, 'DNP', 0,0,0,0,0,'N/A',0,0,0,0,0,0,0,0].join(','));
@@ -8694,8 +8694,8 @@ function copyWeeklyCSV() {
   t.setSelectionRange(0, 99999);
   document.execCommand('copy');
   const btn = document.getElementById('weekly-copy-btn');
-  btn.textContent = 'âœ… Copied!';
-  setTimeout(() => btn.textContent = 'ðŸ“‹ Copy Rows', 2500);
+  btn.textContent = '✅ Copied!';
+  setTimeout(() => btn.textContent = '📋 Copy Rows', 2500);
 }
 
 function appendToAppData() {
@@ -8704,7 +8704,7 @@ function appendToAppData() {
   try {
     const newRows = parseCSV(CSV_HEADER + '\n' + csv);
     if (!newRows.length) throw new Error('No rows generated');
-    // Merge with existing â€” remove any existing rows for this match_id first
+    // Merge with existing — remove any existing rows for this match_id first
     const matchIds = new Set(newRows.map(r=>r.match_id));
     const filtered = allRows.filter(r=>!matchIds.has(r.match_id));
     allRows = [...filtered, ...newRows];
@@ -8731,26 +8731,26 @@ function appendToAppData() {
         const ps = playerStats[r.player];
         if (!ps) return;
         if (n(r.goals) > 0 && n(r.goals) > (ps.maxGoalsInGame || 0) && ps.games > 1)
-          records.push(`âš½ ${r.player} scored ${n(r.goals)} goals â€” personal best`);
+          records.push(`⚽ ${r.player} scored ${n(r.goals)} goals — personal best`);
         if (n(r.assists) >= 4)
-          records.push(`ðŸŽ¯ ${r.player} recorded ${n(r.assists)} assists`);
+          records.push(`🎯 ${r.player} recorded ${n(r.assists)} assists`);
         if (n(r.nutmegs) >= 5)
-          records.push(`ðŸª„ ${r.player} pulled off ${n(r.nutmegs)} nutmegs`);
+          records.push(`🪄 ${r.player} pulled off ${n(r.nutmegs)} nutmegs`);
         if (n(r.blocks) >= 6)
-          records.push(`ðŸ§± ${r.player} blocked ${n(r.blocks)} shots`);
+          records.push(`🧱 ${r.player} blocked ${n(r.blocks)} shots`);
         if (n(r.goalkeeper_saves) >= 8)
-          records.push(`ðŸ§¤ ${r.player} made ${n(r.goalkeeper_saves)} GK saves`);
+          records.push(`🧤 ${r.player} made ${n(r.goalkeeper_saves)} GK saves`);
       });
       // Biggest win check
       const margin = Math.abs(newMatch.goalsA - newMatch.goalsB);
-      if (margin >= 10) records.push(`ðŸ† Biggest win of the season â€” ${newMatch.goalsA}â€“${newMatch.goalsB}!`);
+      if (margin >= 10) records.push(`🏆 Biggest win of the season — ${newMatch.goalsA}–${newMatch.goalsB}!`);
       const total = newMatch.goalsA + newMatch.goalsB;
-      if (total >= 25) records.push(`ðŸ”¥ Highest scoring game â€” ${total} goals total!`);
+      if (total >= 25) records.push(`🔥 Highest scoring game — ${total} goals total!`);
     }
 
     const count = newRows.filter(r=>r.half==='FULL').length;
     const status = document.getElementById('weekly-append-status');
-    status.textContent = `âœ… Added ${count} player records for ${window._weeklyPendingDate} Â· Saved to browser storage`;
+    status.textContent = `✅ Added ${count} player records for ${window._weeklyPendingDate} · Saved to browser storage`;
     status.style.color = 'var(--green)';
 
     // Show records modal if anything notable happened
@@ -8760,14 +8760,14 @@ function appendToAppData() {
       modal.onclick = e => { if (e.target === modal) { modal.remove(); nav('matches'); } };
       modal.innerHTML = `
         <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:26px;width:100%;max-width:440px;position:relative">
-          <div style="font-family:'Bebas Neue',sans-serif;font-size:1.6rem;color:var(--green);letter-spacing:2px;margin-bottom:4px">ðŸŽ‰ Notable Performances</div>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:1.6rem;color:var(--green);letter-spacing:2px;margin-bottom:4px">🎉 Notable Performances</div>
           <div style="font-size:.75rem;color:var(--muted);margin-bottom:16px">${matchDate}</div>
           <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px">
             ${records.map(r => `<div style="background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;font-size:.85rem;color:var(--text)">${r}</div>`).join('')}
           </div>
           <button onclick="this.closest('[style]').remove();nav('matches')"
             style="width:100%;background:var(--green);color:#071009;border:none;border-radius:8px;padding:10px;font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:1px;cursor:pointer">
-            Let's Go â†’
+            Let's Go →
           </button>
         </div>`;
       document.body.appendChild(modal);
@@ -8776,7 +8776,7 @@ function appendToAppData() {
     }
   } catch(e) {
     const status = document.getElementById('weekly-append-status');
-    status.textContent = 'âŒ Error: ' + e.message;
+    status.textContent = '❌ Error: ' + e.message;
     status.style.color = 'var(--red)';
   }
 }
@@ -8785,22 +8785,22 @@ function appendToAppData() {
 // TAG LEGEND
 // =====================================================================
 const TAG_LEGEND = [
-  { tag:'Clinical Finisher', cls:'tag-striker',   desc:'2.5+ goals per game â€” devastating in front of goal' },
-  { tag:'Striker',           cls:'tag-striker',   desc:'1.5â€“2.5 goals per game â€” consistent scorer' },
-  { tag:'Playmaker',         cls:'tag-playmaker', desc:'2+ assists per game â€” the primary creator' },
-  { tag:'Vision',            cls:'tag-playmaker', desc:'6+ key passes per game â€” sees passes others miss' },
-  { tag:'Street Wizard',     cls:'tag-wizard',    desc:'3+ nutmegs per game â€” pure flair and skill' },
-  { tag:'Skill Moves',       cls:'tag-wizard',    desc:'1.5â€“3 nutmegs per game â€” loves the tricks' },
-  { tag:'Iron Wall',         cls:'tag-guardian',  desc:'12+ defensive actions per game â€” impenetrable' },
-  { tag:'Defender',          cls:'tag-guardian',  desc:'7â€“12 defensive actions per game â€” solid at the back' },
-  { tag:'Goalkeeper',        cls:'tag-guardian',  desc:'10+ saves per game â€” elite between the posts' },
-  { tag:'Shot Stopper',      cls:'tag-guardian',  desc:'5â€“10 saves per game â€” reliable keeper' },
-  { tag:'Volume Shooter',    cls:'tag-target',    desc:'20+ shots per game â€” always looking for goal' },
-  { tag:'Enforcer',          cls:'tag-enforcer',  desc:'Custom stat 7+/10 â€” physical presence, hard to play against' },
-  { tag:'Engine',            cls:'tag-engine',    desc:'Custom stamina 7+/10 â€” high pressing, box-to-box runner' },
-  { tag:'Iron Lungs',        cls:'tag-engine',    desc:'Custom stamina 9+/10 â€” never stops running, elite work rate' },
-  { tag:'Workhorse',         cls:'tag-workhorse', desc:'25+ total actions per game over 10+ games â€” does everything' },
-  { tag:'All Rounder',       cls:'tag-general',   desc:'No dominant trait â€” consistent across all stats' },
+  { tag:'Clinical Finisher', cls:'tag-striker',   desc:'2.5+ goals per game — devastating in front of goal' },
+  { tag:'Striker',           cls:'tag-striker',   desc:'1.5–2.5 goals per game — consistent scorer' },
+  { tag:'Playmaker',         cls:'tag-playmaker', desc:'2+ assists per game — the primary creator' },
+  { tag:'Vision',            cls:'tag-playmaker', desc:'6+ key passes per game — sees passes others miss' },
+  { tag:'Street Wizard',     cls:'tag-wizard',    desc:'3+ nutmegs per game — pure flair and skill' },
+  { tag:'Skill Moves',       cls:'tag-wizard',    desc:'1.5–3 nutmegs per game — loves the tricks' },
+  { tag:'Iron Wall',         cls:'tag-guardian',  desc:'12+ defensive actions per game — impenetrable' },
+  { tag:'Defender',          cls:'tag-guardian',  desc:'7–12 defensive actions per game — solid at the back' },
+  { tag:'Goalkeeper',        cls:'tag-guardian',  desc:'10+ saves per game — elite between the posts' },
+  { tag:'Shot Stopper',      cls:'tag-guardian',  desc:'5–10 saves per game — reliable keeper' },
+  { tag:'Volume Shooter',    cls:'tag-target',    desc:'20+ shots per game — always looking for goal' },
+  { tag:'Enforcer',          cls:'tag-enforcer',  desc:'Custom stat 7+/10 — physical presence, hard to play against' },
+  { tag:'Engine',            cls:'tag-engine',    desc:'Custom stamina 7+/10 — high pressing, box-to-box runner' },
+  { tag:'Iron Lungs',        cls:'tag-engine',    desc:'Custom stamina 9+/10 — never stops running, elite work rate' },
+  { tag:'Workhorse',         cls:'tag-workhorse', desc:'25+ total actions per game over 10+ games — does everything' },
+  { tag:'All Rounder',       cls:'tag-general',   desc:'No dominant trait — consistent across all stats' },
 ];
 
 // =====================================================================
@@ -8912,7 +8912,7 @@ function getDefaultCustomStats() {
 // INIT
 // =====================================================================
 document.addEventListener('DOMContentLoaded', () => {
-  // Global tooltip system â€” add data-tip="description" to any element
+  // Global tooltip system — add data-tip="description" to any element
   const tip = document.createElement('div');
   tip.id = 'global-tip';
   tip.style.cssText = 'position:fixed;z-index:9999;background:#1a2a1c;border:1px solid var(--border);color:var(--text2);font-size:.75rem;line-height:1.4;padding:7px 11px;border-radius:7px;max-width:240px;pointer-events:none;opacity:0;transition:opacity .15s;font-family:"Barlow",sans-serif;box-shadow:0 4px 16px rgba(0,0,0,.5)';
@@ -8934,10 +8934,10 @@ document.addEventListener('DOMContentLoaded', () => {
   document.addEventListener('mouseout', e => {
     if (!e.target.closest('[data-tip]')) tip.style.opacity = '0';
   });
-  // â”€â”€ Data loading strategy â”€â”€
+  // ── Data loading strategy ──
   // 1. Try to fetch data.csv from the same directory (works on GitHub Pages)
   // 2. Fall back to RAW_CSV baked into the HTML
-  // This means: update data.csv on GitHub â†’ everyone gets new data on refresh
+  // This means: update data.csv on GitHub → everyone gets new data on refresh
 
   Object.assign(customStats, getDefaultCustomStats());
   loadGoalCombos();
@@ -8981,34 +8981,34 @@ document.addEventListener('DOMContentLoaded', () => {
         Object.entries(settings.customStats).forEach(([player, vals]) => {
           customStats[player] = { ...customStats[player], ...vals };
         });
-        console.log(`âœ… Loaded customStats for ${Object.keys(settings.customStats).length} players from settings.json`);
+        console.log(`✅ Loaded customStats for ${Object.keys(settings.customStats).length} players from settings.json`);
       }
       // Apply MVP weights from settings.json
       if (settings.mvpWeights && typeof settings.mvpWeights === 'object') {
         mvpWeights = { ...MVP_WEIGHTS_DEFAULT, ...settings.mvpWeights };
         // Also clear any localStorage override since settings.json takes precedence
         try { localStorage.removeItem(LS_MVP_WEIGHTS); } catch(e) {}
-        console.log(`âœ… Loaded mvpWeights from settings.json`);
+        console.log(`✅ Loaded mvpWeights from settings.json`);
       }
       if (settings.bannerHeights && typeof settings.bannerHeights === 'object') {
         bannerHeights = { ...settings.bannerHeights };
-        console.log(`âœ… Loaded bannerHeights from settings.json`);
+        console.log(`✅ Loaded bannerHeights from settings.json`);
       }
       if (settings.bannerSlowmo && typeof settings.bannerSlowmo === 'object') {
         bannerSlowmo = { ...settings.bannerSlowmo };
-        console.log(`âœ… Loaded bannerSlowmo from settings.json`);
+        console.log(`✅ Loaded bannerSlowmo from settings.json`);
       }
       if (settings.matchVideos && typeof settings.matchVideos === 'object') {
         Object.assign(matchVideos, settings.matchVideos);
-        console.log(`âœ… Loaded ${Object.keys(settings.matchVideos).length} match videos from settings.json`);
+        console.log(`✅ Loaded ${Object.keys(settings.matchVideos).length} match videos from settings.json`);
       }
       if (settings.ytHalfOffset != null) {
         window._ytHalfOffset = settings.ytHalfOffset;
-        console.log(`âœ… Loaded ytHalfOffset: ${settings.ytHalfOffset}s from settings.json`);
+        console.log(`✅ Loaded ytHalfOffset: ${settings.ytHalfOffset}s from settings.json`);
       }
     })
     .catch(err => {
-      console.log(`settings.json not found (${err.message}) â€” using defaults`);
+      console.log(`settings.json not found (${err.message}) — using defaults`);
     });
 
   const fetchCombos = fetch('combos.csv?t=' + ts)
@@ -9038,15 +9038,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const key = half === '2H' ? 'h2' : 'h1';
         loaded[mid][key].push({ scorer, assister, time, isOG, isGoalHighlight: isGoalHL, isAssistHighlight: isAssistHL });
       });
-      // Merge with localStorage â€” GitHub file takes precedence
+      // Merge with localStorage — GitHub file takes precedence
       goalCombos = loaded;
       _tagCache = null; // force tag rebuild with fresh combo data
       // Rerender profile if open so highlights appear
       if (currentPage === 'profile') renderAll();
-      console.log(`âœ… Loaded combos.csv â€” ${Object.keys(loaded).length} matches with combo data`);
+      console.log(`✅ Loaded combos.csv — ${Object.keys(loaded).length} matches with combo data`);
     })
     .catch(err => {
-      console.log(`combos.csv not found (${err.message}) â€” using localStorage combos`);
+      console.log(`combos.csv not found (${err.message}) — using localStorage combos`);
     });
 
   const fetchData = fetch('data.csv?t=' + ts)
@@ -9056,7 +9056,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return csv;
     })
     .catch(err => {
-      console.log(`data.csv not found (${err.message}) â€” using baked RAW_CSV`);
+      console.log(`data.csv not found (${err.message}) — using baked RAW_CSV`);
       return null;
     });
 
@@ -9065,4 +9065,3 @@ document.addEventListener('DOMContentLoaded', () => {
     initWithCSV(csv || RAW_CSV, csv ? 'data.csv (GitHub)' : 'RAW_CSV (baked)');
   });
 });
-

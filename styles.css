@@ -1,4 +1,4 @@
-﻿:root {
+:root {
   --bg: #0d1a0f;
   --bg2: #111e13;
   --card: #162018;
@@ -425,7 +425,7 @@ canvas.spider{display:block;margin:0 auto}
   /* Pages */
   .page{padding:12px 10px 80px}
 
-  /* Match detail â€” hide desktop table, show mobile cards */
+  /* Match detail — hide desktop table, show mobile cards */
   .match-detail-panel{padding:8px}
   .mobile-hide{display:none!important}
   .mobile-cards{display:block!important}
@@ -435,7 +435,7 @@ canvas.spider{display:block;margin:0 auto}
   .pcard{padding:12px 10px}
   .pcard-name{font-size:1.1rem}
 
-  /* Profile â€” single column */
+  /* Profile — single column */
   .profile-hero{flex-direction:column;gap:12px}
   .profile-name{font-size:2rem}
   .profile-body{grid-template-columns:1fr}
@@ -483,4 +483,3 @@ canvas.spider{display:block;margin:0 auto}
   .player-grid{grid-template-columns:1fr 1fr}
   .nav-btn{font-size:.65rem;padding:9px 8px}
 }
-

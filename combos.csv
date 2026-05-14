@@ -1,4 +1,4 @@
-﻿match_id,half,time,scorer,assister,is_og,is_goal_highlight,is_assist_highlight
+match_id,half,time,scorer,assister,is_og,is_goal_highlight,is_assist_highlight
 2026-01-15#1,1H,6:10,Amin,,,,
 2026-01-15#1,1H,13:00,Bailey,,,,
 2026-01-15#1,1H,14:32,Gio,Bailey,,,
@@ -437,4 +437,3 @@
 2026-04-30#1,2H,49:40,James,Gio,,,
 2026-04-30#1,2H,53:25,James,Jake,,,
 2026-04-30#1,2H,55:03,Lachlan,Bailey,,,
-
