@@ -1,0 +1,434 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Aero Soccer</title>
+<meta name="description" content="Aero Soccer match history, player stats, leaderboards, team builder, and goal combinations.">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@300;400;500;600;700&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="app">
+
+<!-- TOP NAV -->
+<nav class="topnav">
+  <div class="topnav-logo" onclick="nav('matches')">
+    <svg width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <!-- Outer circle / pitch ring -->
+      <circle cx="18" cy="18" r="16" stroke="#39d353" stroke-width="1.5" fill="none" opacity="0.3"/>
+      <!-- Ball hexagon patches -->
+      <circle cx="18" cy="18" r="10" fill="#0d1a0f" stroke="#39d353" stroke-width="1.2"/>
+      <!-- Pentagon centre -->
+      <polygon points="18,11 22.7,14.5 20.9,20 15.1,20 13.3,14.5" fill="#39d353" opacity="0.9"/>
+      <!-- Surrounding patches -->
+      <polygon points="18,11 22.7,14.5 25.5,11.5 22,7.5 15.5,7.8" fill="none" stroke="#39d353" stroke-width="0.8" opacity="0.5"/>
+      <polygon points="22.7,14.5 20.9,20 25.2,22.5 28,18.5 25.5,11.5" fill="none" stroke="#39d353" stroke-width="0.8" opacity="0.5"/>
+      <polygon points="20.9,20 15.1,20 13.5,24.5 18,26.5 24,24" fill="none" stroke="#39d353" stroke-width="0.8" opacity="0.5"/>
+      <polygon points="15.1,20 13.3,14.5 9.5,12 8,16.5 11,22" fill="none" stroke="#39d353" stroke-width="0.8" opacity="0.5"/>
+      <polygon points="13.3,14.5 18,11 15.5,7.8 10.5,9 9.5,12" fill="none" stroke="#39d353" stroke-width="0.8" opacity="0.5"/>
+      <!-- Speed lines top right -->
+      <line x1="27" y1="7" x2="33" y2="5" stroke="#a8e050" stroke-width="1.5" stroke-linecap="round" opacity="0.8"/>
+      <line x1="29" y1="10" x2="35" y2="9" stroke="#a8e050" stroke-width="1" stroke-linecap="round" opacity="0.5"/>
+      <line x1="28" y1="13" x2="34" y2="13" stroke="#a8e050" stroke-width="0.8" stroke-linecap="round" opacity="0.3"/>
+    </svg>
+    <div>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:3px;color:var(--green);line-height:1">AERO</div>
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:.65rem;letter-spacing:4px;color:var(--lime);line-height:1;margin-top:1px">SOCCER</div>
+    </div>
+  </div>
+  <div class="nav-links">
+    <button class="nav-btn active" data-page="matches" onclick="nav('matches')">Matches</button>
+    <button class="nav-btn" data-page="players" onclick="nav('players')">Players</button>
+    <button class="nav-btn" data-page="leaderboard" onclick="nav('leaderboard')">Leaderboard</button>
+    <button class="nav-btn" data-page="teams" onclick="nav('teams')">Team Builder</button>
+    <button class="nav-btn" data-page="compare" onclick="nav('compare')">Compare</button>
+    <button class="nav-btn" data-page="summary" onclick="nav('summary')">ðŸ† Season</button>
+    <button class="nav-btn" data-page="stats" onclick="nav('stats')">Stats</button>
+    <button class="nav-btn" data-page="weekly" id="nav-weekly" onclick="nav('weekly')" style="color:var(--lime);display:none">+ Weekly Import</button>
+    <button class="nav-btn" data-page="combos" id="nav-combos" onclick="nav('combos')" style="color:var(--lime);display:none">âš½ Goal Combos</button>
+  </div>
+  <div class="nav-actions">
+    <div style="display:flex;align-items:center;gap:3px;background:var(--card2);border:1px solid var(--border);border-radius:7px;padding:3px">
+      <button onclick="setGlobalFilter('all')" id="gf-all"
+        style="padding:4px 10px;border:none;border-radius:4px;cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-size:.75rem;letter-spacing:.5px;text-transform:uppercase;transition:all .15s;background:transparent;color:var(--muted)">All</button>
+      <button onclick="setGlobalFilter('last10')" id="gf-last10"
+        style="padding:4px 10px;border:none;border-radius:4px;cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-size:.75rem;letter-spacing:.5px;text-transform:uppercase;transition:all .15s;background:var(--green);color:#071009;font-weight:700">L10</button>
+      <div style="width:1px;height:16px;background:var(--border);margin:0 2px"></div>
+      <select id="season-select" onchange="setSeasonFilter(this.value)"
+        style="background:transparent;border:none;color:var(--text);padding:2px 4px;font-size:.75rem;font-family:'Barlow Condensed',sans-serif;outline:none;cursor:pointer;max-width:80px">
+        <option value="all">All Seasons</option>
+      </select>
+    </div>
+    <button class="btn-import" id="btn-backup" onclick="downloadBackup()" style="display:none">â¬‡ Backup</button>
+    <button class="btn-import" id="btn-import" onclick="openImport()" style="display:none">â¬† Import CSV</button>
+    <button class="btn-import" id="btn-clear" onclick="clearSavedData()" style="display:none;color:var(--red);border-color:rgba(240,96,96,.3)" title="Remove imported matches from browser storage">ðŸ—‘ Clear Saved</button>
+    <button class="btn-import" id="admin-btn" onclick="toggleAdmin()" title="Toggle admin mode to show/hide player ratings">ðŸ”’ Admin</button>
+    <button class="btn-import" id="bake-btn" onclick="bakeToHTML()" title="Download HTML with all imported matches and custom stats baked in" style="display:none;color:var(--lime);border-color:rgba(168,224,80,.3)">ðŸ’¾ Bake to HTML</button>
+    <button class="btn-import" id="mvp-tuner-btn" onclick="openMvpTuner()" title="Adjust MVP scoring weights" style="display:none;color:var(--amber);border-color:rgba(240,160,48,.3)">âš™ MVP Formula</button>
+    <button class="btn-import" id="settings-btn" onclick="saveSettings()" title="Download settings.json for GitHub" style="display:none;color:var(--lime);border-color:rgba(168,224,80,.3)">â¬‡ settings.json</button>
+    <button class="btn-import" id="yt-sync-btn" onclick="openYtSyncModal()" title="Link YouTube videos to matches" style="display:none;color:#60a5fa;border-color:rgba(96,165,250,.3)">ðŸ“º Sync Videos</button>
+  </div>
+</nav>
+
+<!-- Draft banner â€” shown when localStorage has unpublished matches -->
+<div id="draft-banner" style="display:none;background:rgba(240,160,48,.12);border-bottom:1px solid rgba(240,160,48,.3);padding:8px 20px;display:none;align-items:center;gap:10px;font-family:'Barlow Condensed',sans-serif;font-size:.82rem;letter-spacing:.3px">
+  <span style="font-size:1rem">âš ï¸</span>
+  <span id="draft-banner-text" style="color:var(--amber);flex:1"></span>
+  <button onclick="bakeToHTML()" style="background:var(--amber);color:#1a1000;border:none;border-radius:6px;padding:4px 14px;font-family:'Bebas Neue',sans-serif;font-size:.9rem;letter-spacing:1px;cursor:pointer">ðŸ’¾ Bake Now</button>
+  <button onclick="document.getElementById('draft-banner').style.display='none'" style="background:none;border:none;color:var(--muted);font-size:1rem;cursor:pointer;padding:0 4px">âœ•</button>
+</div>
+
+<!-- ===== PAGE: MATCHES ===== -->
+<div class="page active" id="page-matches">
+  <div class="section-hd"><h2>Match History</h2><span id="match-count"></span></div>
+  <div class="toolbar">
+    <input class="tb-input" id="match-search" placeholder="Search player or dateâ€¦" oninput="renderMatches()">
+    <select class="tb-select" id="match-sort" onchange="renderMatches()" style="max-width:160px">
+      <option value="desc">Newest First</option>
+      <option value="asc">Oldest First</option>
+    </select>
+    <div style="display:flex;gap:3px;background:var(--card2);border:1px solid var(--border);border-radius:6px;padding:3px">
+      <button id="mf-all"  onclick="setMatchFilter('all')"   style="padding:4px 10px;border:none;border-radius:4px;cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-size:.76rem;letter-spacing:.5px;text-transform:uppercase;background:var(--green);color:#071009;font-weight:700">All</button>
+      <button id="mf-win"  onclick="setMatchFilter('win')"   style="padding:4px 10px;border:none;border-radius:4px;cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-size:.76rem;letter-spacing:.5px;text-transform:uppercase;background:transparent;color:var(--muted)">ðŸŸ¢ A Win</button>
+      <button id="mf-loss" onclick="setMatchFilter('loss')"  style="padding:4px 10px;border:none;border-radius:4px;cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-size:.76rem;letter-spacing:.5px;text-transform:uppercase;background:transparent;color:var(--muted)">ðŸ”µ B Win</button>
+      <button id="mf-draw" onclick="setMatchFilter('draw')"  style="padding:4px 10px;border:none;border-radius:4px;cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-size:.76rem;letter-spacing:.5px;text-transform:uppercase;background:transparent;color:var(--muted)">ðŸŸ¡ Draw</button>
+    </div>
+  </div>
+  <div id="matches-list"></div>
+</div>
+
+<!-- ===== PAGE: PLAYERS ===== -->
+<div class="page" id="page-players">
+  <div class="section-hd"><h2>Players</h2><span id="player-count"></span></div>
+
+  <div class="toolbar">
+    <input class="tb-input" id="player-search" placeholder="Search playerâ€¦" oninput="renderPlayers()">
+    <select class="tb-select" id="player-sort" onchange="renderPlayers()" style="max-width:200px">
+      <option value="rating" id="sort-rating">Sort: Rating</option>
+      <option value="goals">Sort: Goals</option>
+      <option value="assists">Sort: Assists</option>
+      <option value="total_shots">Sort: Shots</option>
+      <option value="tackles">Sort: Tackles</option>
+      <option value="interceptions">Sort: Interceptions</option>
+      <option value="nutmegs">Sort: Nutmegs</option>
+      <option value="games">Sort: Games</option>
+      <option value="enforcer" id="sort-enforcer">Sort: Enforcer</option>
+      <option value="stamina" id="sort-stamina">Sort: Stamina</option>
+    </select>
+  </div>
+  <div class="player-grid" id="player-grid"></div>
+</div>
+
+<!-- ===== PAGE: PLAYER PROFILE ===== -->
+<div class="page" id="page-profile">
+  <div class="profile-back" onclick="nav('players')">â† Back to Players</div>
+  <div id="profile-content"></div>
+</div>
+
+<!-- ===== PAGE: LEADERBOARD ===== -->
+<div class="page" id="page-leaderboard">
+  <div class="section-hd"><h2>Leaderboard</h2></div>
+  <div class="lb-controls" id="lb-controls"></div>
+  <div class="lb-list" id="lb-list"></div>
+</div>
+
+<!-- ===== PAGE: TEAM BUILDER ===== -->
+<div class="page" id="page-teams">
+  <div class="section-hd"><h2>Team Builder</h2><span>Select players Â· Auto-balance by ability &amp; role Â· Drag to adjust</span></div>
+
+  <div style="margin-bottom:14px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:8px">
+      <div style="font-size:.8rem;color:var(--muted);font-family:'Barlow Condensed',sans-serif;letter-spacing:1px;text-transform:uppercase">Available Players â€” click to select<span id="team-player-count" style="color:var(--lime)"></span></div>
+      <button onclick="openCustomPlayerModal()" style="padding:5px 12px;border-radius:7px;cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-size:.78rem;letter-spacing:.5px;text-transform:uppercase;border:1px solid var(--amber);background:rgba(240,160,48,.1);color:var(--amber)">+ Custom Player</button>
+    </div>
+    <div class="avail-pool" id="avail-pool"></div>
+  </div>
+
+  <!-- Custom Player Modal -->
+  <div id="custom-player-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1000;align-items:center;justify-content:center">
+    <div style="background:var(--bg);border:1px solid var(--border);border-radius:14px;padding:24px;width:340px;max-width:90vw;max-height:90vh;overflow-y:auto">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:2px;color:var(--text);margin-bottom:16px">Custom Player</div>
+
+      <div style="margin-bottom:14px">
+        <label style="font-size:.7rem;color:var(--muted);font-family:'Barlow Condensed',sans-serif;letter-spacing:1px;text-transform:uppercase;display:block;margin-bottom:5px">Name</label>
+        <input id="cp-name" type="text" placeholder="e.g. Guest Player" maxlength="20"
+          style="width:100%;background:var(--card);border:1px solid var(--border);border-radius:7px;padding:8px 10px;color:var(--text);font-size:.85rem;box-sizing:border-box">
+      </div>
+
+      <div id="cp-sliders"></div>
+
+      <div style="display:flex;gap:8px;margin-top:18px">
+        <button onclick="addCustomPlayer()" style="flex:1;padding:9px;border-radius:8px;cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-size:.9rem;letter-spacing:.5px;text-transform:uppercase;border:none;background:var(--green);color:#000;font-weight:700">Add to Pool</button>
+        <button onclick="closeCustomPlayerModal()" style="padding:9px 14px;border-radius:8px;cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-size:.9rem;border:1px solid var(--border);background:none;color:var(--muted)">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="notes-section" id="notes-section" style="display:none">
+    <div class="notes-title">Player Notes (injuries, fitness, etc.)</div>
+    <div id="notes-rows"></div>
+  </div>
+
+  <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center">
+    <button class="btn-primary" onclick="autoBalance()">âš– Smart Balance</button>
+    <button class="btn-secondary" onclick="clearTeams()">Clear</button>
+    <button id="streak-aug-btn" onclick="toggleStreakAugment()"
+      style="padding:6px 14px;border-radius:7px;cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-size:.82rem;letter-spacing:.5px;text-transform:uppercase;border:1px solid var(--lime);background:rgba(168,224,80,.1);color:var(--lime);transition:all .15s"
+      title="Adjusts player ratings based on win rate â€” high win rate gets a small nerf, low win rate gets a small buff">
+      âš– Win Rate Balance: ON
+    </button>
+    <div id="winrate-strength-wrap" style="display:flex;align-items:center;gap:6px;font-family:'Barlow Condensed',sans-serif;font-size:.78rem;color:var(--muted)">
+      <span style="white-space:nowrap">Strength</span>
+      <input type="range" min="0.05" max="0.40" step="0.05" value="0.20"
+        oninput="winRateAugStrength=parseFloat(this.value);document.getElementById('winrate-strength-val').textContent=Math.round(this.value*100)+'%';if(teamA.length||teamB.length)renderTeamResult(teamA,teamB)"
+        style="width:70px;accent-color:var(--lime)">
+      <span id="winrate-strength-val" style="color:var(--lime);min-width:28px">20%</span>
+    </div>
+    <div style="font-size:.78rem;color:var(--muted);margin-left:4px">Balance considers attacking, defensive &amp; playmaking roles</div>
+  </div>
+
+  <div id="balance-msg-area"></div>
+
+  <div class="builder-grid" id="teams-grid" style="display:none">
+    <!-- Team A -->
+    <div class="team-box ta" id="team-a-box" data-team="A"
+      ondragover="event.preventDefault();this.classList.add('drag-over')"
+      ondragleave="this.classList.remove('drag-over')"
+      ondrop="dropToTeam('A',event)">
+      <div class="team-title">Team A</div>
+      <div id="team-a-rows"></div>
+      <div id="team-a-roles" style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border)"></div>
+      <div class="team-total">
+        <span class="total-lbl">Rating</span>
+        <span class="total-val" id="ta-total">0</span>
+      </div>
+    </div>
+    <!-- Team B -->
+    <div class="team-box tb" id="team-b-box" data-team="B"
+      ondragover="event.preventDefault();this.classList.add('drag-over')"
+      ondragleave="this.classList.remove('drag-over')"
+      ondrop="dropToTeam('B',event)">
+      <div class="team-title">Team B</div>
+      <div id="team-b-rows"></div>
+      <div id="team-b-roles" style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border)"></div>
+      <div class="team-total">
+        <span class="total-lbl">Rating</span>
+        <span class="total-val" id="tb-total">0</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Drag hint -->
+  <div id="drag-hint" style="display:none;text-align:center;font-size:.78rem;color:var(--muted);margin-top:8px;padding:6px">
+    ðŸ¤ Drag any player card between teams to adjust
+  </div>
+
+  <!-- Team Synergy Breakdown -->
+  <div id="synergy-section" style="display:none;margin-top:16px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:18px">
+    <div style="font-family:'Barlow Condensed',sans-serif;font-size:.85rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:14px">ðŸ¤ Team Chemistry</div>
+    <div id="synergy-content"></div>
+  </div>
+
+  <!-- Predicted Result -->
+  <div id="predict-section" style="display:none;margin-top:16px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:18px">
+    <div style="font-family:'Barlow Condensed',sans-serif;font-size:.85rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:14px">ðŸ”® Predicted Result</div>
+    <div id="predict-content"></div>
+  </div>
+
+  <!-- Attack combo predictions -->
+  <div id="attack-combos-section" style="display:none"></div>
+</div>
+
+<!-- ===== PAGE: WEEKLY IMPORT ===== -->
+<div class="page" id="page-weekly">
+  <div class="section-hd"><h2>Weekly Import</h2><span>Upload 4 stat files from a match to generate CSV rows</span></div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
+    <!-- File uploads -->
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:20px">
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:.85rem;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:14px">Upload Stat Files</div>
+
+      <div style="margin-bottom:12px">
+        <div style="font-size:.78rem;color:var(--text2);margin-bottom:5px">1H File 1 â€” Goals / Assists / Shots / Tackles / Nutmegs</div>
+        <label style="display:flex;align-items:center;gap:10px;background:var(--bg2);border:1px solid var(--border);border-radius:7px;padding:9px 12px;cursor:pointer;transition:border-color .15s" id="file-label-0">
+          <span>ðŸ“‚</span>
+          <span id="file-name-0" style="font-size:.82rem;color:var(--muted)">Choose CSV fileâ€¦</span>
+          <input type="file" accept=".csv" style="display:none" id="file-input-0" onchange="weeklyFileSelected(0,this)">
+        </label>
+      </div>
+
+      <div style="margin-bottom:12px">
+        <div style="font-size:.78rem;color:var(--text2);margin-bottom:5px">1H File 2 â€” Interceptions / Key Passes / Blocks / Saves / Posts</div>
+        <label style="display:flex;align-items:center;gap:10px;background:var(--bg2);border:1px solid var(--border);border-radius:7px;padding:9px 12px;cursor:pointer;transition:border-color .15s" id="file-label-1">
+          <span>ðŸ“‚</span>
+          <span id="file-name-1" style="font-size:.82rem;color:var(--muted)">Choose CSV fileâ€¦</span>
+          <input type="file" accept=".csv" style="display:none" id="file-input-1" onchange="weeklyFileSelected(1,this)">
+        </label>
+      </div>
+
+      <div style="margin-bottom:12px">
+        <div style="font-size:.78rem;color:var(--text2);margin-bottom:5px">2H File 1 â€” Goals / Assists / Shots / Tackles / Nutmegs</div>
+        <label style="display:flex;align-items:center;gap:10px;background:var(--bg2);border:1px solid var(--border);border-radius:7px;padding:9px 12px;cursor:pointer;transition:border-color .15s" id="file-label-2">
+          <span>ðŸ“‚</span>
+          <span id="file-name-2" style="font-size:.82rem;color:var(--muted)">Choose CSV fileâ€¦</span>
+          <input type="file" accept=".csv" style="display:none" id="file-input-2" onchange="weeklyFileSelected(2,this)">
+        </label>
+      </div>
+
+      <div style="margin-bottom:12px">
+        <div style="font-size:.78rem;color:var(--text2);margin-bottom:5px">2H File 2 â€” Interceptions / Key Passes / Blocks / Saves / Posts</div>
+        <label style="display:flex;align-items:center;gap:10px;background:var(--bg2);border:1px solid var(--border);border-radius:7px;padding:9px 12px;cursor:pointer;transition:border-color .15s" id="file-label-3">
+          <span>ðŸ“‚</span>
+          <span id="file-name-3" style="font-size:.82rem;color:var(--muted)">Choose CSV fileâ€¦</span>
+          <input type="file" accept=".csv" style="display:none" id="file-input-3" onchange="weeklyFileSelected(3,this)">
+        </label>
+      </div>
+    </div>
+
+    <!-- Match settings -->
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:20px">
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:.85rem;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:14px">Match Settings</div>
+
+      <div style="margin-bottom:14px">
+        <div style="font-size:.78rem;color:var(--text2);margin-bottom:5px">Match Date</div>
+        <input type="date" id="weekly-date" style="background:var(--bg2);border:1px solid var(--border);color:var(--text);border-radius:7px;padding:9px 12px;font-size:.88rem;font-family:'Barlow',sans-serif;outline:none;width:100%">
+      </div>
+
+      <div style="margin-bottom:14px">
+        <div style="font-size:.78rem;color:var(--text2);margin-bottom:5px">Match ID (leave blank to auto-generate)</div>
+        <input type="text" id="weekly-matchid" placeholder="e.g. 2026-04-16#1" style="background:var(--bg2);border:1px solid var(--border);color:var(--text);border-radius:7px;padding:9px 12px;font-size:.88rem;font-family:'Barlow',sans-serif;outline:none;width:100%">
+      </div>
+
+      <div style="margin-bottom:14px">
+        <div style="font-size:.78rem;color:var(--text2);margin-bottom:8px">Assign players to teams (Team A / Team B)</div>
+        <div id="weekly-team-assignments" style="font-size:.78rem;color:var(--muted)">Upload files first to see players</div>
+      </div>
+
+      <div style="margin-bottom:16px">
+        <div style="font-size:.78rem;color:var(--text2);margin-bottom:5px">Own Goal Notes (optional)</div>
+        <textarea id="weekly-og-notes" placeholder="e.g. Bailey scored an own goal in 2H" style="width:100%;background:var(--bg2);border:1px solid var(--border);color:var(--text);border-radius:7px;padding:9px 12px;font-size:.78rem;font-family:'Barlow',sans-serif;outline:none;resize:vertical;min-height:60px;line-height:1.5"></textarea>
+        <div style="font-size:.7rem;color:var(--muted);margin-top:4px">One note per line. Include player name and half (1H/2H).</div>
+      </div>
+
+      <!-- Match Conditions -->
+      <div style="border-top:1px solid var(--border);padding-top:14px;margin-bottom:16px">
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:.78rem;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:10px">Match Conditions</div>
+
+        <!-- Two separate games (score reset) -->
+        <label style="display:flex;align-items:center;gap:9px;cursor:pointer;margin-bottom:10px">
+          <input type="checkbox" id="weekly-two-games" onchange="weeklyUpdateConditions()" style="accent-color:var(--green);width:15px;height:15px">
+          <div>
+            <div style="font-size:.82rem;color:var(--text2)">Two separate games (score reset at half time)</div>
+            <div style="font-size:.7rem;color:var(--muted)">1H and 2H are treated as two independent matches with different IDs</div>
+          </div>
+        </label>
+
+        <!-- Player switched teams -->
+        <label style="display:flex;align-items:center;gap:9px;cursor:pointer;margin-bottom:8px">
+          <input type="checkbox" id="weekly-team-swaps-enabled" onchange="weeklyUpdateConditions()" style="accent-color:var(--green);width:15px;height:15px">
+          <div>
+            <div style="font-size:.82rem;color:var(--text2)">A player switched teams between halves</div>
+            <div style="font-size:.7rem;color:var(--muted)">Assign different teams per half for that player</div>
+          </div>
+        </label>
+
+        <!-- Team swap player rows (shown when checkbox enabled) -->
+        <div id="weekly-team-swaps" style="display:none;margin-top:8px;padding:10px 12px;background:var(--bg2);border:1px solid var(--border);border-radius:8px">
+          <div style="font-size:.75rem;color:var(--muted);margin-bottom:8px">Set per-half team for players who switched:</div>
+          <div id="weekly-swap-rows">
+            <div style="font-size:.75rem;color:var(--muted)">Upload files first to see players</div>
+          </div>
+          <button onclick="weeklyAddSwapRow()" class="btn-secondary" style="margin-top:8px;font-size:.75rem;padding:5px 12px">+ Add another player</button>
+        </div>
+      </div>
+
+      <button onclick="generateWeeklyCSV()" class="btn-primary" style="width:100%">âš¡ Generate CSV Rows</button>
+    </div>
+  </div>
+
+  <!-- Preview / output -->
+  <div id="weekly-output" style="display:none">
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:20px;margin-bottom:16px">
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:.85rem;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:10px">Player Stats Preview</div>
+      <div id="weekly-preview-table" style="overflow-x:auto"></div>
+    </div>
+
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:20px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:.85rem;letter-spacing:1px;text-transform:uppercase;color:var(--muted)">Generated CSV Rows</div>
+        <div style="display:flex;gap:8px">
+          <button onclick="copyWeeklyCSV()" class="btn-secondary" id="weekly-copy-btn">ðŸ“‹ Copy Rows</button>
+          <button onclick="appendToAppData()" class="btn-primary">âœ… Add to App Data</button>
+        </div>
+      </div>
+      <textarea id="weekly-csv-output" readonly style="width:100%;height:200px;background:var(--bg2);border:1px solid var(--border);color:var(--text);border-radius:7px;padding:10px 12px;font-size:.72rem;font-family:monospace;resize:vertical;outline:none;line-height:1.5" spellcheck="false"></textarea>
+      <div style="font-size:.72rem;color:var(--muted);margin-top:8px">
+        <strong style="color:var(--green)">Add to App Data</strong> imports directly into the live app and refreshes all stats instantly.
+        Or copy rows to paste into your backup CSV.
+      </div>
+      <div id="weekly-append-status" style="margin-top:8px;font-size:.8rem"></div>
+    </div>
+  </div>
+
+  <!-- Restore from Backup -->
+  <div style="margin-top:24px;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px">
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:1.5px;color:var(--text);margin-bottom:4px">ðŸ“‹ Restore from Backup</div>
+    <div style="font-size:.75rem;color:var(--muted);margin-bottom:12px">Paste a full backup CSV here to load all match history. Use this to sync data from another device or restore after clearing browser storage.</div>
+    <textarea id="restore-csv-input" placeholder="Paste backup CSV here (including header row)â€¦" style="width:100%;height:140px;background:var(--card2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:12px;font-size:.72rem;font-family:monospace;resize:vertical;outline:none;line-height:1.5;box-sizing:border-box"></textarea>
+    <div style="display:flex;gap:10px;margin-top:10px;align-items:center">
+      <button onclick="restoreFromBackup()" style="background:var(--green);color:#071009;border:none;border-radius:7px;padding:9px 20px;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:1px;cursor:pointer">â¬† Restore</button>
+      <button onclick="document.getElementById('restore-csv-input').value=''" style="background:var(--card2);border:1px solid var(--border);color:var(--muted);border-radius:7px;padding:9px 14px;font-family:'Barlow Condensed',sans-serif;font-size:.82rem;cursor:pointer">Clear</button>
+      <span id="restore-status" style="font-size:.78rem"></span>
+    </div>
+  </div>
+</div>
+
+<!-- ===== PAGE: COMPARE ===== -->
+<div class="page" id="page-compare">
+  <div class="section-hd"><h2>Compare Players</h2><span>Select up to three players to compare</span></div>
+  <div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;align-items:center">
+    <select class="tb-select" id="compare-p1" onchange="renderComparePage()" style="max-width:200px"><option value="">Player 1â€¦</option></select>
+    <select class="tb-select" id="compare-p2" onchange="renderComparePage()" style="max-width:200px"><option value="">Player 2â€¦</option></select>
+    <select class="tb-select" id="compare-p3" onchange="renderComparePage()" style="max-width:200px"><option value="">Player 3 (optional)â€¦</option></select>
+  </div>
+  <div id="compare-content"></div>
+</div>
+
+<!-- ===== PAGE: SEASON SUMMARY ===== -->
+<div class="page" id="page-summary">
+  <div class="section-hd"><h2>Season Summary</h2><span id="summary-subtitle"></span></div>
+  <div id="summary-content"></div>
+</div>
+
+<!-- ===== PAGE: GOAL COMBOS ===== -->
+<div class="page" id="page-combos">
+  <div class="section-hd"><h2>Goal Combinations</h2><span>Track scorer/assister pairs per match</span></div>
+  <div id="combos-content"></div>
+</div>
+
+<!-- ===== PAGE: STATS ===== -->
+<div class="page" id="page-stats">
+  <div class="section-hd"><h2>Season Stats</h2></div>
+  <div id="stats-content"></div>
+</div>
+<div class="modal-overlay" id="import-modal" onclick="closeImportModal(event)">
+  <div class="modal">
+    <button class="modal-close" onclick="document.getElementById('import-modal').classList.remove('open')">âœ•</button>
+    <div class="modal-title">Import CSV Data</div>
+    <p style="font-size:.84rem;color:var(--muted);margin-bottom:12px">Paste your full CSV (including header row) below. This replaces all existing data.</p>
+    <textarea class="import-area" id="import-csv" placeholder="match_id,match_date,team,player,half,goals,assists..."></textarea>
+    <div class="import-info">
+      Expected columns: match_id, match_date, team, player, half, goals, assists, shots_on_target, shots_off_target, total_shots, goalkeeper_saves, blocks, total_saves, interceptions, tackles, nutmegs, post, key_passes
+    </div>
+    <div style="display:flex;gap:10px;margin-top:16px">
+      <button class="btn-primary" onclick="doImport()">Import & Reload</button>
+      <button class="btn-secondary" onclick="document.getElementById('import-modal').classList.remove('open')">Cancel</button>
+    </div>
+    <div id="import-error" style="color:var(--red);font-size:.8rem;margin-top:10px"></div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</div></body></html>
+

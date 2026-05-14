@@ -1,0 +1,122 @@
+﻿{
+    "mvpWeights":  {
+                       "goals":  4,
+                       "assists":  3.5,
+                       "key_passes":  1,
+                       "tackles":  0.8,
+                       "interceptions":  0.5,
+                       "blocks":  1.4,
+                       "goalkeeper_saves":  1,
+                       "shots_on_target":  0.5,
+                       "shots_off_target":  0.1,
+                       "nutmegs":  0.3,
+                       "post":  0.2
+                   },
+    "customStats":  {
+                        "Amin":  {
+                                     "enforcer":  10,
+                                     "stamina":  8
+                                 },
+                        "Gio":  {
+                                    "enforcer":  10,
+                                    "stamina":  8
+                                },
+                        "Jake":  {
+                                     "enforcer":  10,
+                                     "stamina":  7
+                                 },
+                        "James":  {
+                                      "enforcer":  5,
+                                      "stamina":  6
+                                  },
+                        "Richard":  {
+                                        "enforcer":  7,
+                                        "stamina":  6
+                                    },
+                        "Bailey":  {
+                                       "enforcer":  6,
+                                       "stamina":  9
+                                   },
+                        "Lachlan":  {
+                                        "enforcer":  4,
+                                        "stamina":  10
+                                    },
+                        "Austin":  {
+                                       "enforcer":  9,
+                                       "stamina":  10
+                                   },
+                        "Alberto":  {
+                                        "enforcer":  7,
+                                        "stamina":  5
+                                    },
+                        "Ines":  {
+                                     "enforcer":  6,
+                                     "stamina":  5
+                                 },
+                        "David":  {
+                                      "enforcer":  5,
+                                      "stamina":  6
+                                  },
+                        "Craig":  {
+                                      "enforcer":  7,
+                                      "stamina":  5
+                                  },
+                        "Carlos":  {
+                                       "enforcer":  6,
+                                       "stamina":  6
+                                   },
+                        "Dexter":  {
+                                       "enforcer":  5,
+                                       "stamina":  5
+                                   },
+                        "Ross":  {
+                                     "enforcer":  5,
+                                     "stamina":  5
+                                 },
+                        "Will":  {
+                                     "enforcer":  7,
+                                     "stamina":  6
+                                 },
+                        "James2":  {
+                                       "enforcer":  7,
+                                       "stamina":  7
+                                   },
+                        "Xavier":  {
+                                       "enforcer":  10,
+                                       "stamina":  7
+                                   },
+                        "Andres":  {
+                                       "enforcer":  8,
+                                       "stamina":  8
+                                   },
+                        "Lach2":  {
+                                      "enforcer":  5,
+                                      "stamina":  6
+                                  }
+                    },
+    "bannerHeights":  {
+                          "Jake":  400,
+                          "Richard":  400
+                      },
+    "bannerSlowmo":  {
+                         "Richard":  true
+                     },
+    "matchVideos":  {
+                        "2026-04-23#1":  "ylb15aE4V9I",
+                        "2026-04-16#1":  "LfgfLgZDZtM",
+                        "2026-04-09#1":  "YzZyHKFCCk8",
+                        "2026-04-30#1":  "q07mXKNJji0",
+                        "2026-03-26#1":  "gEz1czA1Ylg",
+                        "2026-03-19#1":  "qh1VFokIMCw",
+                        "2026-03-12#1":  "0tXyLHs_xrw",
+                        "2026-03-05#1":  "KEub8iRhVgo",
+                        "2026-02-26#1":  "FFLfLDAoCNg",
+                        "2026-02-19#1":  "2ziH0g7CZc4",
+                        "2026-02-12#1":  "s6QKiZwvcEc",
+                        "2026-02-05#1":  "sibKgVGEoDA",
+                        "2026-01-29#1":  "WQbZ8ffDodQ",
+                        "2026-01-22#1":  "va0FsRpL9S4",
+                        "2026-01-15#1":  "ZPfbG_OCdsM"
+                    },
+    "ytHalfOffset":  0
+}
