@@ -1,4 +1,4 @@
-﻿# Aero Soccer
+# Aero Soccer
 
 GitHub Pages files:
 

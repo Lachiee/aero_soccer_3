@@ -43,10 +43,10 @@
     <button class="nav-btn" data-page="leaderboard" onclick="nav('leaderboard')">Leaderboard</button>
     <button class="nav-btn" data-page="teams" onclick="nav('teams')">Team Builder</button>
     <button class="nav-btn" data-page="compare" onclick="nav('compare')">Compare</button>
-    <button class="nav-btn" data-page="summary" onclick="nav('summary')">🏆 Season</button>
+    <button class="nav-btn" data-page="summary" onclick="nav('summary')">Season</button>
     <button class="nav-btn" data-page="stats" onclick="nav('stats')">Stats</button>
     <button class="nav-btn" data-page="weekly" id="nav-weekly" onclick="nav('weekly')" style="color:var(--lime);display:none">+ Weekly Import</button>
-    <button class="nav-btn" data-page="combos" id="nav-combos" onclick="nav('combos')" style="color:var(--lime);display:none">⚽ Goal Combos</button>
+    <button class="nav-btn" data-page="combos" id="nav-combos" onclick="nav('combos')" style="color:var(--lime);display:none">Goal Combos</button>
   </div>
   <div class="nav-actions">
     <div style="display:flex;align-items:center;gap:3px;background:var(--card2);border:1px solid var(--border);border-radius:7px;padding:3px">
@@ -60,39 +60,39 @@
         <option value="all">All Seasons</option>
       </select>
     </div>
-    <button class="btn-import" id="btn-backup" onclick="downloadBackup()" style="display:none">⬇ Backup</button>
-    <button class="btn-import" id="btn-import" onclick="openImport()" style="display:none">⬆ Import CSV</button>
-    <button class="btn-import" id="btn-clear" onclick="clearSavedData()" style="display:none;color:var(--red);border-color:rgba(240,96,96,.3)" title="Remove imported matches from browser storage">🗑 Clear Saved</button>
-    <button class="btn-import" id="admin-btn" onclick="toggleAdmin()" title="Toggle admin mode to show/hide player ratings">🔒 Admin</button>
-    <button class="btn-import" id="bake-btn" onclick="bakeToHTML()" title="Download HTML with all imported matches and custom stats baked in" style="display:none;color:var(--lime);border-color:rgba(168,224,80,.3)">💾 Bake to HTML</button>
-    <button class="btn-import" id="mvp-tuner-btn" onclick="openMvpTuner()" title="Adjust MVP scoring weights" style="display:none;color:var(--amber);border-color:rgba(240,160,48,.3)">⚙ MVP Formula</button>
-    <button class="btn-import" id="settings-btn" onclick="saveSettings()" title="Download settings.json for GitHub" style="display:none;color:var(--lime);border-color:rgba(168,224,80,.3)">⬇ settings.json</button>
-    <button class="btn-import" id="yt-sync-btn" onclick="openYtSyncModal()" title="Link YouTube videos to matches" style="display:none;color:#60a5fa;border-color:rgba(96,165,250,.3)">📺 Sync Videos</button>
+    <button class="btn-import" id="btn-backup" onclick="downloadBackup()" style="display:none">Download Backup</button>
+    <button class="btn-import" id="btn-import" onclick="openImport()" style="display:none">Upload Import CSV</button>
+    <button class="btn-import" id="btn-clear" onclick="clearSavedData()" style="display:none;color:var(--red);border-color:rgba(240,96,96,.3)" title="Remove imported matches from browser storage">Clear Saved</button>
+    <button class="btn-import" id="admin-btn" onclick="toggleAdmin()" title="Toggle admin mode to show/hide player ratings">Admin</button>
+    <button class="btn-import" id="bake-btn" onclick="bakeToHTML()" title="Download HTML with all imported matches and custom stats baked in" style="display:none;color:var(--lime);border-color:rgba(168,224,80,.3)">Bake to HTML</button>
+    <button class="btn-import" id="mvp-tuner-btn" onclick="openMvpTuner()" title="Adjust MVP scoring weights" style="display:none;color:var(--amber);border-color:rgba(240,160,48,.3)">MVP Formula</button>
+    <button class="btn-import" id="settings-btn" onclick="saveSettings()" title="Download settings.json for GitHub" style="display:none;color:var(--lime);border-color:rgba(168,224,80,.3)">Download settings.json</button>
+    <button class="btn-import" id="yt-sync-btn" onclick="openYtSyncModal()" title="Link YouTube videos to matches" style="display:none;color:#60a5fa;border-color:rgba(96,165,250,.3)">Sync Videos</button>
   </div>
 </nav>
 
-<!-- Draft banner — shown when localStorage has unpublished matches -->
+<!-- Draft banner - shown when localStorage has unpublished matches -->
 <div id="draft-banner" style="display:none;background:rgba(240,160,48,.12);border-bottom:1px solid rgba(240,160,48,.3);padding:8px 20px;display:none;align-items:center;gap:10px;font-family:'Barlow Condensed',sans-serif;font-size:.82rem;letter-spacing:.3px">
-  <span style="font-size:1rem">⚠️</span>
+  <span style="font-size:1rem">Warning</span>
   <span id="draft-banner-text" style="color:var(--amber);flex:1"></span>
-  <button onclick="bakeToHTML()" style="background:var(--amber);color:#1a1000;border:none;border-radius:6px;padding:4px 14px;font-family:'Bebas Neue',sans-serif;font-size:.9rem;letter-spacing:1px;cursor:pointer">💾 Bake Now</button>
-  <button onclick="document.getElementById('draft-banner').style.display='none'" style="background:none;border:none;color:var(--muted);font-size:1rem;cursor:pointer;padding:0 4px">✕</button>
+  <button onclick="bakeToHTML()" style="background:var(--amber);color:#1a1000;border:none;border-radius:6px;padding:4px 14px;font-family:'Bebas Neue',sans-serif;font-size:.9rem;letter-spacing:1px;cursor:pointer">Bake Now</button>
+  <button onclick="document.getElementById('draft-banner').style.display='none'" style="background:none;border:none;color:var(--muted);font-size:1rem;cursor:pointer;padding:0 4px">x</button>
 </div>
 
 <!-- ===== PAGE: MATCHES ===== -->
 <div class="page active" id="page-matches">
   <div class="section-hd"><h2>Match History</h2><span id="match-count"></span></div>
   <div class="toolbar">
-    <input class="tb-input" id="match-search" placeholder="Search player or date…" oninput="renderMatches()">
+    <input class="tb-input" id="match-search" placeholder="Search player or date..." oninput="renderMatches()">
     <select class="tb-select" id="match-sort" onchange="renderMatches()" style="max-width:160px">
       <option value="desc">Newest First</option>
       <option value="asc">Oldest First</option>
     </select>
     <div style="display:flex;gap:3px;background:var(--card2);border:1px solid var(--border);border-radius:6px;padding:3px">
       <button id="mf-all"  onclick="setMatchFilter('all')"   style="padding:4px 10px;border:none;border-radius:4px;cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-size:.76rem;letter-spacing:.5px;text-transform:uppercase;background:var(--green);color:#071009;font-weight:700">All</button>
-      <button id="mf-win"  onclick="setMatchFilter('win')"   style="padding:4px 10px;border:none;border-radius:4px;cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-size:.76rem;letter-spacing:.5px;text-transform:uppercase;background:transparent;color:var(--muted)">🟢 A Win</button>
-      <button id="mf-loss" onclick="setMatchFilter('loss')"  style="padding:4px 10px;border:none;border-radius:4px;cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-size:.76rem;letter-spacing:.5px;text-transform:uppercase;background:transparent;color:var(--muted)">🔵 B Win</button>
-      <button id="mf-draw" onclick="setMatchFilter('draw')"  style="padding:4px 10px;border:none;border-radius:4px;cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-size:.76rem;letter-spacing:.5px;text-transform:uppercase;background:transparent;color:var(--muted)">🟡 Draw</button>
+      <button id="mf-win"  onclick="setMatchFilter('win')"   style="padding:4px 10px;border:none;border-radius:4px;cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-size:.76rem;letter-spacing:.5px;text-transform:uppercase;background:transparent;color:var(--muted)">A Win</button>
+      <button id="mf-loss" onclick="setMatchFilter('loss')"  style="padding:4px 10px;border:none;border-radius:4px;cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-size:.76rem;letter-spacing:.5px;text-transform:uppercase;background:transparent;color:var(--muted)">B Win</button>
+      <button id="mf-draw" onclick="setMatchFilter('draw')"  style="padding:4px 10px;border:none;border-radius:4px;cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-size:.76rem;letter-spacing:.5px;text-transform:uppercase;background:transparent;color:var(--muted)">Draw</button>
     </div>
   </div>
   <div id="matches-list"></div>
@@ -103,7 +103,7 @@
   <div class="section-hd"><h2>Players</h2><span id="player-count"></span></div>
 
   <div class="toolbar">
-    <input class="tb-input" id="player-search" placeholder="Search player…" oninput="renderPlayers()">
+    <input class="tb-input" id="player-search" placeholder="Search player..." oninput="renderPlayers()">
     <select class="tb-select" id="player-sort" onchange="renderPlayers()" style="max-width:200px">
       <option value="rating" id="sort-rating">Sort: Rating</option>
       <option value="goals">Sort: Goals</option>
@@ -122,7 +122,7 @@
 
 <!-- ===== PAGE: PLAYER PROFILE ===== -->
 <div class="page" id="page-profile">
-  <div class="profile-back" onclick="nav('players')">← Back to Players</div>
+  <div class="profile-back" onclick="nav('players')"><- Back to Players</div>
   <div id="profile-content"></div>
 </div>
 
@@ -135,11 +135,11 @@
 
 <!-- ===== PAGE: TEAM BUILDER ===== -->
 <div class="page" id="page-teams">
-  <div class="section-hd"><h2>Team Builder</h2><span>Select players · Auto-balance by ability &amp; role · Drag to adjust</span></div>
+  <div class="section-hd"><h2>Team Builder</h2><span>Select players - Auto-balance by ability &amp; role - Drag to adjust</span></div>
 
   <div style="margin-bottom:14px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:8px">
-      <div style="font-size:.8rem;color:var(--muted);font-family:'Barlow Condensed',sans-serif;letter-spacing:1px;text-transform:uppercase">Available Players — click to select<span id="team-player-count" style="color:var(--lime)"></span></div>
+      <div style="font-size:.8rem;color:var(--muted);font-family:'Barlow Condensed',sans-serif;letter-spacing:1px;text-transform:uppercase">Available Players - click to select<span id="team-player-count" style="color:var(--lime)"></span></div>
       <button onclick="openCustomPlayerModal()" style="padding:5px 12px;border-radius:7px;cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-size:.78rem;letter-spacing:.5px;text-transform:uppercase;border:1px solid var(--amber);background:rgba(240,160,48,.1);color:var(--amber)">+ Custom Player</button>
     </div>
     <div class="avail-pool" id="avail-pool"></div>
@@ -171,12 +171,12 @@
   </div>
 
   <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center">
-    <button class="btn-primary" onclick="autoBalance()">⚖ Smart Balance</button>
+    <button class="btn-primary" onclick="autoBalance()">Balance Smart Balance</button>
     <button class="btn-secondary" onclick="clearTeams()">Clear</button>
     <button id="streak-aug-btn" onclick="toggleStreakAugment()"
       style="padding:6px 14px;border-radius:7px;cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-size:.82rem;letter-spacing:.5px;text-transform:uppercase;border:1px solid var(--lime);background:rgba(168,224,80,.1);color:var(--lime);transition:all .15s"
-      title="Adjusts player ratings based on win rate — high win rate gets a small nerf, low win rate gets a small buff">
-      ⚖ Win Rate Balance: ON
+      title="Adjusts player ratings based on win rate - high win rate gets a small nerf, low win rate gets a small buff">
+      Balance Win Rate Balance: ON
     </button>
     <div id="winrate-strength-wrap" style="display:flex;align-items:center;gap:6px;font-family:'Barlow Condensed',sans-serif;font-size:.78rem;color:var(--muted)">
       <span style="white-space:nowrap">Strength</span>
@@ -221,18 +221,18 @@
 
   <!-- Drag hint -->
   <div id="drag-hint" style="display:none;text-align:center;font-size:.78rem;color:var(--muted);margin-top:8px;padding:6px">
-    🤏 Drag any player card between teams to adjust
+     Drag any player card between teams to adjust
   </div>
 
   <!-- Team Synergy Breakdown -->
   <div id="synergy-section" style="display:none;margin-top:16px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:18px">
-    <div style="font-family:'Barlow Condensed',sans-serif;font-size:.85rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:14px">🤝 Team Chemistry</div>
+    <div style="font-family:'Barlow Condensed',sans-serif;font-size:.85rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:14px"> Team Chemistry</div>
     <div id="synergy-content"></div>
   </div>
 
   <!-- Predicted Result -->
   <div id="predict-section" style="display:none;margin-top:16px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:18px">
-    <div style="font-family:'Barlow Condensed',sans-serif;font-size:.85rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:14px">🔮 Predicted Result</div>
+    <div style="font-family:'Barlow Condensed',sans-serif;font-size:.85rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:14px"> Predicted Result</div>
     <div id="predict-content"></div>
   </div>
 
@@ -250,37 +250,37 @@
       <div style="font-family:'Barlow Condensed',sans-serif;font-size:.85rem;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:14px">Upload Stat Files</div>
 
       <div style="margin-bottom:12px">
-        <div style="font-size:.78rem;color:var(--text2);margin-bottom:5px">1H File 1 — Goals / Assists / Shots / Tackles / Nutmegs</div>
+        <div style="font-size:.78rem;color:var(--text2);margin-bottom:5px">1H File 1 - Goals / Assists / Shots / Tackles / Nutmegs</div>
         <label style="display:flex;align-items:center;gap:10px;background:var(--bg2);border:1px solid var(--border);border-radius:7px;padding:9px 12px;cursor:pointer;transition:border-color .15s" id="file-label-0">
-          <span>📂</span>
-          <span id="file-name-0" style="font-size:.82rem;color:var(--muted)">Choose CSV file…</span>
+          <span></span>
+          <span id="file-name-0" style="font-size:.82rem;color:var(--muted)">Choose CSV file...</span>
           <input type="file" accept=".csv" style="display:none" id="file-input-0" onchange="weeklyFileSelected(0,this)">
         </label>
       </div>
 
       <div style="margin-bottom:12px">
-        <div style="font-size:.78rem;color:var(--text2);margin-bottom:5px">1H File 2 — Interceptions / Key Passes / Blocks / Saves / Posts</div>
+        <div style="font-size:.78rem;color:var(--text2);margin-bottom:5px">1H File 2 - Interceptions / Key Passes / Blocks / Saves / Posts</div>
         <label style="display:flex;align-items:center;gap:10px;background:var(--bg2);border:1px solid var(--border);border-radius:7px;padding:9px 12px;cursor:pointer;transition:border-color .15s" id="file-label-1">
-          <span>📂</span>
-          <span id="file-name-1" style="font-size:.82rem;color:var(--muted)">Choose CSV file…</span>
+          <span></span>
+          <span id="file-name-1" style="font-size:.82rem;color:var(--muted)">Choose CSV file...</span>
           <input type="file" accept=".csv" style="display:none" id="file-input-1" onchange="weeklyFileSelected(1,this)">
         </label>
       </div>
 
       <div style="margin-bottom:12px">
-        <div style="font-size:.78rem;color:var(--text2);margin-bottom:5px">2H File 1 — Goals / Assists / Shots / Tackles / Nutmegs</div>
+        <div style="font-size:.78rem;color:var(--text2);margin-bottom:5px">2H File 1 - Goals / Assists / Shots / Tackles / Nutmegs</div>
         <label style="display:flex;align-items:center;gap:10px;background:var(--bg2);border:1px solid var(--border);border-radius:7px;padding:9px 12px;cursor:pointer;transition:border-color .15s" id="file-label-2">
-          <span>📂</span>
-          <span id="file-name-2" style="font-size:.82rem;color:var(--muted)">Choose CSV file…</span>
+          <span></span>
+          <span id="file-name-2" style="font-size:.82rem;color:var(--muted)">Choose CSV file...</span>
           <input type="file" accept=".csv" style="display:none" id="file-input-2" onchange="weeklyFileSelected(2,this)">
         </label>
       </div>
 
       <div style="margin-bottom:12px">
-        <div style="font-size:.78rem;color:var(--text2);margin-bottom:5px">2H File 2 — Interceptions / Key Passes / Blocks / Saves / Posts</div>
+        <div style="font-size:.78rem;color:var(--text2);margin-bottom:5px">2H File 2 - Interceptions / Key Passes / Blocks / Saves / Posts</div>
         <label style="display:flex;align-items:center;gap:10px;background:var(--bg2);border:1px solid var(--border);border-radius:7px;padding:9px 12px;cursor:pointer;transition:border-color .15s" id="file-label-3">
-          <span>📂</span>
-          <span id="file-name-3" style="font-size:.82rem;color:var(--muted)">Choose CSV file…</span>
+          <span></span>
+          <span id="file-name-3" style="font-size:.82rem;color:var(--muted)">Choose CSV file...</span>
           <input type="file" accept=".csv" style="display:none" id="file-input-3" onchange="weeklyFileSelected(3,this)">
         </label>
       </div>
@@ -343,7 +343,7 @@
         </div>
       </div>
 
-      <button onclick="generateWeeklyCSV()" class="btn-primary" style="width:100%">⚡ Generate CSV Rows</button>
+      <button onclick="generateWeeklyCSV()" class="btn-primary" style="width:100%"> Generate CSV Rows</button>
     </div>
   </div>
 
@@ -358,8 +358,8 @@
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
         <div style="font-family:'Barlow Condensed',sans-serif;font-size:.85rem;letter-spacing:1px;text-transform:uppercase;color:var(--muted)">Generated CSV Rows</div>
         <div style="display:flex;gap:8px">
-          <button onclick="copyWeeklyCSV()" class="btn-secondary" id="weekly-copy-btn">📋 Copy Rows</button>
-          <button onclick="appendToAppData()" class="btn-primary">✅ Add to App Data</button>
+          <button onclick="copyWeeklyCSV()" class="btn-secondary" id="weekly-copy-btn"> Copy Rows</button>
+          <button onclick="appendToAppData()" class="btn-primary"> Add to App Data</button>
         </div>
       </div>
       <textarea id="weekly-csv-output" readonly style="width:100%;height:200px;background:var(--bg2);border:1px solid var(--border);color:var(--text);border-radius:7px;padding:10px 12px;font-size:.72rem;font-family:monospace;resize:vertical;outline:none;line-height:1.5" spellcheck="false"></textarea>
@@ -373,11 +373,11 @@
 
   <!-- Restore from Backup -->
   <div style="margin-top:24px;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px">
-    <div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:1.5px;color:var(--text);margin-bottom:4px">📋 Restore from Backup</div>
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:1.5px;color:var(--text);margin-bottom:4px"> Restore from Backup</div>
     <div style="font-size:.75rem;color:var(--muted);margin-bottom:12px">Paste a full backup CSV here to load all match history. Use this to sync data from another device or restore after clearing browser storage.</div>
-    <textarea id="restore-csv-input" placeholder="Paste backup CSV here (including header row)…" style="width:100%;height:140px;background:var(--card2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:12px;font-size:.72rem;font-family:monospace;resize:vertical;outline:none;line-height:1.5;box-sizing:border-box"></textarea>
+    <textarea id="restore-csv-input" placeholder="Paste backup CSV here (including header row)..." style="width:100%;height:140px;background:var(--card2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:12px;font-size:.72rem;font-family:monospace;resize:vertical;outline:none;line-height:1.5;box-sizing:border-box"></textarea>
     <div style="display:flex;gap:10px;margin-top:10px;align-items:center">
-      <button onclick="restoreFromBackup()" style="background:var(--green);color:#071009;border:none;border-radius:7px;padding:9px 20px;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:1px;cursor:pointer">⬆ Restore</button>
+      <button onclick="restoreFromBackup()" style="background:var(--green);color:#071009;border:none;border-radius:7px;padding:9px 20px;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:1px;cursor:pointer">Upload Restore</button>
       <button onclick="document.getElementById('restore-csv-input').value=''" style="background:var(--card2);border:1px solid var(--border);color:var(--muted);border-radius:7px;padding:9px 14px;font-family:'Barlow Condensed',sans-serif;font-size:.82rem;cursor:pointer">Clear</button>
       <span id="restore-status" style="font-size:.78rem"></span>
     </div>
@@ -388,9 +388,9 @@
 <div class="page" id="page-compare">
   <div class="section-hd"><h2>Compare Players</h2><span>Select up to three players to compare</span></div>
   <div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;align-items:center">
-    <select class="tb-select" id="compare-p1" onchange="renderComparePage()" style="max-width:200px"><option value="">Player 1…</option></select>
-    <select class="tb-select" id="compare-p2" onchange="renderComparePage()" style="max-width:200px"><option value="">Player 2…</option></select>
-    <select class="tb-select" id="compare-p3" onchange="renderComparePage()" style="max-width:200px"><option value="">Player 3 (optional)…</option></select>
+    <select class="tb-select" id="compare-p1" onchange="renderComparePage()" style="max-width:200px"><option value="">Player 1...</option></select>
+    <select class="tb-select" id="compare-p2" onchange="renderComparePage()" style="max-width:200px"><option value="">Player 2...</option></select>
+    <select class="tb-select" id="compare-p3" onchange="renderComparePage()" style="max-width:200px"><option value="">Player 3 (optional)...</option></select>
   </div>
   <div id="compare-content"></div>
 </div>
@@ -414,7 +414,7 @@
 </div>
 <div class="modal-overlay" id="import-modal" onclick="closeImportModal(event)">
   <div class="modal">
-    <button class="modal-close" onclick="document.getElementById('import-modal').classList.remove('open')">✕</button>
+    <button class="modal-close" onclick="document.getElementById('import-modal').classList.remove('open')">x</button>
     <div class="modal-title">Import CSV Data</div>
     <p style="font-size:.84rem;color:var(--muted);margin-bottom:12px">Paste your full CSV (including header row) below. This replaces all existing data.</p>
     <textarea class="import-area" id="import-csv" placeholder="match_id,match_date,team,player,half,goals,assists..."></textarea>
