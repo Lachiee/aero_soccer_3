@@ -8081,74 +8081,62 @@ function initShotMap(safeName, allGoalData, allAssistData) {
     if (dbg) dbg.textContent = data.length + (mode==='assists'?' assist':' goal') + (data.length!==1?'s':'') + ' mapped';
 
     if (viewNet) {
-      // ── NET VIEW ──
+      // ── NET VIEW — capped width ──
       const withNet = data.filter(g => g.netX != null);
-      const dots = withNet.map((g, i) => {
+      const netDotsSvg = withNet.map((g, i) => {
         const col = g.foot ? (footColor[g.foot] || '#aaa') : '#aaa';
         const cx = (4 + g.netX * 92).toFixed(1);
         const cy = (3 + g.netY * 52).toFixed(1);
         return `<circle cx="${cx}" cy="${cy}" r="5.5" fill="${col}" fill-opacity="0.9" stroke="rgba(0,0,0,.45)" stroke-width="1.2" data-idx="${i}" style="cursor:pointer"/>`;
       }).join('');
-      pitchEl.innerHTML = `<svg viewBox="0 0 100 62" style="width:100%;display:block;background:rgba(15,25,16,.85);border-radius:10px" xmlns="http://www.w3.org/2000/svg">
-        <!-- Goal frame front face -->
+      pitchEl.innerHTML = `<div style="max-width:400px"><svg viewBox="0 0 100 62" style="width:100%;display:block;background:rgba(15,25,16,.85);border-radius:10px" xmlns="http://www.w3.org/2000/svg">
         <path d="M5,56 L5,4 L95,4 L95,56" fill="none" stroke="rgba(255,255,255,.55)" stroke-width="1.8"/>
         <line x1="5" y1="56" x2="95" y2="56" stroke="rgba(255,255,255,.35)" stroke-width="1.2"/>
-        <!-- 3D depth lines -->
         <path d="M5,4 L14,12 M95,4 L86,12 M5,56 L14,56 M95,56 L86,56" fill="none" stroke="rgba(255,255,255,.2)" stroke-width=".8"/>
         <path d="M14,12 L86,12 L86,56 L14,56" fill="none" stroke="rgba(255,255,255,.15)" stroke-width=".8"/>
-        <!-- Grid -->
         <line x1="35" y1="4" x2="35" y2="56" stroke="rgba(255,255,255,.1)" stroke-width=".5" stroke-dasharray="2,2"/>
         <line x1="65" y1="4" x2="65" y2="56" stroke="rgba(255,255,255,.1)" stroke-width=".5" stroke-dasharray="2,2"/>
         <line x1="5" y1="22" x2="95" y2="22" stroke="rgba(255,255,255,.1)" stroke-width=".5" stroke-dasharray="2,2"/>
         <line x1="5" y1="38" x2="95" y2="38" stroke="rgba(255,255,255,.1)" stroke-width=".5" stroke-dasharray="2,2"/>
-        <!-- Ground line -->
         <line x1="5" y1="56" x2="95" y2="56" stroke="rgba(255,255,255,.25)" stroke-width="1.2"/>
         <text x="50" y="60.5" text-anchor="middle" font-size="2.8" fill="rgba(255,255,255,.2)" font-family="sans-serif">ground</text>
-        ${dots}
-      </svg>`;
-      // Net dot clicks
+        ${netDotsSvg}
+      </svg></div>`;
       pitchEl.querySelectorAll('circle[data-idx]').forEach(el => {
         el.addEventListener('click', () => { showDetail(withNet[+el.dataset.idx]); });
       });
     } else {
-      // ── PITCH VIEW ──
-      const dots = data.filter(g => g.sx != null).map((g, i) => {
-        const px = (8 + g.sx * 300).toFixed(1);
-        const py = (6 + g.sy * 188).toFixed(1);
-        const col = mode==='assists' ? 'rgba(245,158,11,0.88)' : 'rgba(248,113,113,0.88)';
-        return `<circle cx="${px}" cy="${py}" r="7.5" fill="${col}" stroke="rgba(10,10,10,.55)" stroke-width="1.5" data-idx="${i}" style="cursor:pointer"/>`;
-      }).join('');
-      pitchEl.innerHTML = `<svg viewBox="0 0 316 200" style="width:100%;display:block;border-radius:10px" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-          <linearGradient id="smGrad${safeName}" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0%" stop-color="#163d1e"/><stop offset="45%" stop-color="#1a4d24"/><stop offset="100%" stop-color="#163d1e"/>
-          </linearGradient>
-        </defs>
-        <rect width="316" height="200" fill="url(#smGrad${safeName})"/>
-        <!-- Pitch border -->
-        <rect x="8" y="6" width="300" height="188" fill="none" stroke="rgba(255,255,255,.28)" stroke-width="1.2"/>
-        <!-- Centre line -->
-        <line x1="158" y1="6" x2="158" y2="194" stroke="rgba(255,255,255,.18)" stroke-width=".8"/>
-        <!-- Centre circle -->
-        <circle cx="158" cy="100" r="26" fill="none" stroke="rgba(255,255,255,.18)" stroke-width=".8"/>
-        <circle cx="158" cy="100" r="1.8" fill="rgba(255,255,255,.28)"/>
-        <!-- Right penalty box -->
-        <rect x="232" y="54" width="76" height="92" fill="rgba(255,255,255,.04)" stroke="rgba(255,255,255,.28)" stroke-width=".9"/>
-        <!-- 6-yard box -->
-        <rect x="277" y="74" width="31" height="52" fill="rgba(255,255,255,.03)" stroke="rgba(255,255,255,.2)" stroke-width=".7"/>
-        <!-- Penalty spot + arc -->
-        <circle cx="260" cy="100" r="1.8" fill="rgba(255,255,255,.3)"/>
-        <path d="M232,78 Q248,100 232,122" fill="none" stroke="rgba(255,255,255,.12)" stroke-width=".8"/>
-        <!-- Goal -->
-        <rect x="308" y="80" width="8" height="40" fill="rgba(255,255,255,.08)" stroke="rgba(255,255,255,.55)" stroke-width="1.4"/>
-        <!-- Lawn stripes -->
-        <rect x="8" y="6" width="50" height="188" fill="rgba(0,0,0,.06)"/>
-        <rect x="108" y="6" width="50" height="188" fill="rgba(0,0,0,.06)"/>
-        <rect x="208" y="6" width="50" height="188" fill="rgba(0,0,0,.06)"/>
-        ${dots}
-      </svg>`;
-      pitchEl.querySelectorAll('circle[data-idx]').forEach(el => {
-        el.addEventListener('click', () => { showDetail(data.filter(g=>g.sx!=null)[+el.dataset.idx]); });
+      // ── PITCH VIEW — real indoor court via hmapDrawCourt ──
+      const pitchData = data.filter(g => g.sx != null);
+      const cv = document.createElement('canvas');
+      cv.style.cssText = 'width:100%;display:block;border-radius:10px;cursor:crosshair';
+      pitchEl.innerHTML = '';
+      pitchEl.appendChild(cv);
+      requestAnimationFrame(() => {
+        const dpr = window.devicePixelRatio || 1;
+        const W = pitchEl.offsetWidth || 400;
+        const H = Math.round(W * 0.52);
+        cv.width = W * dpr; cv.height = H * dpr;
+        cv.style.height = H + 'px';
+        const ctx = cv.getContext('2d');
+        ctx.scale(dpr, dpr);
+        hmapDrawCourt(ctx, W, H);
+        // Overlay goal dots
+        pitchData.forEach(g => {
+          const px = g.sx * W, py = g.sy * H;
+          ctx.beginPath(); ctx.arc(px, py, 9, 0, Math.PI * 2);
+          ctx.fillStyle = mode === 'assists' ? 'rgba(245,158,11,.88)' : 'rgba(248,113,113,.88)';
+          ctx.fill();
+          ctx.strokeStyle = 'rgba(0,0,0,.5)'; ctx.lineWidth = 1.5; ctx.stroke();
+        });
+        cv.addEventListener('click', ev => {
+          const r = cv.getBoundingClientRect();
+          const mx = (ev.clientX - r.left) / r.width * W;
+          const my = (ev.clientY - r.top) / r.height * H;
+          let hit = null, best = Infinity;
+          pitchData.forEach(g => { const d = Math.hypot(g.sx*W - mx, g.sy*H - my); if (d < best) { best = d; hit = g; } });
+          if (hit && best < 22) showDetail(hit);
+        });
       });
     }
   }
@@ -8769,14 +8757,11 @@ function renderProfile(name) {
       </div>
     </div>
 
-    <!-- ═══ MORE DETAIL (collapsed) ═══ -->
-    <details style="margin-bottom:20px" id="profile-details-section">
-      <summary style="list-style:none;cursor:pointer;padding:12px 18px;background:var(--card);border:1px solid var(--border);border-radius:12px;font-family:'Barlow Condensed',sans-serif;font-size:.78rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);display:flex;align-items:center;justify-content:space-between;user-select:none">
-        <span>More Detail</span><span style="font-size:.8rem">▼</span>
-      </summary>
-      <div style="border:1px solid var(--border);border-top:none;border-radius:0 0 12px 12px;padding:18px;display:flex;flex-direction:column;gap:14px;background:var(--card)">
-        ${bestGameHtml}
-        ${(() => {
+    <!-- ═══ BEST GAME ═══ -->
+    ${bestGameHtml}
+
+    <!-- ═══ STRIKE PARTNERSHIPS ═══ -->
+    ${(() => {
           const { scoredFrom, assistedTo } = getPlayerComboStats(name);
           if (!scoredFrom.length && !assistedTo.length) return '';
           const partnerCard = (p, type) => {
@@ -8806,7 +8791,7 @@ function renderProfile(name) {
             </div>`;
           };
           const best=[...scoredFrom,...assistedTo].sort((a,b)=>b.goals-a.goals)[0];
-          return `<div style="background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:14px">
+          return `<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 20px;margin-bottom:14px">
             <div style="font-size:.58rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:4px">🤝 Strike Partnerships</div>
             ${best?`<div style="font-size:.68rem;color:var(--lime);margin-bottom:10px">🔗 Best: ${best.name} — ${best.goals} combined goal involvements</div>`:''}
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
@@ -8815,9 +8800,8 @@ function renderProfile(name) {
             </div>
           </div>`;
         })()}
-        <div id="profile-time-stats"></div>
-      </div>
-    </details>
+
+    <div id="profile-time-stats"></div>
 `;
 
 
