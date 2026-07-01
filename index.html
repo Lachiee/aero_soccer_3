@@ -7836,21 +7836,36 @@ function renderProfileHeatmap(name, hmapType) {
   section.style.display = hasAny ? '' : 'none';
   if (!hasAny) return;
 
-  // Update toggle button states
-  const shotBtn   = document.getElementById('hmap-tab-shot');
-  const assistBtn = document.getElementById('hmap-tab-assist');
-  if (shotBtn)   { shotBtn.style.opacity = hasShots ? '1' : '0.35'; shotBtn.disabled = !hasShots; }
-  if (assistBtn) { assistBtn.style.opacity = hasAssists ? '1' : '0.35'; assistBtn.disabled = !hasAssists; }
+  // Toggle pitch SVG view vs canvas heatmap based on tab
+  const pitchView = document.getElementById('profile-pitch-view');
+  if (pitchView) pitchView.style.display = hmapType === 'assist' ? 'none' : '';
+  if (heatCanvas) heatCanvas.style.display = hmapType === 'assist' ? 'block' : 'none';
 
-  // Sync controls to current prefs
-  const sizeSlider = section.querySelector('input[type=range]');
-  if (sizeSlider) sizeSlider.value = Math.round((window._hmapPillSize ?? 0.85) * 10);
-  const numsBtn = document.getElementById('hmap-nums-btn');
-  if (numsBtn) numsBtn.style.opacity = (window._hmapShowNumbers ?? true) ? '1' : '0.4';
+  // Update toggle button styles
+  const shotBtn   = document.getElementById('hmap-btn-shot');
+  const assistBtn = document.getElementById('hmap-btn-assist');
+  if (shotBtn) {
+    shotBtn.style.borderColor = hmapType !== 'assist' ? 'var(--green)' : 'var(--border)';
+    shotBtn.style.background  = hmapType !== 'assist' ? 'rgba(57,211,83,.15)' : 'transparent';
+    shotBtn.style.color       = hmapType !== 'assist' ? 'var(--green)' : 'var(--muted)';
+  }
+  if (assistBtn) {
+    assistBtn.style.borderColor = hmapType === 'assist' ? '#f87171' : 'var(--border)';
+    assistBtn.style.background  = hmapType === 'assist' ? 'rgba(248,113,113,.15)' : 'transparent';
+    assistBtn.style.color       = hmapType === 'assist' ? '#f87171' : 'var(--muted)';
+    assistBtn.style.opacity = hasAssists ? '1' : '0.35';
+    assistBtn.disabled = !hasAssists;
+  }
 
-  const shots = hmapType === 'assist' ? assistShots : shotShots;
+  // If on goals tab, just update debug text and return (pitch SVG is static)
   const dbg = document.getElementById('profile-heatmap-debug');
-  if (dbg) dbg.textContent = shots.length > 0 ? `${shots.length} ${hmapType === 'assist' ? 'assist' : 'shot'} location${shots.length !== 1 ? 's' : ''} mapped` : `No ${hmapType} locations mapped yet`;
+  if (hmapType !== 'assist') {
+    if (dbg) dbg.textContent = shotShots.length > 0 ? `${shotShots.length} goal location${shotShots.length!==1?'s':''} mapped` : 'No goal locations mapped yet';
+    return;
+  }
+
+  const shots = assistShots;
+  if (dbg) dbg.textContent = shots.length > 0 ? `${shots.length} assist location${shots.length !== 1 ? 's' : ''} mapped` : 'No assist locations mapped yet';
 
   // Always read width from the section card — force section visible first so clientWidth resolves
   section.style.display = '';
@@ -8350,19 +8365,20 @@ function renderProfile(name) {
       </div>
     </div>
 
-    <!-- ═══ STATS + SPIDER (compact 3-col) ═══ -->
-    <div style="display:grid;grid-template-columns:1fr 1fr 240px;gap:12px;margin-bottom:12px">
+    <!-- ═══ STATS (compact 2-col) ═══ -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
       <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px 16px">
         <div style="font-size:.58rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:10px">Attacking</div>
         ${(()=>{
           const pool = Object.values(getDisplayStats()).filter(p=>p.games>=3);
           const maxPg = key => Math.max(...pool.map(p=>p[key]/Math.max(p.games,1)),0.01);
+          const shotConv = s.total_shots > 0 ? Math.round(s.goals/s.total_shots*100) : 0;
           return [
             { label:'Goals/g', val:(s.goals/g).toFixed(2), pct:Math.min((s.goals/g)/maxPg('goals')*100,100) },
             { label:'Assists/g', val:(s.assists/g).toFixed(2), pct:Math.min((s.assists/g)/maxPg('assists')*100,100) },
             { label:'Key Passes/g', val:(s.key_passes/g).toFixed(1), pct:Math.min((s.key_passes/g)/maxPg('key_passes')*100,100) },
             { label:'Shots/g', val:(s.total_shots/g).toFixed(1), pct:Math.min((s.total_shots/g)/maxPg('total_shots')*100,100) },
-            { label:'Shot Conv%', val:s.shot_conversion+'%', pct:Math.min(s.shot_conversion/50*100,100) },
+            { label:'Shot Conv%', val:shotConv+'%', pct:Math.min(shotConv/50*100,100) },
           ].map(({label,val,pct})=>`
             <div style="margin-bottom:8px">
               <div style="display:flex;justify-content:space-between;margin-bottom:2px">
@@ -8398,10 +8414,24 @@ function renderProfile(name) {
             </div>`).join('')
         })()}
       </div>
+    </div>
+
+    <!-- ═══ FORM CHART + SPIDER side by side ═══ -->
+    <div style="display:grid;grid-template-columns:1fr 320px;gap:12px;margin-bottom:12px">
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 20px">
+        <div style="font-size:.58rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:10px">Performance — last 12 matches</div>
+        <canvas id="form-chart-${name.replace(/\s/g,'_')}" width="800" height="160" style="width:100%;height:auto"></canvas>
+        <div style="display:flex;gap:12px;margin-top:6px">
+          <div style="display:flex;align-items:center;gap:4px;font-size:.6rem;color:var(--muted)"><span style="width:6px;height:6px;border-radius:50%;background:#4ade80;display:inline-block"></span>Win</div>
+          <div style="display:flex;align-items:center;gap:4px;font-size:.6rem;color:var(--muted)"><span style="width:6px;height:6px;border-radius:50%;background:#fb923c;display:inline-block"></span>Draw</div>
+          <div style="display:flex;align-items:center;gap:4px;font-size:.6rem;color:var(--muted)"><span style="width:6px;height:6px;border-radius:50%;background:#f87171;display:inline-block"></span>Loss</div>
+          <div style="font-size:.6rem;color:var(--muted);margin-left:auto;opacity:.6">Impact score per match</div>
+        </div>
+      </div>
       <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px;display:flex;flex-direction:column;align-items:center;justify-content:center">
         <div style="font-size:.58rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:4px;text-align:center">Attribute Profile</div>
         <div id="spider-${name.replace(/\s/g,'_')}-wrap" style="display:flex;justify-content:center;width:100%">
-          <canvas id="spider-${name.replace(/\s/g,'_')}" class="spider" width="220" height="220"></canvas>
+          <canvas id="spider-${name.replace(/\s/g,'_')}" class="spider" width="300" height="300"></canvas>
         </div>
         ${adminMode ? `<div style="display:flex;gap:8px;margin-top:4px;justify-content:center">
           <div style="display:flex;align-items:center;gap:3px;font-size:.58rem;color:var(--muted)"><span style="width:7px;height:7px;border-radius:2px;background:rgba(57,211,83,.5);display:inline-block"></span>${name}</div>
@@ -8410,156 +8440,148 @@ function renderProfile(name) {
       </div>
     </div>
 
-    <!-- ═══ FORM CHART ═══ -->
-    <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 20px;margin-bottom:12px">
-      <div style="font-size:.58rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:10px">Performance — last 12 matches</div>
-      <canvas id="form-chart-${name.replace(/\s/g,'_')}" width="800" height="120" style="width:100%;height:auto"></canvas>
-      <div style="display:flex;gap:12px;margin-top:6px">
-        <div style="display:flex;align-items:center;gap:4px;font-size:.6rem;color:var(--muted)"><span style="width:6px;height:6px;border-radius:50%;background:#4ade80;display:inline-block"></span>Win</div>
-        <div style="display:flex;align-items:center;gap:4px;font-size:.6rem;color:var(--muted)"><span style="width:6px;height:6px;border-radius:50%;background:#fb923c;display:inline-block"></span>Draw</div>
-        <div style="display:flex;align-items:center;gap:4px;font-size:.6rem;color:var(--muted)"><span style="width:6px;height:6px;border-radius:50%;background:#f87171;display:inline-block"></span>Loss</div>
-        <div style="font-size:.6rem;color:var(--muted);margin-left:auto;opacity:.6">Impact score per match</div>
-      </div>
-    </div>
-
-    <!-- ═══ FOTMOB-STYLE SHOT MAP ═══ -->
+    <!-- ═══ SEASON SHOT MAP ═══ -->
     ${(() => {
-      const shotShots = [], assistShots = [];
       const { withNet, withFoot, counts } = getPlayerGoalFootData(name);
-      Object.entries(goalCombos).forEach(([mid, data]) => {
-        ['h1','h2'].forEach(hk => {
-          (data[hk]||[]).forEach((g, idx) => {
-            if (g.isOG) return;
-            if (g.scorer === name && g.sx != null && g.sy != null) {
-              shotShots.push({ sx: g.sx, sy: g.sy, mid, half: hk==='h1'?'1H':'2H', idx, time: g.time, isGoal: true });
-            }
-            if (g.assister === name && g.ax != null && g.ay != null) {
-              assistShots.push({ sx: g.ax, sy: g.ay, mid, half: hk==='h1'?'1H':'2H', idx, time: g.time });
-            }
-          });
-        });
-      });
-      const hasGoalMap = shotShots.length > 0;
-      const hasAssistMap = assistShots.length > 0;
-      const hasNetMap = withNet.length > 0;
-      if (!hasGoalMap && !hasAssistMap && !hasNetMap) return '';
-
+      const shotConv = s.total_shots > 0 ? Math.round(s.goals/s.total_shots*100) : 0;
+      const onTargetPct = s.total_shots > 0 ? Math.round(s.shots_on_target/s.total_shots*100) : 0;
       const footColor = { left: '#60a5fa', right: '#4ade80', header: '#f59e0b' };
-      const totalGoals = shotShots.length;
-      const totalShots = n(s.total_shots);
-      const onTarget = n(s.shots_on_target);
-      const onTargetPct = totalShots > 0 ? Math.round(onTarget/totalShots*100) : 0;
 
-      // Build pitch SVG dots — pitch is 0,0 top-left → 1,1 bottom-right, goal is right side
-      // Scale to a 260×160 viewBox
-      const pitchDots = shotShots.map(sh => {
-        const px = (sh.sx * 260).toFixed(1);
-        const py = (sh.sy * 160).toFixed(1);
-        return `<circle cx="${px}" cy="${py}" r="5" fill="rgba(248,113,113,0.9)" stroke="#1a1a1a" stroke-width="1.2"/>`;
-      }).join('');
-
-      // Net map SVG
+      // Net map dots
       const netDots = withNet.map(g => {
         const col = g.foot ? (footColor[g.foot] || '#aaa') : '#aaa';
-        const cx = (1 + g.netX * 98).toFixed(1);
-        const cy = (2 + g.netY * 54).toFixed(1);
-        return `<circle cx="${cx}" cy="${cy}" r="4" fill="${col}" fill-opacity="0.85" stroke="rgba(0,0,0,.35)" stroke-width="0.8"/>`;
+        const cx = (4 + g.netX * 92).toFixed(1);
+        const cy = (3 + g.netY * 52).toFixed(1);
+        return `<circle cx="${cx}" cy="${cy}" r="4.5" fill="${col}" fill-opacity="0.9" stroke="rgba(0,0,0,.4)" stroke-width="1"/>`;
       }).join('');
 
-      // Foot breakdown bars
       const footBars = ['right','left','header'].filter(f => counts[f] > 0).map(f => {
         const pct = Math.round(counts[f]/(withFoot.length||1)*100);
-        return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-          <div style="width:52px;font-size:.68rem;color:var(--muted);text-transform:capitalize">${f}</div>
-          <div style="flex:1;height:4px;background:var(--card2);border-radius:2px;overflow:hidden">
-            <div style="height:100%;width:${pct}%;background:${footColor[f]};border-radius:2px"></div>
-          </div>
-          <div style="font-size:.72rem;color:${footColor[f]};min-width:20px;text-align:right;font-weight:600">${counts[f]}</div>
-          <div style="font-size:.6rem;color:var(--muted);min-width:24px">${pct}%</div>
+        return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
+          <div style="width:52px;font-size:.65rem;color:var(--muted);text-transform:capitalize">${f}</div>
+          <div style="flex:1;height:4px;background:var(--card2);border-radius:2px;overflow:hidden"><div style="height:100%;width:${pct}%;background:${footColor[f]};border-radius:2px"></div></div>
+          <div style="font-size:.7rem;color:${footColor[f]};min-width:18px;text-align:right;font-weight:600">${counts[f]}</div>
+          <div style="font-size:.58rem;color:var(--muted);min-width:24px">${pct}%</div>
         </div>`;
       }).join('');
 
       return `<div id="profile-heatmap-section" style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 20px;margin-bottom:12px">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
-          <div style="font-size:.58rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted)">Season Shot Map</div>
+          <div style="font-size:.58rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted)" id="profile-heatmap-title">Season Shot Map</div>
           <div style="display:flex;gap:5px">
-            ${hasGoalMap ? `<button onclick="renderProfileHeatmap('${safeName}','shot')" id="hmap-btn-shot" style="font-size:.65rem;font-family:'Barlow Condensed',sans-serif;padding:3px 11px;border-radius:20px;border:1px solid ${(window._hmapType||'shot')==='shot'?'var(--green)':'var(--border)'};background:${(window._hmapType||'shot')==='shot'?'rgba(57,211,83,.15)':'transparent'};color:${(window._hmapType||'shot')==='shot'?'var(--green)':'var(--muted)'};cursor:pointer">Goals</button>` : ''}
-            ${hasAssistMap ? `<button onclick="renderProfileHeatmap('${safeName}','assist')" id="hmap-btn-assist" style="font-size:.65rem;font-family:'Barlow Condensed',sans-serif;padding:3px 11px;border-radius:20px;border:1px solid ${window._hmapType==='assist'?'#f87171':'var(--border)'};background:${window._hmapType==='assist'?'rgba(248,113,113,.15)':'transparent'};color:${window._hmapType==='assist'?'#f87171':'var(--muted)'};cursor:pointer">Assists</button>` : ''}
+            <button onclick="renderProfileHeatmap('${safeName}','shot')" id="hmap-btn-shot"
+              style="font-size:.65rem;font-family:'Barlow Condensed',sans-serif;padding:3px 11px;border-radius:20px;border:1px solid ${(window._hmapType||'shot')==='shot'?'var(--green)':'var(--border)'};background:${(window._hmapType||'shot')==='shot'?'rgba(57,211,83,.15)':'transparent'};color:${(window._hmapType||'shot')==='shot'?'var(--green)':'var(--muted)'};cursor:pointer">Goals</button>
+            <button onclick="renderProfileHeatmap('${safeName}','assist')" id="hmap-btn-assist"
+              style="font-size:.65rem;font-family:'Barlow Condensed',sans-serif;padding:3px 11px;border-radius:20px;border:1px solid ${window._hmapType==='assist'?'#f87171':'var(--border)'};background:${window._hmapType==='assist'?'rgba(248,113,113,.15)':'transparent'};color:${window._hmapType==='assist'?'#f87171':'var(--muted)'};cursor:pointer">Assists</button>
           </div>
         </div>
-        <div style="display:grid;grid-template-columns:1fr ${hasNetMap?'auto':'0px'};gap:16px;align-items:start">
-          <!-- Left: pitch dot map -->
+        <div style="display:grid;grid-template-columns:1fr ${withNet.length?'200px':'0px'};gap:16px;align-items:start">
           <div>
-            <div id="profile-heatmap-debug" style="font-size:.62rem;color:var(--muted);margin-bottom:6px">${totalGoals} goal location${totalGoals!==1?'s':''} mapped</div>
-            <div style="position:relative;border-radius:10px;overflow:hidden;background:#1a6b2e;border:1px solid rgba(255,255,255,.08)">
-              <svg viewBox="0 0 260 160" style="width:100%;display:block" xmlns="http://www.w3.org/2000/svg">
-                <!-- Pitch markings -->
-                <rect x="0" y="0" width="260" height="160" fill="#1a6b2e"/>
-                <rect x="4" y="4" width="252" height="152" fill="none" stroke="rgba(255,255,255,.25)" stroke-width="1"/>
-                <!-- Centre line + circle -->
-                <line x1="130" y1="4" x2="130" y2="156" stroke="rgba(255,255,255,.2)" stroke-width="1"/>
-                <circle cx="130" cy="80" r="22" fill="none" stroke="rgba(255,255,255,.2)" stroke-width="1"/>
-                <circle cx="130" cy="80" r="1.5" fill="rgba(255,255,255,.3)"/>
-                <!-- Right penalty area -->
-                <rect x="195" y="44" width="61" height="72" fill="none" stroke="rgba(255,255,255,.25)" stroke-width="1"/>
-                <rect x="230" y="60" width="30" height="40" fill="none" stroke="rgba(255,255,255,.2)" stroke-width="1"/>
-                <!-- Penalty spot -->
-                <circle cx="218" cy="80" r="1.5" fill="rgba(255,255,255,.3)"/>
-                <!-- Goal -->
-                <rect x="255" y="65" width="5" height="30" fill="none" stroke="rgba(255,255,255,.5)" stroke-width="1.5"/>
-                <!-- Goal label -->
-                <text x="248" y="78" text-anchor="end" font-size="6" fill="rgba(255,255,255,.4)" font-family="sans-serif">GOAL</text>
-                <text x="248" y="85" text-anchor="end" font-size="5" fill="rgba(255,255,255,.25)" font-family="sans-serif">▶</text>
-                <!-- Shot dots -->
-                ${pitchDots}
-              </svg>
+            <div id="profile-heatmap-debug" style="font-size:.62rem;color:var(--muted);margin-bottom:6px"></div>
+            <!-- FotMob-style half-pitch shown when on Goals tab; canvas heatmap shown on Assists tab -->
+            <div id="profile-pitch-view" style="${(window._hmapType||'shot')!=='assist'?'':'display:none'}">
+              <div style="position:relative;border-radius:10px;overflow:hidden;background:#1e6b30">
+                <svg viewBox="0 0 320 200" style="width:100%;display:block" xmlns="http://www.w3.org/2000/svg">
+                  <!-- Pitch bg gradient -->
+                  <defs>
+                    <linearGradient id="pitchGrad" x1="0" y1="0" x2="1" y2="0">
+                      <stop offset="0%" stop-color="#1a5c28"/>
+                      <stop offset="50%" stop-color="#1e6b30"/>
+                      <stop offset="100%" stop-color="#1a5c28"/>
+                    </linearGradient>
+                  </defs>
+                  <rect x="0" y="0" width="320" height="200" fill="url(#pitchGrad)"/>
+                  <!-- Pitch border -->
+                  <rect x="6" y="6" width="308" height="188" fill="none" stroke="rgba(255,255,255,.3)" stroke-width="1.2"/>
+                  <!-- Centre line -->
+                  <line x1="160" y1="6" x2="160" y2="194" stroke="rgba(255,255,255,.2)" stroke-width="1"/>
+                  <!-- Centre circle -->
+                  <circle cx="160" cy="100" r="28" fill="none" stroke="rgba(255,255,255,.2)" stroke-width="1"/>
+                  <circle cx="160" cy="100" r="2" fill="rgba(255,255,255,.3)"/>
+                  <!-- Right penalty area (goal side) -->
+                  <rect x="238" y="58" width="76" height="84" fill="rgba(0,0,0,.08)" stroke="rgba(255,255,255,.3)" stroke-width="1"/>
+                  <!-- Six-yard box -->
+                  <rect x="282" y="78" width="32" height="44" fill="rgba(0,0,0,.06)" stroke="rgba(255,255,255,.2)" stroke-width="1"/>
+                  <!-- Penalty spot -->
+                  <circle cx="265" cy="100" r="2" fill="rgba(255,255,255,.35)"/>
+                  <!-- Penalty arc -->
+                  <path d="M 238 80 Q 255 100 238 120" fill="none" stroke="rgba(255,255,255,.15)" stroke-width="1"/>
+                  <!-- Goal -->
+                  <rect x="312" y="82" width="8" height="36" fill="rgba(255,255,255,.1)" stroke="rgba(255,255,255,.6)" stroke-width="1.5"/>
+                  <!-- Stripe pattern for depth -->
+                  <line x1="6" y1="50" x2="314" y2="50" stroke="rgba(255,255,255,.04)" stroke-width="18"/>
+                  <line x1="6" y1="100" x2="314" y2="100" stroke="rgba(255,255,255,.04)" stroke-width="18"/>
+                  <line x1="6" y1="150" x2="314" y2="150" stroke="rgba(255,255,255,.04)" stroke-width="18"/>
+                  <!-- Goal dots — plotted in right half, sx=0 is left baseline, sx=1 is goal line -->
+                  ${(() => {
+                    const allGoals = [];
+                    Object.entries(goalCombos).forEach(([mid, data]) => {
+                      ['h1','h2'].forEach(hk => {
+                        (data[hk]||[]).forEach((gg, idx) => {
+                          if (!gg.isOG && gg.scorer === name && gg.sx != null && gg.sy != null) {
+                            allGoals.push({ sx: gg.sx, sy: gg.sy, mid, idx, hk });
+                          }
+                        });
+                      });
+                    });
+                    return allGoals.map(sh => {
+                      // px: sx=0→left side (x=6), sx=1→goal line (x=314)
+                      const px = (6 + sh.sx * 308).toFixed(1);
+                      const py = (6 + sh.sy * 188).toFixed(1);
+                      return `<circle cx="${px}" cy="${py}" r="7" fill="rgba(248,113,113,0.85)" stroke="rgba(20,20,20,.6)" stroke-width="1.5" style="cursor:pointer"/>`;
+                    }).join('');
+                  })()}
+                </svg>
+              </div>
             </div>
+            <!-- Canvas heatmap for assists tab (and fallback) -->
+            <canvas id="profile-heatmap" width="400" height="208" style="display:${(window._hmapType||'shot')==='assist'?'block':'none'};width:100%;border-radius:10px;background:#1a7a32"></canvas>
             <!-- Stat chips -->
-            <div style="display:flex;gap:14px;margin-top:10px">
+            <div style="display:flex;gap:18px;margin-top:10px">
               <div style="text-align:center">
-                <div style="font-family:'Bebas Neue',sans-serif;font-size:1.5rem;color:var(--text);line-height:1">${totalShots}</div>
-                <div style="font-size:.6rem;color:var(--muted);letter-spacing:.5px;text-transform:uppercase">Shots</div>
+                <div style="font-family:'Bebas Neue',sans-serif;font-size:1.4rem;color:var(--text);line-height:1">${n(s.total_shots)}</div>
+                <div style="font-size:.58rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Shots</div>
               </div>
               <div style="text-align:center">
-                <div style="font-family:'Bebas Neue',sans-serif;font-size:1.5rem;color:#f87171;line-height:1">${totalGoals}</div>
-                <div style="font-size:.6rem;color:var(--muted);letter-spacing:.5px;text-transform:uppercase">Goals</div>
+                <div style="font-family:'Bebas Neue',sans-serif;font-size:1.4rem;color:#f87171;line-height:1">${s.goals}</div>
+                <div style="font-size:.58rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Goals</div>
               </div>
               <div style="text-align:center">
-                <div style="font-family:'Bebas Neue',sans-serif;font-size:1.5rem;color:var(--text);line-height:1">${onTargetPct}%</div>
-                <div style="font-size:.6rem;color:var(--muted);letter-spacing:.5px;text-transform:uppercase">On Target</div>
+                <div style="font-family:'Bebas Neue',sans-serif;font-size:1.4rem;color:var(--text);line-height:1">${onTargetPct}%</div>
+                <div style="font-size:.58rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">On Target</div>
               </div>
               <div style="text-align:center">
-                <div style="font-family:'Bebas Neue',sans-serif;font-size:1.5rem;color:var(--text);line-height:1">${s.shot_conversion}%</div>
-                <div style="font-size:.6rem;color:var(--muted);letter-spacing:.5px;text-transform:uppercase">Conv%</div>
+                <div style="font-family:'Bebas Neue',sans-serif;font-size:1.4rem;color:var(--text);line-height:1">${shotConv}%</div>
+                <div style="font-size:.58rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Conv%</div>
               </div>
             </div>
           </div>
-          <!-- Right: net placement + foot breakdown -->
-          ${hasNetMap ? `<div style="width:220px;flex-shrink:0">
+          ${withNet.length ? `<div style="flex-shrink:0">
             <div style="font-size:.58rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:6px">Goal placement</div>
-            <div style="border-radius:8px;overflow:hidden;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.1)">
+            <div style="border-radius:8px;overflow:hidden;background:rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.12)">
               <svg viewBox="0 0 100 62" style="width:100%;display:block" xmlns="http://www.w3.org/2000/svg">
-                <rect x="0" y="0" width="100" height="62" fill="rgba(0,0,0,.2)"/>
-                <!-- 3D goal frame perspective lines -->
-                <path d="M5,55 L5,5 L95,5 L95,55 L5,55" fill="none" stroke="rgba(255,255,255,.5)" stroke-width="1.5"/>
-                <path d="M5,5 L15,14 M95,5 L85,14 M5,55 L15,55 M95,55 L85,55" fill="none" stroke="rgba(255,255,255,.2)" stroke-width=".8"/>
-                <path d="M15,14 L85,14 L85,55 L15,55 Z" fill="none" stroke="rgba(255,255,255,.15)" stroke-width=".8"/>
-                <!-- Grid guides -->
-                <line x1="5" y1="5" x2="95" y2="5" stroke="rgba(255,255,255,.4)" stroke-width="1.2"/>
-                <line x1="5" y1="5" x2="5" y2="55" stroke="rgba(255,255,255,.4)" stroke-width="1.2"/>
-                <line x1="95" y1="5" x2="95" y2="55" stroke="rgba(255,255,255,.4)" stroke-width="1.2"/>
-                <line x1="35" y1="5" x2="35" y2="55" stroke="rgba(255,255,255,.08)" stroke-width=".5" stroke-dasharray="2,2"/>
-                <line x1="65" y1="5" x2="65" y2="55" stroke="rgba(255,255,255,.08)" stroke-width=".5" stroke-dasharray="2,2"/>
-                <line x1="5" y1="22" x2="95" y2="22" stroke="rgba(255,255,255,.08)" stroke-width=".5" stroke-dasharray="2,2"/>
-                <line x1="5" y1="38" x2="95" y2="38" stroke="rgba(255,255,255,.08)" stroke-width=".5" stroke-dasharray="2,2"/>
+                <rect x="0" y="0" width="100" height="62" fill="rgba(0,0,0,.15)"/>
+                <!-- 3D goal frame -->
+                <path d="M5,55 L5,5 L95,5 L95,55 L5,55" fill="none" stroke="rgba(255,255,255,.55)" stroke-width="1.5"/>
+                <!-- Depth lines -->
+                <path d="M5,5 L15,14 M95,5 L85,14 M5,55 L15,55 M95,55 L85,55" fill="none" stroke="rgba(255,255,255,.22)" stroke-width=".8"/>
+                <path d="M15,14 L85,14 L85,55 L15,55 Z" fill="none" stroke="rgba(255,255,255,.18)" stroke-width=".8"/>
+                <!-- Grid -->
+                <line x1="5" y1="5" x2="95" y2="5" stroke="rgba(255,255,255,.45)" stroke-width="1.2"/>
+                <line x1="35" y1="5" x2="35" y2="55" stroke="rgba(255,255,255,.1)" stroke-width=".5" stroke-dasharray="2,2"/>
+                <line x1="65" y1="5" x2="65" y2="55" stroke="rgba(255,255,255,.1)" stroke-width=".5" stroke-dasharray="2,2"/>
+                <line x1="5" y1="22" x2="95" y2="22" stroke="rgba(255,255,255,.1)" stroke-width=".5" stroke-dasharray="2,2"/>
+                <line x1="5" y1="38" x2="95" y2="38" stroke="rgba(255,255,255,.1)" stroke-width=".5" stroke-dasharray="2,2"/>
                 <line x1="5" y1="55" x2="95" y2="55" stroke="rgba(255,255,255,.3)" stroke-width="1"/>
+                <text x="50" y="60.5" text-anchor="middle" font-size="3" fill="rgba(255,255,255,.25)" font-family="sans-serif">ground</text>
                 ${netDots}
               </svg>
             </div>
-            <div style="margin-top:10px">${footBars}</div>
-            ${withFoot.length > 0 ? `<div style="font-size:.6rem;color:var(--muted);margin-top:4px;opacity:.7">${withFoot.length} of ${withNet.length || withFoot.length} goals have foot data</div>` : ''}
+            ${withFoot.length ? `<div style="margin-top:10px">${footBars}</div>` : ''}
+            ${withFoot.length > 0 && withNet.length > withFoot.length ? `<div style="font-size:.58rem;color:var(--muted);margin-top:4px;opacity:.65">${withFoot.length}/${withNet.length} goals have foot data</div>` : ''}
           </div>` : ''}
         </div>
+        <div id="profile-heatmap-stats" style="display:none;margin-top:12px;display:grid;grid-template-columns:repeat(3,1fr);gap:8px"></div>
       </div>`;
     })()}
 
