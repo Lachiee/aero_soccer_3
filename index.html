@@ -6952,9 +6952,11 @@ function renderMatches() {
       if (idx === 2) return 'style="background:rgba(192,128,64,.04)"';
       return '';
     };
-    const totalRow = (rows, nameColor) => {
+    const totalRow = (rows, oppRows, nameColor) => {
       const sum = key => rows.reduce((s, r) => s + n(r[key]), 0);
-      const totalGoals = sum('goals'), totalShots = sum('total_shots');
+      const oppOwnGoals = oppRows.reduce((s, r) => s + n(r.own_goals), 0);
+      const totalGoals = sum('goals') + oppOwnGoals;
+      const totalShots = sum('total_shots');
       const conv = totalShots > 0 ? (totalGoals/totalShots*100).toFixed(1)+'%' : '0%';
       const tStyle = `padding:5px 8px;font-size:.72rem;font-weight:700;border-top:2px solid rgba(255,255,255,.1);background:rgba(0,0,0,.2)`;
       return `<tr>
@@ -7281,14 +7283,15 @@ function renderMatches() {
                 </tr>`;
               };
 
-              const totalRowHtml = (rows, nameColor) => {
+              const totalRowHtml = (rows, oppRows, nameColor) => {
                 const sum  = key => rows.reduce((s, r) => s + n(r[key]), 0);
-                const tG   = sum('goals'), tS = sum('total_shots');
+                const oppOwnGoals = oppRows.reduce((s, r) => s + n(r.own_goals), 0);
+                const tG   = sum('goals') + oppOwnGoals, tS = sum('total_shots');
                 const conv = tS > 0 ? (tG/tS*100).toFixed(1)+'%' : '0%';
                 const tStyle = `padding:5px 8px;font-size:.72rem;font-weight:700;border-top:2px solid rgba(255,255,255,.1);background:rgba(0,0,0,.2)`;
                 return `<tr>
                   <td style="${tStyle};color:${nameColor}">TOTAL</td>
-                  <td style="${tStyle};${oCol};color:${nameColor}">${tG}</td>
+                  <td style="${tStyle};${oCol};color:${nameColor}">${tG}${oppOwnGoals>0?`<span style="color:var(--red);font-size:.6rem;margin-left:2px" title="Includes ${oppOwnGoals} own goal(s) by opponents">+${oppOwnGoals}OG</span>`:''}</td>
                   <td style="${tStyle};${oCol}">${sum('assists')}</td>
                   <td style="${tStyle};${oCol}">${sum('key_passes')}</td>
                   <td style="${tStyle};${oCol}">${tS}</td>
@@ -7307,10 +7310,10 @@ function renderMatches() {
               return allStatsTH + `<tbody>
                 ${teamHeader('TEAM A', 'var(--green)', goalsA)}
                 ${buildInlineTeamRows('A').map(renderRow).join('')}
-                ${totalRowHtml(m.teamA, 'var(--green)')}
+                ${totalRowHtml(m.teamA, m.teamB, 'var(--green)')}
                 ${teamHeader('TEAM B', 'var(--blue)', goalsB)}
                 ${buildInlineTeamRows('B').map(renderRow).join('')}
-                ${totalRowHtml(m.teamB, 'var(--blue)')}
+                ${totalRowHtml(m.teamB, m.teamA, 'var(--blue)')}
               </tbody>`;
             })()}
           </table>
@@ -8149,12 +8152,87 @@ function renderProfile(name) {
         </div>`).join('')}
     </div>` : '';
 
-  document.getElementById('profile-content').innerHTML = `
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;flex-wrap:wrap;gap:10px">
-      <div style="display:flex;gap:10px;flex-wrap:wrap">
-        <button class="print-btn" onclick="printPlayerCard('${safeName}')">🖨 Print Profile Card</button>
-        <button class="print-btn" onclick="nav('compare');setTimeout(()=>{const s=document.getElementById('compare-p1');if(s)s.value='${safeName}';renderComparePage();},50)">⚖ Compare</button>
+  // Striker rating block
+  const strikerRatingHtml = (() => {
+    const sr = computeStrikerRating(name);
+    if (!sr || sr.games < 1) return '';
+    const ratingCol = sr.rating >= 8 ? 'var(--green)' : sr.rating >= 6 ? 'var(--lime)' : sr.rating >= 4 ? 'var(--amber,#f59e0b)' : 'var(--muted)';
+    const barW = Math.round(sr.rating / 10 * 100);
+    let logs; try { logs = JSON.parse(localStorage.getItem('aero_event_logs') || '{}'); } catch(e) { logs = {}; }
+    const gkNames = new Set();
+    Object.values(logs).forEach(log => { Object.values(log.gkRotation || {}).forEach(segs => segs.forEach(seg => gkNames.add(seg.player))); });
+    const h2h = [...gkNames].map(gk => ({ gk, ...computeStrikerRatingVsGK(name, gk) })).filter(r => r && r.attempts > 0).sort((a,b) => b.attempts - a.attempts);
+    return `<div style="background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:18px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <div style="font-size:.6rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted)">&#x26BD; Striker Rating</div>
+        <div style="font-size:.65rem;color:var(--muted)">Last ${sr.games} game${sr.games!==1?'s':''} &#xB7; scale: ${sr.scale} = 10</div>
       </div>
+      <div style="display:flex;align-items:center;gap:16px;margin-bottom:14px">
+        <div>
+          <div style="font-family:&#x27;Bebas Neue&#x27;,sans-serif;font-size:2.8rem;color:${ratingCol};line-height:1">${sr.rating}</div>
+          <div style="font-size:.7rem;color:${ratingCol};margin-top:2px">${sr.label}</div>
+        </div>
+        <div style="flex:1">
+          <div style="height:5px;background:var(--card);border-radius:3px;overflow:hidden;margin-bottom:6px">
+            <div style="height:100%;width:${barW}%;background:${ratingCol};border-radius:3px"></div>
+          </div>
+          <div style="font-size:.68rem;color:var(--muted)">${sr.avgQualityGoals.toFixed(2)} quality-adjusted goals/game</div>
+        </div>
+      </div>
+      ${h2h.length ? `<div style="padding-top:12px;border-top:1px solid var(--border)">
+        <div style="font-size:.58rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:8px">Head to Head vs Keepers</div>
+        <div style="display:flex;flex-direction:column;gap:4px">
+          ${h2h.map(r => {
+            const pctCol = r.pct >= 50 ? 'var(--green)' : r.pct >= 30 ? 'var(--lime)' : r.pct >= 15 ? 'var(--amber,#f59e0b)' : 'rgba(248,113,113,.8)';
+            return `<div style="display:flex;align-items:center;gap:8px;padding:5px 8px;background:var(--card);border-radius:6px">
+              <span style="flex:1;font-size:.75rem">${r.gk}</span>
+              <div style="width:60px;height:4px;background:rgba(255,255,255,.08);border-radius:2px;overflow:hidden">
+                <div style="height:100%;width:${r.pct}%;background:${pctCol};border-radius:2px"></div>
+              </div>
+              <span style="font-size:.72rem;color:${pctCol};min-width:36px;text-align:right;font-weight:600">${r.goals}/${r.attempts}</span>
+              <span style="font-size:.65rem;color:var(--muted);min-width:30px;text-align:right">${r.pct}%</span>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>` : ''}
+    </div>`;
+  })();
+
+  // Chemistry block
+  const chemistryHtml = (() => {
+    const chem = (window._filteredChemistry || []).filter(c => (c.p1 === name || c.p2 === name) && c.games >= 2).sort((a,b) => b.games - a.games || Math.abs(b.delta) - Math.abs(a.delta));
+    if (!chem.length) return '';
+    const rows = chem.slice(0,8).map(c => {
+      const partner = c.p1 === name ? c.p2 : c.p1;
+      const d = c.delta;
+      const col = d >= 8 ? 'var(--green)' : d >= 2 ? 'var(--lime)' : d <= -8 ? 'var(--red)' : d <= -2 ? 'var(--amber,#f59e0b)' : 'var(--muted)';
+      const bar = Math.min(Math.abs(d), 30) / 30 * 100;
+      return `<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.04);cursor:pointer" onclick="nav(&#x27;profile&#x27;,&#x27;${partner}&#x27;)">
+        <div style="width:28px;height:28px;border-radius:6px;background:var(--card);display:flex;align-items:center;justify-content:center;font-family:&#x27;Bebas Neue&#x27;,sans-serif;font-size:.72rem;color:var(--muted);flex-shrink:0">${partner.slice(0,2).toUpperCase()}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:.8rem;font-weight:600;margin-bottom:3px">${partner}</div>
+          <div style="height:3px;background:var(--card);border-radius:2px;overflow:hidden">
+            <div style="height:100%;width:${bar}%;background:${col};border-radius:2px;${d < 0 ? 'margin-left:auto' : ''}"></div>
+          </div>
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          <div style="font-family:&#x27;Bebas Neue&#x27;,sans-serif;font-size:1.1rem;color:${col};line-height:1">${d > 0 ? '+' : ''}${d}%</div>
+          <div style="font-size:.6rem;color:var(--muted)">${c.games}g</div>
+        </div>
+      </div>`;
+    }).join('');
+    return `<div style="background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:18px">
+      <div style="font-size:.6rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:4px">&#x1F91D; Chemistry</div>
+      <div style="font-size:.65rem;color:var(--muted);margin-bottom:12px">Win rate impact vs baseline when playing alongside each teammate</div>
+      ${rows}
+    </div>`;
+  })();
+
+  document.getElementById('profile-content').innerHTML = `
+    <!-- Action buttons -->
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px">
+      <button class="print-btn" onclick="printPlayerCard('${safeName}')">🖨 Print Profile Card</button>
+      <button class="print-btn" onclick="nav('compare');setTimeout(()=>{const s=document.getElementById('compare-p1');if(s)s.value='${safeName}';renderComparePage();},50)">⚖ Compare</button>
     </div>
 
     <!-- Banner -->
@@ -8164,7 +8242,7 @@ function renderProfile(name) {
       const objPos = `center ${pos}%`;
       const mediaStyle = `width:100%;height:100%;object-fit:cover;object-position:${objPos};display:block;transform:scale(${zoom/100});transform-origin:center ${pos}%`;
       return `
-    <div id="banner-wrap-${gifKey}" style="position:relative;width:100%;height:${bannerHeights[name]||180}px;border-radius:14px;overflow:hidden;margin-bottom:0;background:linear-gradient(135deg,var(--card),var(--card2));border:1px solid var(--border);border-bottom-left-radius:0;border-bottom-right-radius:0">
+    <div id="banner-wrap-${gifKey}" style="position:relative;width:100%;height:${bannerHeights[name]||200}px;border-radius:16px 16px 0 0;overflow:hidden;background:linear-gradient(135deg,var(--card),var(--card2));border:1px solid var(--border);border-bottom:none">
       ${playerGifs[name]
         ? `<img src="${playerGifs[name]}" alt="${name}" style="${mediaStyle}">`
         : `<video id="banner-video-${gifKey}" autoplay loop muted playsinline
@@ -8184,892 +8262,444 @@ function renderProfile(name) {
            </div>`
       }
       ${adminMode ? `
-      <!-- Banner Admin Controls -->
       <div style="position:absolute;bottom:0;left:0;right:0;z-index:10;background:linear-gradient(transparent,rgba(0,0,0,.75));padding:20px 12px 8px;display:flex;flex-direction:column;gap:6px" onclick="event.stopPropagation()">
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-
-          <!-- Height -->
           <div style="display:flex;align-items:center;gap:5px;background:rgba(0,0,0,.5);border-radius:6px;padding:3px 8px;backdrop-filter:blur(4px)">
             <span style="font-size:.58rem;color:rgba(255,255,255,.5);font-family:'Barlow Condensed',sans-serif;white-space:nowrap">HEIGHT</span>
-            <input type="range" min="80" max="420" step="10" value="${bannerHeights[name]||180}"
+            <input type="range" min="80" max="420" step="10" value="${bannerHeights[name]||200}"
               oninput="const w=document.getElementById('banner-wrap-${gifKey}');if(w)w.style.height=this.value+'px';document.getElementById('bh-val-${gifKey}').textContent=this.value+'px';bannerHeights['${name.replace(/'/g,"\\'")}']= parseInt(this.value)"
               style="width:65px;accent-color:var(--lime);cursor:pointer">
-            <span id="bh-val-${gifKey}" style="font-size:.65rem;color:var(--lime);font-family:'Bebas Neue',sans-serif;min-width:34px">${bannerHeights[name]||180}px</span>
+            <span id="bh-val-${gifKey}" style="font-size:.65rem;color:var(--lime);font-family:'Bebas Neue',sans-serif;min-width:34px">${bannerHeights[name]||200}px</span>
           </div>
-
-          <!-- Vertical Position -->
           <div style="display:flex;align-items:center;gap:5px;background:rgba(0,0,0,.5);border-radius:6px;padding:3px 8px;backdrop-filter:blur(4px)">
             <span style="font-size:.58rem;color:rgba(255,255,255,.5);font-family:'Barlow Condensed',sans-serif;white-space:nowrap">V.POS</span>
             <input type="range" min="0" max="100" step="5" value="${pos}"
-              oninput="
-                const p=this.value;
-                const el=document.getElementById('banner-wrap-${gifKey}');
-                if(el) el.querySelectorAll('img,video').forEach(m=>{m.style.objectPosition='center '+p+'%';m.style.transformOrigin='center '+p+'%'});
-                document.getElementById('bp-val-${gifKey}').textContent=p+'%';
-                bannerPos['${name.replace(/'/g,"\\'")}']= parseInt(p)"
+              oninput="const p=this.value;const el=document.getElementById('banner-wrap-${gifKey}');if(el) el.querySelectorAll('img,video').forEach(m=>{m.style.objectPosition='center '+p+'%';m.style.transformOrigin='center '+p+'%'});document.getElementById('bp-val-${gifKey}').textContent=p+'%';bannerPos['${name.replace(/'/g,"\\'")}']= parseInt(p)"
               style="width:65px;accent-color:var(--amber);cursor:pointer">
             <span id="bp-val-${gifKey}" style="font-size:.65rem;color:var(--amber);font-family:'Bebas Neue',sans-serif;min-width:28px">${pos}%</span>
           </div>
-
-          <!-- Zoom -->
           <div style="display:flex;align-items:center;gap:5px;background:rgba(0,0,0,.5);border-radius:6px;padding:3px 8px;backdrop-filter:blur(4px)">
             <span style="font-size:.58rem;color:rgba(255,255,255,.5);font-family:'Barlow Condensed',sans-serif;white-space:nowrap">ZOOM</span>
             <input type="range" min="80" max="200" step="5" value="${zoom}"
-              oninput="
-                const z=this.value/100;
-                const p=document.getElementById('bp-val-${gifKey}')?.textContent?.replace('%','')||50;
-                const el=document.getElementById('banner-wrap-${gifKey}');
-                if(el) el.querySelectorAll('img,video').forEach(m=>{m.style.transform='scale('+z+')';m.style.transformOrigin='center '+p+'%'});
-                document.getElementById('bz-val-${gifKey}').textContent=this.value+'%';
-                bannerZoom['${name.replace(/'/g,"\\'")}']= parseInt(this.value)"
+              oninput="const z=this.value/100;const p=document.getElementById('bp-val-${gifKey}')?.textContent?.replace('%','')||50;const el=document.getElementById('banner-wrap-${gifKey}');if(el) el.querySelectorAll('img,video').forEach(m=>{m.style.transform='scale('+z+')';m.style.transformOrigin='center '+p+'%'});document.getElementById('bz-val-${gifKey}').textContent=this.value+'%';bannerZoom['${name.replace(/'/g,"\\'")}']= parseInt(this.value)"
               style="width:65px;accent-color:#c084fc;cursor:pointer">
             <span id="bz-val-${gifKey}" style="font-size:.65rem;color:#c084fc;font-family:'Bebas Neue',sans-serif;min-width:34px">${zoom}%</span>
           </div>
-
-          <!-- Slowmo (video only) -->
           <button id="slowmo-btn-${gifKey}"
             onclick="const v=document.getElementById('banner-video-${gifKey}');const on=!bannerSlowmo['${name.replace(/'/g,"\\'")}'];if(v&&v._toggleSlowmo)v._toggleSlowmo(on);bannerSlowmo['${name.replace(/'/g,"\\'")}']= on;this.style.background=on?'var(--lime)':'rgba(0,0,0,.5)';this.style.color=on?'#071009':'rgba(255,255,255,.5)';this.textContent=on?'⏱ Slowmo ON':'⏱ Slowmo'"
-            style="font-size:.62rem;font-family:'Barlow Condensed',sans-serif;letter-spacing:.5px;padding:3px 8px;border-radius:6px;border:none;cursor:pointer;backdrop-filter:blur(4px);background:${bannerSlowmo[name]?'var(--lime)':'rgba(0,0,0,.5)'};color:${bannerSlowmo[name]?'#071009':'rgba(255,255,255,.5)'};white-space:nowrap"
-            title="Gradually slow video to freeze on last frame">${bannerSlowmo[name]?'⏱ Slowmo ON':'⏱ Slowmo'}</button>
-
-          <!-- Upload / Change -->
+            style="font-size:.62rem;font-family:'Barlow Condensed',sans-serif;letter-spacing:.5px;padding:3px 8px;border-radius:6px;border:none;cursor:pointer;backdrop-filter:blur(4px);background:${bannerSlowmo[name]?'var(--lime)':'rgba(0,0,0,.5)'};color:${bannerSlowmo[name]?'#071009':'rgba(255,255,255,.5)'};white-space:nowrap">${bannerSlowmo[name]?'⏱ Slowmo ON':'⏱ Slowmo'}</button>
           ${playerGifs[name]
             ? `<button onclick="removeGif('${safeName}')" style="font-size:.62rem;font-family:'Barlow Condensed',sans-serif;padding:3px 8px;border-radius:6px;border:none;cursor:pointer;background:rgba(240,96,96,.3);color:#fca5a5;backdrop-filter:blur(4px)">✕ Remove</button>
                <button onclick="triggerGifUpload('${safeName}')" style="font-size:.62rem;font-family:'Barlow Condensed',sans-serif;padding:3px 8px;border-radius:6px;border:none;cursor:pointer;background:rgba(57,211,83,.3);color:var(--green);backdrop-filter:blur(4px)">⬆ Change</button>`
             : `<button onclick="triggerGifUpload('${safeName}')" style="font-size:.62rem;font-family:'Barlow Condensed',sans-serif;padding:3px 8px;border-radius:6px;border:none;cursor:pointer;background:rgba(57,211,83,.3);color:var(--green);backdrop-filter:blur(4px)">⬆ Upload</button>`
           }
-
-          <!-- Save settings button -->
           <button onclick="saveSettings();this.textContent='✅ Saved';this.style.background='rgba(57,211,83,.4)';setTimeout(()=>{this.textContent='⬇ Save Settings';this.style.background='rgba(255,255,255,.1)'},2000)"
-            style="font-size:.62rem;font-family:'Barlow Condensed',sans-serif;letter-spacing:.5px;padding:3px 10px;border-radius:6px;border:1px solid rgba(255,255,255,.2);cursor:pointer;background:rgba(255,255,255,.1);color:rgba(255,255,255,.8);backdrop-filter:blur(4px);white-space:nowrap;margin-left:auto"
-            title="Download settings.json and push to GitHub to save banner settings">⬇ Save Settings</button>
+            style="font-size:.62rem;font-family:'Barlow Condensed',sans-serif;letter-spacing:.5px;padding:3px 10px;border-radius:6px;border:1px solid rgba(255,255,255,.2);cursor:pointer;background:rgba(255,255,255,.1);color:rgba(255,255,255,.8);backdrop-filter:blur(4px);white-space:nowrap;margin-left:auto">⬇ Save Settings</button>
         </div>
       </div>` : ''}
     </div>
     <input type="file" id="gif-input-${gifKey}" accept="image/*,video/mp4" style="display:none" onchange="handleGifUpload('${safeName}', this)">`;
-    })()}
-
-    <!-- Hero Card -->
-    <div style="background:var(--card);border:1px solid var(--border);border-top:none;border-radius:0 0 14px 14px;padding:20px 24px;margin-bottom:16px">
-      <div style="display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap">
-        <!-- Avatar + Rating -->
-        <div style="position:relative;flex-shrink:0">
-          <div style="width:72px;height:72px;border-radius:12px;background:linear-gradient(135deg,var(--green),var(--lime));display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:1.6rem;color:#071009;letter-spacing:2px">
-            ${s.player.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()}
-          </div>
-          ${adminMode ? `<div style="position:absolute;top:-8px;right:-8px;background:var(--green);color:#071009;font-family:'Bebas Neue',sans-serif;font-size:.85rem;padding:2px 6px;border-radius:5px;letter-spacing:1px">${rating}</div>` : ''}
-        </div>
-        <!-- Name + tags -->
+    })()}    <!-- ═══ HERO ═══ -->
+    <div style="background:var(--card);border:1px solid var(--border);border-top:none;border-radius:0 0 16px 16px;padding:20px 22px 18px;margin-bottom:14px">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap">
         <div style="flex:1;min-width:0">
-          <div class="profile-name" style="font-family:'Bebas Neue',sans-serif;font-size:2.2rem;letter-spacing:3px;color:var(--text);line-height:1;margin-bottom:6px">${s.player.toUpperCase()}</div>
-          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
+          <div class="profile-name" style="font-family:'Bebas Neue',sans-serif;font-size:2.6rem;letter-spacing:4px;line-height:1;margin-bottom:7px">${s.player.toUpperCase()}</div>
+          <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:9px">
             ${renderTags(tags)}
-            ${(s.mvps||0) > 0 ? `<span style="background:rgba(240,192,64,.15);border:1px solid rgba(240,192,64,.4);color:var(--gold);font-family:'Barlow Condensed',sans-serif;font-size:.72rem;letter-spacing:1px;padding:2px 8px;border-radius:4px">★ ${s.mvps} MVP${s.mvps>1?'S':''}</span>` : ''}
-            ${getLeaderTags(s.player).map(t => `<span data-tip="${t.tip}" style="font-size:.72rem;color:var(--gold);cursor:help;font-family:'Barlow Condensed',sans-serif;letter-spacing:.5px">${t.label}</span>`).join('')}
+            ${(s.mvps||0) > 0 ? `<span style="background:rgba(240,192,64,.15);border:1px solid rgba(240,192,64,.35);color:var(--gold);font-family:'Barlow Condensed',sans-serif;font-size:.72rem;letter-spacing:1px;padding:3px 9px;border-radius:20px">★ ${s.mvps} MVP${s.mvps>1?'S':''}</span>` : ''}
+            ${getLeaderTags(s.player).map(t => `<span data-tip="${t.tip}" style="font-size:.72rem;color:var(--gold);cursor:help;font-family:'Barlow Condensed',sans-serif">${t.label}</span>`).join('')}
           </div>
-          <div style="font-size:.78rem;color:var(--muted)">${s.games} games played${s.attendanceRate != null ? ` · 🗓 ${s.attendanceRate}% attendance` : ''}${s.gd != null ? ` · <span style="color:${s.gd>=0?'var(--green)':'var(--red)'}">GD ${s.gd>0?'+':''}${s.gd}</span>` : ''}</div>
+          <div style="font-size:.75rem;color:var(--muted)">${s.games} games · 🗓 ${s.attendanceRate ?? '–'}% attendance${s.gd != null ? ` · <span style="color:${s.gd>=0?'var(--green)':'var(--red)'}">GD ${s.gd>0?'+':''}${s.gd}</span>` : ''}</div>
         </div>
-        <!-- Key stats bar -->
-        <div style="display:flex;gap:24px;flex-wrap:wrap">
+        <div style="display:flex;gap:0;border:1px solid var(--border);border-radius:12px;overflow:hidden;flex-shrink:0">
           ${[
-            ['GAMES', s.games, ''],
-            ['GOALS', s.goals, (s.goals/g).toFixed(2)+' per game'],
-            ['ASSISTS', s.assists, (s.assists/g).toFixed(2)+' per game'],
-            ['WIN %', wPct+'%', `${s.wins}W · ${s.draws||0}D · ${s.losses}L`],
-          ].map(([lbl,val,sub]) => `
-            <div style="text-align:center">
-              <div style="font-family:'Bebas Neue',sans-serif;font-size:2rem;color:var(--green);line-height:1">${val}</div>
-              <div style="font-size:.6rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-top:2px">${lbl}</div>
-              ${sub ? `<div style="font-size:.62rem;color:var(--muted);opacity:.7">${sub}</div>` : ''}
+            { label: 'Goals', value: s.goals, sub: (s.goals/g).toFixed(2)+'/g', col: 'var(--green)' },
+            { label: 'Assists', value: s.assists, sub: (s.assists/g).toFixed(2)+'/g', col: 'var(--green)' },
+            { label: 'Win %', value: wPct+'%', sub: s.wins+'W '+(s.draws||0)+'D '+s.losses+'L', col: wPct>=50?'var(--green)':'var(--red)' },
+            { label: 'Games', value: s.games, sub: '', col: 'var(--text)' },
+          ].map(({ label, value, sub, col }, i) => `
+            <div style="padding:12px 18px;text-align:center;${i>0?'border-left:1px solid var(--border)':''}">
+              <div style="font-family:'Bebas Neue',sans-serif;font-size:2rem;color:${col};line-height:1">${value}</div>
+              <div style="font-size:.58rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-top:2px">${label}</div>
+              ${sub ? `<div style="font-size:.6rem;color:var(--muted);opacity:.6;margin-top:1px">${sub}</div>` : ''}
             </div>`).join('')}
         </div>
       </div>
-      <!-- Win/loss bar -->
-      <div style="margin-top:14px">
-        <div style="display:flex;gap:1px;height:6px;border-radius:3px;overflow:hidden;background:var(--card2)">
-          <div style="width:${wPct}%;background:var(--green);transition:width .4s"></div>
-          <div style="width:${dPct}%;background:var(--amber)"></div>
-          <div style="width:${lPct}%;background:var(--red)"></div>
+      <div style="margin-top:14px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+        <div style="display:flex;gap:4px">
+          ${[...s.matches].sort((a,b)=>(a.match_date||'').localeCompare(b.match_date||'')).slice(-7).map(r => {
+            const m = matchList.find(x=>x.id===r.match_id);
+            const won = m && ((r.team==='A'&&m.goalsA>m.goalsB)||(r.team==='B'&&m.goalsB>m.goalsA));
+            const drew = m && m.goalsA===m.goalsB;
+            const col = won ? 'var(--green)' : drew ? 'var(--amber)' : 'var(--red)';
+            const bg = won ? 'rgba(57,211,83,.12)' : drew ? 'rgba(245,158,11,.12)' : 'rgba(248,113,113,.1)';
+            return `<span style="width:22px;height:22px;border-radius:50%;background:${bg};border:1px solid ${col};color:${col};font-family:'Bebas Neue',sans-serif;font-size:.7rem;display:flex;align-items:center;justify-content:center">${won?'W':drew?'D':'L'}</span>`;
+          }).join('')}
         </div>
-        <div style="display:flex;justify-content:space-between;font-size:.65rem;color:var(--muted);margin-top:4px">
-          <span style="color:var(--green)">${s.wins}W ${wPct}%</span>
-          <span style="color:var(--amber)">${s.draws||0}D</span>
-          <span style="color:var(--red)">${s.losses}L ${lPct}%</span>
+        <div style="display:flex;gap:16px;margin-left:auto;flex-wrap:wrap">
+          <div style="text-align:center"><div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:${s._formRate5!=null&&s._formRate5>=60?'var(--green)':s._formRate5!=null&&s._formRate5<=39?'var(--red)':'var(--amber)'}">${s._formRate5 != null ? s._formRate5+'%' : '–'}</div><div style="font-size:.55rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted)">L5 win%</div></div>
+          <div style="text-align:center"><div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:${s.formTrend==='up'?'var(--green)':s.formTrend==='down'?'var(--red)':'var(--muted)'}">${s.formTrend==='up'?'▲ Up':s.formTrend==='down'?'▼ Down':'● Steady'}</div><div style="font-size:.55rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted)">Trend</div></div>
+          ${s.currentStreak >= 2 ? `<div style="text-align:center"><div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:${s.streakType==='W'?'var(--green)':s.streakType==='L'?'var(--red)':'var(--amber)'}">${s.currentStreak}${s.streakType}</div><div style="font-size:.55rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted)">Streak</div></div>` : ''}
+          ${s.momentum !== null ? `<div style="text-align:center"><div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:${s.momentum>=15?'var(--green)':s.momentum>=-15?'var(--amber)':'var(--red)'}">${s.momentum>0?'+':''}${s.momentum}%</div><div style="font-size:.55rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted)">Momentum</div></div>` : ''}
         </div>
+      </div>
+      <div style="margin-top:12px;display:flex;gap:2px;height:4px;border-radius:2px;overflow:hidden">
+        <div style="width:${wPct}%;background:var(--green)"></div>
+        <div style="width:${dPct}%;background:var(--amber)"></div>
+        <div style="width:${lPct}%;background:var(--red)"></div>
       </div>
     </div>
 
-    ${bestGameHtml}
-
-    <!-- Two-column grid: Form chart + Spider -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
-
-      <!-- FORM chart -->
-      <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
-          <div style="font-family:'Barlow Condensed',sans-serif;font-size:.7rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted)">Form</div>
-          <div style="font-size:.62rem;color:var(--muted);opacity:.6">· Last 12 matches</div>
-        </div>
-        <canvas id="form-chart-${name.replace(/\s/g,'_')}" width="480" height="160" style="width:100%;height:auto"></canvas>
-        <div style="display:flex;gap:10px;margin-top:8px;flex-wrap:wrap">
-          <div style="display:flex;align-items:center;gap:4px;font-size:.65rem;color:var(--muted)"><span style="width:8px;height:8px;border-radius:50%;background:#4ade80;display:inline-block"></span>Win</div>
-          <div style="display:flex;align-items:center;gap:4px;font-size:.65rem;color:var(--muted)"><span style="width:8px;height:8px;border-radius:50%;background:#fb923c;display:inline-block"></span>Draw</div>
-          <div style="display:flex;align-items:center;gap:4px;font-size:.65rem;color:var(--muted)"><span style="width:8px;height:8px;border-radius:50%;background:#f87171;display:inline-block"></span>Loss</div>
-        </div>
+    <!-- ═══ STATS + SPIDER (compact 3-col) ═══ -->
+    <div style="display:grid;grid-template-columns:1fr 1fr 240px;gap:12px;margin-bottom:12px">
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px 16px">
+        <div style="font-size:.58rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:10px">Attacking</div>
+        ${(()=>{
+          const pool = Object.values(getDisplayStats()).filter(p=>p.games>=3);
+          const maxPg = key => Math.max(...pool.map(p=>p[key]/Math.max(p.games,1)),0.01);
+          return [
+            { label:'Goals/g', val:(s.goals/g).toFixed(2), pct:Math.min((s.goals/g)/maxPg('goals')*100,100) },
+            { label:'Assists/g', val:(s.assists/g).toFixed(2), pct:Math.min((s.assists/g)/maxPg('assists')*100,100) },
+            { label:'Key Passes/g', val:(s.key_passes/g).toFixed(1), pct:Math.min((s.key_passes/g)/maxPg('key_passes')*100,100) },
+            { label:'Shots/g', val:(s.total_shots/g).toFixed(1), pct:Math.min((s.total_shots/g)/maxPg('total_shots')*100,100) },
+            { label:'Shot Conv%', val:s.shot_conversion+'%', pct:Math.min(s.shot_conversion/50*100,100) },
+          ].map(({label,val,pct})=>`
+            <div style="margin-bottom:8px">
+              <div style="display:flex;justify-content:space-between;margin-bottom:2px">
+                <span style="font-size:.68rem;color:var(--muted)">${label}</span>
+                <span style="font-family:'Bebas Neue',sans-serif;font-size:.88rem">${val}</span>
+              </div>
+              <div style="height:2px;background:var(--card2);border-radius:2px;overflow:hidden">
+                <div style="height:100%;width:${pct.toFixed(0)}%;background:var(--green);border-radius:2px"></div>
+              </div>
+            </div>`).join('');
+        })()}
       </div>
-
-      <!-- ATTRIBUTE PROFILE spider -->
-      <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
-          <div style="font-family:'Barlow Condensed',sans-serif;font-size:.7rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted)">Attribute Profile</div>
-          ${adminMode ? `<div style="font-size:.62rem;color:var(--muted);opacity:.6">· vs Squad Avg</div>` : ''}
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px 16px">
+        <div style="font-size:.58rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:10px">Defence</div>
+        ${(()=>{
+          const pool = Object.values(getDisplayStats()).filter(p=>p.games>=3);
+          const maxPg = key => Math.max(...pool.map(p=>p[key]/Math.max(p.games,1)),0.01);
+          return [
+            { label:'Interceptions/g', val:(s.interceptions/g).toFixed(1), pct:Math.min((s.interceptions/g)/maxPg('interceptions')*100,100) },
+            { label:'Tackles/g', val:(s.tackles/g).toFixed(1), pct:Math.min((s.tackles/g)/maxPg('tackles')*100,100) },
+            { label:'Blocks/g', val:(s.blocks/g).toFixed(1), pct:Math.min((s.blocks/g)/maxPg('blocks')*100,100) },
+            { label:'GK Saves/g', val:(s.goalkeeper_saves/g).toFixed(1), pct:Math.min((s.goalkeeper_saves/g)/maxPg('goalkeeper_saves')*100,100) },
+            { label:'Nutmegs/g', val:(s.nutmegs/g).toFixed(1), pct:Math.min((s.nutmegs/g)/maxPg('nutmegs')*100,100) },
+          ].map(({label,val,pct})=>`
+            <div style="margin-bottom:8px">
+              <div style="display:flex;justify-content:space-between;margin-bottom:2px">
+                <span style="font-size:.68rem;color:var(--muted)">${label}</span>
+                <span style="font-family:'Bebas Neue',sans-serif;font-size:.88rem">${val}</span>
+              </div>
+              <div style="height:2px;background:var(--card2);border-radius:2px;overflow:hidden">
+                <div style="height:100%;width:${pct.toFixed(0)}%;background:var(--blue,#60a5fa);border-radius:2px"></div>
+              </div>
+            </div>`).join('')
+        })()}
+      </div>
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px;display:flex;flex-direction:column;align-items:center;justify-content:center">
+        <div style="font-size:.58rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:4px;text-align:center">Attribute Profile</div>
+        <div id="spider-${name.replace(/\s/g,'_')}-wrap" style="display:flex;justify-content:center;width:100%">
+          <canvas id="spider-${name.replace(/\s/g,'_')}" class="spider" width="220" height="220"></canvas>
         </div>
-        <div id="spider-${name.replace(/\s/g,'_')}-wrap" style="display:flex;justify-content:center">
-          <canvas id="spider-${name.replace(/\s/g,'_')}" class="spider" width="240" height="240"></canvas>
-        </div>
-        ${adminMode ? `
-        <div style="display:flex;gap:12px;margin-top:4px;justify-content:center">
-          <div style="display:flex;align-items:center;gap:5px;font-size:.68rem;color:var(--muted)"><span style="width:10px;height:10px;border-radius:2px;background:rgba(57,211,83,.5);display:inline-block"></span>${name}</div>
-          <div style="display:flex;align-items:center;gap:5px;font-size:.68rem;color:var(--muted)"><span style="width:10px;height:10px;border-radius:2px;background:rgba(150,160,150,.3);border:1px dashed #96a096;display:inline-block"></span>Squad average</div>
+        ${adminMode ? `<div style="display:flex;gap:8px;margin-top:4px;justify-content:center">
+          <div style="display:flex;align-items:center;gap:3px;font-size:.58rem;color:var(--muted)"><span style="width:7px;height:7px;border-radius:2px;background:rgba(57,211,83,.5);display:inline-block"></span>${name}</div>
+          <div style="display:flex;align-items:center;gap:3px;font-size:.58rem;color:var(--muted)"><span style="width:7px;height:7px;border-radius:2px;background:rgba(150,160,150,.3);border:1px dashed #96a096;display:inline-block"></span>Squad avg</div>
         </div>` : ''}
-        <div style="margin-top:10px;display:grid;grid-template-columns:1fr 1fr;gap:4px">
-          ${[
-            ['Goals/G', (s.goals/g).toFixed(2)],
-            ['Assists/G', (s.assists/g).toFixed(2)],
-            ['Tackles/G', (s.tackles/g).toFixed(1)],
-            ['Key Passes/G', (s.key_passes/g).toFixed(2)],
-          ].map(([lbl,val]) => `<div style="font-size:.68rem;color:var(--muted)"><span style="color:var(--green);font-weight:700">${val}</span> ${lbl}</div>`).join('')}
-        </div>
       </div>
-
     </div>
 
-    <!-- Form stats row -->
-    <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 20px;margin-bottom:14px;display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px">
-      ${[
-        ['Win Rate (L5)', s._formRate5 != null ? s._formRate5+'%' : '–', s._formRate5!=null&&s._formRate5>=60?'var(--green)':s._formRate5!=null&&s._formRate5>=40?'var(--amber)':'var(--red)', 'Win rate across the most recent 5 games'],
-        ['Trend', s.formTrend==='up'?'▲ Improving':s.formTrend==='down'?'▼ Declining':'● Consistent', s.formTrend==='up'?'var(--green)':s.formTrend==='down'?'var(--red)':'var(--muted)', 'Compares win rate of last 5 vs 5 before'],
-        ['Streak', s.currentStreak > 0 ? s.currentStreak+(s.streakType==='W'?' W':s.streakType==='L'?' L':' D') : '–', s.streakType==='W'?'var(--green)':s.streakType==='L'?'var(--red)':'var(--amber)', 'Current consecutive result streak'],
-        ...(s.momentum !== null ? [['Momentum', (s.momentum>0?'+':'')+s.momentum+'%', s.momentum>=15?'var(--green)':s.momentum>=0?'var(--lime)':s.momentum>=-15?'var(--amber)':'var(--red)', 'Stats vs 4 games ago']] : []),
-        ['Consistency', s.consistency+'/100', s.consistency>=75?'var(--green)':s.consistency>=50?'var(--amber)':'var(--red)', 'How similar performance is game to game'],
-        ...(s.synergyScore !== null && s.synergyPairs >= 3 ? [['Synergy', (s.synergyScore>0?'+':'')+s.synergyScore+'%', s.synergyScore>=8?'var(--green)':s.synergyScore>=2?'var(--lime)':'var(--red)', `Win rate impact across ${s.synergyPairs} partnerships`]] : []),
-      ].map(([lbl, val, col, tip]) => `
-        <div style="cursor:help" data-tip="${tip}">
-          <div style="font-size:.6rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:3px">${lbl}</div>
-          <div style="font-family:'Bebas Neue',sans-serif;font-size:1.4rem;color:${col};line-height:1">${val}</div>
-        </div>`).join('')}
+    <!-- ═══ FORM CHART ═══ -->
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 20px;margin-bottom:12px">
+      <div style="font-size:.58rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:10px">Performance — last 12 matches</div>
+      <canvas id="form-chart-${name.replace(/\s/g,'_')}" width="800" height="120" style="width:100%;height:auto"></canvas>
+      <div style="display:flex;gap:12px;margin-top:6px">
+        <div style="display:flex;align-items:center;gap:4px;font-size:.6rem;color:var(--muted)"><span style="width:6px;height:6px;border-radius:50%;background:#4ade80;display:inline-block"></span>Win</div>
+        <div style="display:flex;align-items:center;gap:4px;font-size:.6rem;color:var(--muted)"><span style="width:6px;height:6px;border-radius:50%;background:#fb923c;display:inline-block"></span>Draw</div>
+        <div style="display:flex;align-items:center;gap:4px;font-size:.6rem;color:var(--muted)"><span style="width:6px;height:6px;border-radius:50%;background:#f87171;display:inline-block"></span>Loss</div>
+        <div style="font-size:.6rem;color:var(--muted);margin-left:auto;opacity:.6">Impact score per match</div>
+      </div>
     </div>
 
-    <!-- 1H vs 2H comparison -->
+    <!-- ═══ FOTMOB-STYLE SHOT MAP ═══ -->
     ${(() => {
-      const h1 = s.h1, h2 = s.h2;
-      const g1 = Math.max(h1.games, 1), g2 = Math.max(h2.games, 1);
-      if (h1.games < 3 && h2.games < 3) return '';
-      const statDefs = [
-        { key: 'goals',            label: 'Goals' },
-        { key: 'assists',          label: 'Assists' },
-        { key: 'total_shots',      label: 'Shots' },
-        { key: 'key_passes',       label: 'Key Passes' },
-        { key: 'tackles',          label: 'Tackles' },
-        { key: 'interceptions',    label: 'Intercepts' },
-        { key: 'nutmegs',          label: 'Nutmegs' },
-        { key: 'goalkeeper_saves', label: 'GK Saves' },
-      ];
-      const insight = (() => {
-        const goalDiff = h2.goals/g2 - h1.goals/g1;
-        if (Math.abs(goalDiff) >= 0.4) return goalDiff > 0
-          ? '🔥 Scores more in the 2nd half — gets stronger as the game goes on'
-          : '⚡ Scores more in the 1st half — fast starter';
-        const defDiff = (h2.tackles/g2 + h2.interceptions/g2) - (h1.tackles/g1 + h1.interceptions/g1);
-        if (Math.abs(defDiff) >= 1) return defDiff > 0
-          ? '🛡 More defensive in the 2nd half — digs in when it matters'
-          : '🛡 More defensive in the 1st half — sets the tone early';
-        return '⚖ Consistent across both halves';
-      })();
-      const rows = statDefs.map(({ key, label }) => {
-        const f1 = h1[key] / g1, f2 = h2[key] / g2;
-        const max = Math.max(f1, f2, 0.01);
-        const w1 = (f1 / max * 100).toFixed(0), w2 = (f2 / max * 100).toFixed(0);
-        const col1 = f1 > f2 ? 'var(--green)' : 'var(--muted)';
-        const col2 = f2 > f1 ? 'var(--green)' : 'var(--muted)';
-        return `<div style="display:grid;grid-template-columns:1fr 90px 1fr;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04)">
-          <div>
-            <span style="font-family:'Bebas Neue',sans-serif;font-size:1rem;color:${col1}">${f1.toFixed(2)}</span>
-            <div style="height:3px;background:var(--card2);border-radius:2px;margin-top:2px;overflow:hidden">
-              <div style="float:right;height:100%;width:${w1}%;background:${col1};border-radius:2px"></div>
-            </div>
-          </div>
-          <div style="text-align:center;font-size:.63rem;letter-spacing:.8px;text-transform:uppercase;color:var(--muted)">${label}</div>
-          <div>
-            <span style="font-family:'Bebas Neue',sans-serif;font-size:1rem;color:${col2}">${f2.toFixed(2)}</span>
-            <div style="height:3px;background:var(--card2);border-radius:2px;margin-top:2px;overflow:hidden">
-              <div style="height:100%;width:${w2}%;background:${col2};border-radius:2px"></div>
-            </div>
-          </div>
-        </div>`;
-      }).join('');
-      return `<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:14px">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-          <div style="font-family:'Barlow Condensed',sans-serif;font-size:.7rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted)">🕐 1st vs 2nd Half</div>
-          <div style="font-size:.62rem;color:var(--muted);opacity:.7">(${h1.games} games)</div>
-        </div>
-        <div style="background:rgba(57,211,83,.06);border:1px solid rgba(57,211,83,.15);border-radius:7px;padding:8px 12px;margin-bottom:12px;font-size:.76rem;color:var(--green)">${insight}</div>
-        <div style="display:grid;grid-template-columns:1fr 90px 1fr;margin-bottom:4px">
-          <div style="font-size:.6rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted)">1ST HALF /G</div>
-          <div></div>
-          <div style="font-size:.6rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);text-align:right">2ND HALF /G</div>
-        </div>
-        ${rows}
-      </div>`;
-    })()}
-
-    <!-- Strike Partners -->
-    ${(() => {
-      const { scoredFrom, assistedTo } = getPlayerComboStats(name);
-      if (!scoredFrom.length && !assistedTo.length) return '';
-      const partnerCard = (p, type) => {
-        const col = type === 'scored' ? 'var(--green)' : 'var(--lime)';
-        const relationship = type === 'scored'
-          ? `<span style="color:var(--text)">${name}</span> <span style="color:var(--muted)">←</span> <span style="color:${col}">${p.name}</span>`
-          : `<span style="color:${col}">${p.name}</span> <span style="color:var(--muted)">←</span> <span style="color:var(--text)">${name}</span>`;
-        const label = type === 'scored'
-          ? `${p.goals} goal${p.goals>1?'s':''} in ${p.comboMatches} of ${p.sharedGames} games together`
-          : `${p.goals} goal${p.goals>1?'s':''} in ${p.comboMatches} of ${p.sharedGames} games together`;
-
-        // Gather assist→shot pairs for this partnership
-        const assister = type === 'scored' ? p.name : name;
-        const scorer   = type === 'scored' ? name   : p.name;
-        const pairGeos = [];
-        const pairPassLens = [];
-        Object.values(goalCombos).forEach(data => {
-          [...(data.h1||[]),...(data.h2||[])].forEach(g => {
-            if (!g.isOG && g.scorer === scorer && g.assister === assister) {
-              if (g.ax != null && g.ay != null) {
-                pairGeos.push({ sx: g.ax, sy: g.ay });
-                if (g.sx != null && g.sy != null) {
-                  const dx = (g.sx - g.ax) * 300, dy = (g.sy - g.ay) * 156;
-                  pairPassLens.push(Math.hypot(dx, dy) / Math.hypot(300, 156));
-                }
-              }
+      const shotShots = [], assistShots = [];
+      const { withNet, withFoot, counts } = getPlayerGoalFootData(name);
+      Object.entries(goalCombos).forEach(([mid, data]) => {
+        ['h1','h2'].forEach(hk => {
+          (data[hk]||[]).forEach((g, idx) => {
+            if (g.isOG) return;
+            if (g.scorer === name && g.sx != null && g.sy != null) {
+              shotShots.push({ sx: g.sx, sy: g.sy, mid, half: hk==='h1'?'1H':'2H', idx, time: g.time, isGoal: true });
+            }
+            if (g.assister === name && g.ax != null && g.ay != null) {
+              assistShots.push({ sx: g.ax, sy: g.ay, mid, half: hk==='h1'?'1H':'2H', idx, time: g.time });
             }
           });
         });
-        const avgPL = pairPassLens.length > 0
-          ? Math.round(pairPassLens.reduce((s,v)=>s+v,0)/pairPassLens.length * 100) : null;
+      });
+      const hasGoalMap = shotShots.length > 0;
+      const hasAssistMap = assistShots.length > 0;
+      const hasNetMap = withNet.length > 0;
+      if (!hasGoalMap && !hasAssistMap && !hasNetMap) return '';
 
-        // Tiny inline court canvas for assist zone (drawn after insert via requestAnimationFrame)
-        const canvasId = `pship-court-${assister.replace(/\s/g,'_')}-${scorer.replace(/\s/g,'_')}`;
-        const zoneLabel = pairGeos.length > 0 ? (() => {
-          const avgDist = pairGeos.reduce((s,g)=>s+g.sx,0)/pairGeos.length; // sx=0 is left, 1 is right (goal)
-          const avgY    = pairGeos.reduce((s,g)=>s+g.sy,0)/pairGeos.length;
-          const zone = avgDist > 0.65 ? 'Box' : avgDist > 0.4 ? 'Mid' : 'Deep';
-          const side = avgY < 0.38 ? ' Left' : avgY > 0.62 ? ' Right' : '';
-          return zone + side;
-        })() : null;
+      const footColor = { left: '#60a5fa', right: '#4ade80', header: '#f59e0b' };
+      const totalGoals = shotShots.length;
+      const totalShots = n(s.total_shots);
+      const onTarget = n(s.shots_on_target);
+      const onTargetPct = totalShots > 0 ? Math.round(onTarget/totalShots*100) : 0;
 
-        return `<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.04);cursor:pointer" onclick="nav('profile','${p.name}')">
-          <div style="width:30px;height:30px;border-radius:6px;background:var(--card2);display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:.75rem;color:var(--muted);flex-shrink:0">${p.name.slice(0,2).toUpperCase()}</div>
-          <div style="flex:1;min-width:0">
-            <div style="font-size:.82rem;font-weight:600">${relationship}</div>
-            <div style="font-size:.63rem;color:var(--muted)">${label}</div>
-            ${zoneLabel || avgPL ? `<div style="display:flex;gap:6px;margin-top:3px;flex-wrap:wrap">
-              ${zoneLabel ? `<span style="font-size:.6rem;background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.25);border-radius:4px;padding:1px 5px;color:var(--amber,#f59e0b)" data-tip="Where ${assister.split(' ')[0]} typically creates from when setting up ${scorer.split(' ')[0]} — based on mapped assist locations">🅰️ ${zoneLabel}</span>` : ''}
-              ${avgPL ? `<span style="font-size:.6rem;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:4px;padding:1px 5px;color:var(--muted)" data-tip="Average pass length for this combination — distance between assist origin and shot location as a % of the court diagonal">↗ ${avgPL}% pass</span>` : ''}
-            </div>` : ''}
+      // Build pitch SVG dots — pitch is 0,0 top-left → 1,1 bottom-right, goal is right side
+      // Scale to a 260×160 viewBox
+      const pitchDots = shotShots.map(sh => {
+        const px = (sh.sx * 260).toFixed(1);
+        const py = (sh.sy * 160).toFixed(1);
+        return `<circle cx="${px}" cy="${py}" r="5" fill="rgba(248,113,113,0.9)" stroke="#1a1a1a" stroke-width="1.2"/>`;
+      }).join('');
+
+      // Net map SVG
+      const netDots = withNet.map(g => {
+        const col = g.foot ? (footColor[g.foot] || '#aaa') : '#aaa';
+        const cx = (1 + g.netX * 98).toFixed(1);
+        const cy = (2 + g.netY * 54).toFixed(1);
+        return `<circle cx="${cx}" cy="${cy}" r="4" fill="${col}" fill-opacity="0.85" stroke="rgba(0,0,0,.35)" stroke-width="0.8"/>`;
+      }).join('');
+
+      // Foot breakdown bars
+      const footBars = ['right','left','header'].filter(f => counts[f] > 0).map(f => {
+        const pct = Math.round(counts[f]/(withFoot.length||1)*100);
+        return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+          <div style="width:52px;font-size:.68rem;color:var(--muted);text-transform:capitalize">${f}</div>
+          <div style="flex:1;height:4px;background:var(--card2);border-radius:2px;overflow:hidden">
+            <div style="height:100%;width:${pct}%;background:${footColor[f]};border-radius:2px"></div>
           </div>
-          <div style="flex-shrink:0;text-align:right">
-            ${pairGeos.length > 0 ? (() => {
-              window._pendingCourts = window._pendingCourts || {};
-              window._pendingCourts[canvasId] = { shots: pairGeos, assistDot: null };
-              return `<canvas id="${canvasId}" width="60" height="31" style="display:block;border-radius:4px;margin-bottom:2px" data-tip="Assist origin locations for this specific pairing — where ${assister.split(' ')[0]} creates from when setting up ${scorer.split(' ')[0]}"></canvas>`;
-            })() : ''}
-            <div style="font-family:'Bebas Neue',sans-serif;font-size:1.4rem;color:${col};line-height:1">${p.goals}</div>
-          </div>
+          <div style="font-size:.72rem;color:${footColor[f]};min-width:20px;text-align:right;font-weight:600">${counts[f]}</div>
+          <div style="font-size:.6rem;color:var(--muted);min-width:24px">${pct}%</div>
         </div>`;
-      };
-      const allPartners = {};
-      scoredFrom.forEach(p => { allPartners[p.name] = (allPartners[p.name]||0) + p.goals; });
-      assistedTo.forEach(p => { allPartners[p.name] = (allPartners[p.name]||0) + p.goals; });
-      const best = Object.entries(allPartners).sort((a,b)=>b[1]-a[1])[0];
-      return `<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:14px">
-        <div style="font-family:'Barlow Condensed',sans-serif;font-size:.7rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:12px">🤝 Strike Partnerships</div>
-        ${best && best[1] >= 2 ? `<div style="background:rgba(168,224,80,.07);border:1px solid rgba(168,224,80,.2);border-radius:7px;padding:8px 12px;margin-bottom:12px;font-size:.76rem;color:var(--lime)">
-          🔗 Best partnership: <strong>${best[0]}</strong> — ${best[1]} combined goal involvements
-        </div>` : ''}
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
-          <div>
-            <div style="font-size:.63rem;letter-spacing:1px;text-transform:uppercase;color:var(--green);margin-bottom:8px;font-family:'Barlow Condensed',sans-serif">Who sets up ${name.split(' ')[0]}</div>
-            ${scoredFrom.length ? scoredFrom.slice(0,3).map(p => partnerCard(p,'scored')).join('') : `<div style="font-size:.74rem;color:var(--muted)">No data yet</div>`}
-          </div>
-          <div>
-            <div style="font-size:.63rem;letter-spacing:1px;text-transform:uppercase;color:var(--lime);margin-bottom:8px;font-family:'Barlow Condensed',sans-serif">Who ${name.split(' ')[0]} sets up</div>
-            ${assistedTo.length ? assistedTo.slice(0,3).map(p => partnerCard(p,'assisted')).join('') : `<div style="font-size:.74rem;color:var(--muted)">No data yet</div>`}
+      }).join('');
+
+      return `<div id="profile-heatmap-section" style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 20px;margin-bottom:12px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+          <div style="font-size:.58rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted)">Season Shot Map</div>
+          <div style="display:flex;gap:5px">
+            ${hasGoalMap ? `<button onclick="renderProfileHeatmap('${safeName}','shot')" id="hmap-btn-shot" style="font-size:.65rem;font-family:'Barlow Condensed',sans-serif;padding:3px 11px;border-radius:20px;border:1px solid ${(window._hmapType||'shot')==='shot'?'var(--green)':'var(--border)'};background:${(window._hmapType||'shot')==='shot'?'rgba(57,211,83,.15)':'transparent'};color:${(window._hmapType||'shot')==='shot'?'var(--green)':'var(--muted)'};cursor:pointer">Goals</button>` : ''}
+            ${hasAssistMap ? `<button onclick="renderProfileHeatmap('${safeName}','assist')" id="hmap-btn-assist" style="font-size:.65rem;font-family:'Barlow Condensed',sans-serif;padding:3px 11px;border-radius:20px;border:1px solid ${window._hmapType==='assist'?'#f87171':'var(--border)'};background:${window._hmapType==='assist'?'rgba(248,113,113,.15)':'transparent'};color:${window._hmapType==='assist'?'#f87171':'var(--muted)'};cursor:pointer">Assists</button>` : ''}
           </div>
         </div>
-
-        ${(() => {
-          // Key pass creation partners
-          const { setsUp, setUpBy } = getCreationPartners(name);
-          if (!setsUp.length && !setUpBy.length) return '';
-          const cpRow = (p, type) => {
-            const col = type === 'setsUp' ? 'var(--lime)' : 'var(--amber,#f59e0b)';
-            const label = type === 'setsUp'
-              ? `${name.split(' ')[0]} → <strong>${p.name}</strong>`
-              : `<strong>${p.name}</strong> → ${name.split(' ')[0]}`;
-            return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04);cursor:pointer" onclick="nav('profile','${p.name}')">
-              <div style="width:24px;height:24px;border-radius:4px;background:var(--card2);display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:.65rem;color:var(--muted);flex-shrink:0">${p.name.slice(0,2).toUpperCase()}</div>
-              <div style="flex:1;font-size:.78rem">${label}</div>
-              <div style="font-size:.7rem;color:var(--muted)">${p.shots} shot${p.shots!==1?'s':''}</div>
-              ${p.goals > 0 ? `<div style="font-size:.7rem;color:var(--green);font-weight:600">${p.goals}⚽</div>` : ''}
-            </div>`;
-          };
-          return `<div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">
-            <div style="font-family:'Barlow Condensed',sans-serif;font-size:.65rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:8px">🎯 Key Pass Chains</div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
-              <div>
-                <div style="font-size:.6rem;color:var(--lime);text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px">${name.split(' ')[0]} creates for</div>
-                ${setsUp.slice(0,3).map(p=>cpRow(p,'setsUp')).join('') || '<div style="font-size:.7rem;color:var(--muted)">No data</div>'}
+        <div style="display:grid;grid-template-columns:1fr ${hasNetMap?'auto':'0px'};gap:16px;align-items:start">
+          <!-- Left: pitch dot map -->
+          <div>
+            <div id="profile-heatmap-debug" style="font-size:.62rem;color:var(--muted);margin-bottom:6px">${totalGoals} goal location${totalGoals!==1?'s':''} mapped</div>
+            <div style="position:relative;border-radius:10px;overflow:hidden;background:#1a6b2e;border:1px solid rgba(255,255,255,.08)">
+              <svg viewBox="0 0 260 160" style="width:100%;display:block" xmlns="http://www.w3.org/2000/svg">
+                <!-- Pitch markings -->
+                <rect x="0" y="0" width="260" height="160" fill="#1a6b2e"/>
+                <rect x="4" y="4" width="252" height="152" fill="none" stroke="rgba(255,255,255,.25)" stroke-width="1"/>
+                <!-- Centre line + circle -->
+                <line x1="130" y1="4" x2="130" y2="156" stroke="rgba(255,255,255,.2)" stroke-width="1"/>
+                <circle cx="130" cy="80" r="22" fill="none" stroke="rgba(255,255,255,.2)" stroke-width="1"/>
+                <circle cx="130" cy="80" r="1.5" fill="rgba(255,255,255,.3)"/>
+                <!-- Right penalty area -->
+                <rect x="195" y="44" width="61" height="72" fill="none" stroke="rgba(255,255,255,.25)" stroke-width="1"/>
+                <rect x="230" y="60" width="30" height="40" fill="none" stroke="rgba(255,255,255,.2)" stroke-width="1"/>
+                <!-- Penalty spot -->
+                <circle cx="218" cy="80" r="1.5" fill="rgba(255,255,255,.3)"/>
+                <!-- Goal -->
+                <rect x="255" y="65" width="5" height="30" fill="none" stroke="rgba(255,255,255,.5)" stroke-width="1.5"/>
+                <!-- Goal label -->
+                <text x="248" y="78" text-anchor="end" font-size="6" fill="rgba(255,255,255,.4)" font-family="sans-serif">GOAL</text>
+                <text x="248" y="85" text-anchor="end" font-size="5" fill="rgba(255,255,255,.25)" font-family="sans-serif">▶</text>
+                <!-- Shot dots -->
+                ${pitchDots}
+              </svg>
+            </div>
+            <!-- Stat chips -->
+            <div style="display:flex;gap:14px;margin-top:10px">
+              <div style="text-align:center">
+                <div style="font-family:'Bebas Neue',sans-serif;font-size:1.5rem;color:var(--text);line-height:1">${totalShots}</div>
+                <div style="font-size:.6rem;color:var(--muted);letter-spacing:.5px;text-transform:uppercase">Shots</div>
               </div>
-              <div>
-                <div style="font-size:.6rem;color:var(--amber,#f59e0b);text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px">Creates for ${name.split(' ')[0]}</div>
-                ${setUpBy.slice(0,3).map(p=>cpRow(p,'setUpBy')).join('') || '<div style="font-size:.7rem;color:var(--muted)">No data</div>'}
+              <div style="text-align:center">
+                <div style="font-family:'Bebas Neue',sans-serif;font-size:1.5rem;color:#f87171;line-height:1">${totalGoals}</div>
+                <div style="font-size:.6rem;color:var(--muted);letter-spacing:.5px;text-transform:uppercase">Goals</div>
+              </div>
+              <div style="text-align:center">
+                <div style="font-family:'Bebas Neue',sans-serif;font-size:1.5rem;color:var(--text);line-height:1">${onTargetPct}%</div>
+                <div style="font-size:.6rem;color:var(--muted);letter-spacing:.5px;text-transform:uppercase">On Target</div>
+              </div>
+              <div style="text-align:center">
+                <div style="font-family:'Bebas Neue',sans-serif;font-size:1.5rem;color:var(--text);line-height:1">${s.shot_conversion}%</div>
+                <div style="font-size:.6rem;color:var(--muted);letter-spacing:.5px;text-transform:uppercase">Conv%</div>
               </div>
             </div>
-          </div>`;
-        })()}
-
-        ${(() => {
-          // Rebound stats
-          const rb = getReboundStats(name);
-          if (!rb) return '';
-          return `<div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">
-            <div style="font-family:'Barlow Condensed',sans-serif;font-size:.65rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:8px">💥 Rebounds</div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-              <div style="background:var(--card2);border-radius:7px;padding:8px 10px" data-tip="Times ${name.split(' ')[0]}'s shot was followed by a same-team shot within 2 seconds — they created the rebound opportunity">
-                <div style="font-size:.6rem;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin-bottom:2px">Created</div>
-                <div style="font-family:'Bebas Neue',sans-serif;font-size:1.4rem;color:var(--lime);line-height:1">${rb.reboundsCreated}</div>
-                ${rb.reboundGoalsCreated > 0 ? `<div style="font-size:.65rem;color:var(--green)">${rb.reboundGoalsCreated} led to goals</div>` : ''}
-                ${rb.topPartner ? `<div style="font-size:.62rem;color:var(--muted)">most with ${rb.topPartner}</div>` : ''}
-              </div>
-              <div style="background:var(--card2);border-radius:7px;padding:8px 10px" data-tip="Times ${name.split(' ')[0]} followed up on a teammate's shot within 2 seconds">
-                <div style="font-size:.6rem;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin-bottom:2px">Converted</div>
-                <div style="font-family:'Bebas Neue',sans-serif;font-size:1.4rem;color:var(--lime);line-height:1">${rb.reboundsConverted}</div>
-                ${rb.reboundGoalsConverted > 0 ? `<div style="font-size:.65rem;color:var(--green)">${rb.reboundGoalsConverted} goals</div>` : ''}
-              </div>
+          </div>
+          <!-- Right: net placement + foot breakdown -->
+          ${hasNetMap ? `<div style="width:220px;flex-shrink:0">
+            <div style="font-size:.58rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:6px">Goal placement</div>
+            <div style="border-radius:8px;overflow:hidden;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.1)">
+              <svg viewBox="0 0 100 62" style="width:100%;display:block" xmlns="http://www.w3.org/2000/svg">
+                <rect x="0" y="0" width="100" height="62" fill="rgba(0,0,0,.2)"/>
+                <!-- 3D goal frame perspective lines -->
+                <path d="M5,55 L5,5 L95,5 L95,55 L5,55" fill="none" stroke="rgba(255,255,255,.5)" stroke-width="1.5"/>
+                <path d="M5,5 L15,14 M95,5 L85,14 M5,55 L15,55 M95,55 L85,55" fill="none" stroke="rgba(255,255,255,.2)" stroke-width=".8"/>
+                <path d="M15,14 L85,14 L85,55 L15,55 Z" fill="none" stroke="rgba(255,255,255,.15)" stroke-width=".8"/>
+                <!-- Grid guides -->
+                <line x1="5" y1="5" x2="95" y2="5" stroke="rgba(255,255,255,.4)" stroke-width="1.2"/>
+                <line x1="5" y1="5" x2="5" y2="55" stroke="rgba(255,255,255,.4)" stroke-width="1.2"/>
+                <line x1="95" y1="5" x2="95" y2="55" stroke="rgba(255,255,255,.4)" stroke-width="1.2"/>
+                <line x1="35" y1="5" x2="35" y2="55" stroke="rgba(255,255,255,.08)" stroke-width=".5" stroke-dasharray="2,2"/>
+                <line x1="65" y1="5" x2="65" y2="55" stroke="rgba(255,255,255,.08)" stroke-width=".5" stroke-dasharray="2,2"/>
+                <line x1="5" y1="22" x2="95" y2="22" stroke="rgba(255,255,255,.08)" stroke-width=".5" stroke-dasharray="2,2"/>
+                <line x1="5" y1="38" x2="95" y2="38" stroke="rgba(255,255,255,.08)" stroke-width=".5" stroke-dasharray="2,2"/>
+                <line x1="5" y1="55" x2="95" y2="55" stroke="rgba(255,255,255,.3)" stroke-width="1"/>
+                ${netDots}
+              </svg>
             </div>
-          </div>`;
-        })()}
+            <div style="margin-top:10px">${footBars}</div>
+            ${withFoot.length > 0 ? `<div style="font-size:.6rem;color:var(--muted);margin-top:4px;opacity:.7">${withFoot.length} of ${withNet.length || withFoot.length} goals have foot data</div>` : ''}
+          </div>` : ''}
+        </div>
       </div>`;
     })()}
 
-    <!-- Goal Timing Patterns -->
-    ${(() => {
-      const { buckets, allGoals } = getPlayerGoalTimings(name);
-      if (allGoals.length < 3) return '';
-      const maxBucket = Math.max(...Object.values(buckets), 1);
-      const bucketKeys = Array.from({length: 12}, (_,i) => i*5); // 0-55 mins
-      const earlyGoals  = allGoals.filter(g => g.min < 15).length;
-      const midGoals    = allGoals.filter(g => g.min >= 15 && g.min < 40).length;
-      const lateGoals   = allGoals.filter(g => g.min >= 40).length;
-      const h1Goals     = allGoals.filter(g => g.half === 'h1').length;
-      const h2Goals     = allGoals.filter(g => g.half === 'h2').length;
-      const total = allGoals.length;
-
-      // Find peak 10-min window
-      const windows = [0,5,10,15,20,25,30,35,40,45,50].map(start => ({
-        start, count: allGoals.filter(g => g.min >= start && g.min < start+10).length
-      }));
-      const peak = windows.reduce((best,w) => w.count > best.count ? w : best, windows[0]);
-
-      // Build insights array — pick the most interesting ones
-      const insights = [];
-
-      // Half preference (strong signal if 60%+)
-      const h1pct = h1Goals/total, h2pct = h2Goals/total;
-      if (h1pct >= 0.65) insights.push({ icon:'1️⃣', text:`${Math.round(h1pct*100)}% of goals in the first half — hits the ground running and builds early leads` });
-      else if (h2pct >= 0.65) insights.push({ icon:'2️⃣', text:`${Math.round(h2pct*100)}% of goals in the second half — improves as the game goes on and wears teams down` });
-
-      // Early burst (first 15 mins)
-      if (earlyGoals/total >= 0.35) insights.push({ icon:'⚡', text:`${Math.round(earlyGoals/total*100)}% of goals in the first 15 mins — one of the fastest starters in the group` });
-
-      // Late scorer (after 40)
-      if (lateGoals/total >= 0.35) insights.push({ icon:'💪', text:`${Math.round(lateGoals/total*100)}% of goals after the 40-minute mark — most dangerous when matches are in the balance` });
-
-      // Peak window (only mention if clearly dominant — 25%+ of goals in one 10-min block)
-      if (peak.count/total >= 0.25 && total >= 5) {
-        const label = peak.start < 15 ? 'opening minutes' :
-                      peak.start < 30 ? `${peak.start}-${peak.start+10} minute window` :
-                      peak.start < 40 ? `crucial ${peak.start}-${peak.start+10} minute spell` :
-                      `late ${peak.start}-${peak.start+10} minute window`;
-        insights.push({ icon:'🎯', text:`Scores ${Math.round(peak.count/total*100)}% of goals in the ${label} — a clear danger zone for opponents to watch` });
-      }
-
-      // Mid-game specialist (lots of goals in 15-40 window, few early or late)
-      if (midGoals/total >= 0.65 && earlyGoals/total < 0.2 && lateGoals/total < 0.2) {
-        insights.push({ icon:'⚖', text:`Most goals come in the middle of matches (15-40 min) — builds into games before finding a rhythm` });
-      }
-
-      // Even spread fallback
-      if (insights.length === 0) {
-        const spread = Math.max(...bucketKeys.map(b => buckets[b]||0)) / (total/bucketKeys.filter(b=>b<60).length);
-        if (spread < 1.8) insights.push({ icon:'📊', text:`Goals spread evenly across all parts of the match — no clear pattern, dangerous at any time` });
-        else insights.push({ icon:'📊', text:`Goals arrive in clusters rather than evenly — tends to have quiet spells then sudden bursts` });
-      }
-
-      // Pick the single most interesting insight
-      const insight = insights[0];
-
-      return `<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:14px">
-        <div style="font-family:'Barlow Condensed',sans-serif;font-size:.7rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:8px">⏱ When ${name.split(' ')[0]} Scores</div>
-        <div style="background:rgba(57,211,83,.06);border:1px solid rgba(57,211,83,.15);border-radius:7px;padding:7px 12px;margin-bottom:12px;font-size:.75rem;color:var(--green)">${insight.icon} ${insight.text}</div>
-        <div style="display:flex;align-items:flex-end;gap:2px;height:50px;margin-bottom:4px">
-          ${bucketKeys.map(b => {
-            const count = buckets[b] || 0;
-            const h = count ? Math.max((count / maxBucket) * 46, 4) : 2;
-            const isHigh = count === maxBucket && count > 0;
-            return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:50px">
-              <div style="width:100%;background:${isHigh?'var(--green)':'rgba(57,211,83,.35)'};border-radius:2px 2px 0 0;height:${h}px;transition:height .3s" title="${count} goal${count!==1?'s':''}  at ${b}-${b+5} min"></div>
-            </div>`;
-          }).join('')}
-        </div>
-        <div style="display:flex;justify-content:space-between;font-size:.6rem;color:var(--muted)">
-          <span>0'</span><span>15'</span><span>30'</span><span>HT</span><span>45'</span><span>60'</span>
-        </div>
-        <div style="font-size:.65rem;color:var(--muted);margin-top:6px">${total} goals tracked across ${new Set(allGoals.map(g=>g.mid)).size} matches</div>
-      </div>`;
-    })()}
-
-    <!-- Assist Timeline -->
-    ${(() => {
-      const { buckets: aBuckets, allAssists } = getPlayerAssistTimings(name);
-      if (allAssists.length < 3) return '';
-      const bucketKeys = Array.from({length:12},(_,i)=>i*5);
-      const maxBucket = Math.max(...bucketKeys.map(b=>aBuckets[b]||0),1);
-      const earlyA = allAssists.filter(a=>a.min<15).length;
-      const lateA  = allAssists.filter(a=>a.min>=40).length;
-      const total  = allAssists.length;
-      let insight = '';
-      if (earlyA/total>=0.35) insight = `⚡ ${Math.round(earlyA/total*100)}% of assists in the first 15 mins — sets teammates up early`;
-      else if (lateA/total>=0.35) insight = `💪 ${Math.round(lateA/total*100)}% of assists after 40 mins — most creative when it matters`;
-      else insight = `📊 Creates across the whole match — no strong timing pattern`;
-      return `<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:14px">
-        <div style="font-family:'Barlow Condensed',sans-serif;font-size:.7rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:8px">🎯 When ${name.split(' ')[0]} Assists</div>
-        <div style="background:rgba(168,224,80,.06);border:1px solid rgba(168,224,80,.15);border-radius:7px;padding:7px 12px;margin-bottom:12px;font-size:.75rem;color:var(--lime)">${insight}</div>
-        <div style="display:flex;align-items:flex-end;gap:2px;height:50px;margin-bottom:4px">
-          ${bucketKeys.map(b=>{
-            const count=aBuckets[b]||0;
-            const h=count?Math.max((count/maxBucket)*46,4):2;
-            const isHigh=count===maxBucket&&count>0;
-            return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:50px">
-              <div style="width:100%;background:${isHigh?'var(--lime)':'rgba(168,224,80,.3)'};border-radius:2px 2px 0 0;height:${h}px" title="${count} assist${count!==1?'s':''} at ${b}-${b+5} min"></div>
-            </div>`;
-          }).join('')}
-        </div>
-        <div style="display:flex;justify-content:space-between;font-size:.6rem;color:var(--muted)">
-          <span>0'</span><span>15'</span><span>30'</span><span>HT</span><span>45'</span><span>60'</span>
-        </div>
-        <div style="font-size:.65rem;color:var(--muted);margin-top:6px">${total} assists tracked across ${new Set(allAssists.map(a=>a.mid)).size} matches</div>
-      </div>`;
-    })()}
-
-    <!-- Highlights -->
+    <!-- ═══ HIGHLIGHTS ═══ -->
     ${(() => {
       const highlights = getPlayerHighlights(name);
       if (!highlights.length) return '';
-      return `<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:14px">
-        <div style="font-family:'Barlow Condensed',sans-serif;font-size:.7rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:12px">⭐ Highlights</div>
-        <div style="display:flex;flex-wrap:wrap;gap:8px">
-          ${highlights.map(h=>{
-            const matchKey=h.mid.replace(/[#,]/g,'_');
-            const ytSecs=h.ytId&&h.time?timeToYtSeconds(h.time,h.half):null;
-            const col=h.type==='goal'?'var(--green)':'var(--lime)';
-            const icon=h.type==='goal'?'⚽':'🎯';
-            const mins=h.time?h.time.split(':')[0].replace(/^0/,''):'?';
-            return `<div style="background:var(--card2);border:1px solid ${h.type==='goal'?'rgba(57,211,83,.3)':'rgba(168,224,80,.3)'};border-radius:8px;padding:10px 12px;min-width:140px;${ytSecs!==null?'cursor:pointer':''}"
-              ${ytSecs!==null?`onclick="seekYtVideo('${matchKey}','${h.ytId}',${ytSecs})" title="▶ Watch highlight"`:''}>
-              <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
-                <span style="font-size:.9rem">${icon}</span>
+      return `<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 20px;margin-bottom:12px">
+        <div style="font-size:.58rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:12px">⭐ Highlights</div>
+        <div style="display:flex;flex-wrap:wrap;gap:7px">
+          ${highlights.map(h => {
+            const matchKey = h.mid.replace(/[#,]/g,'_');
+            const ytSecs = h.ytId && h.time ? timeToYtSeconds(h.time, h.half) : null;
+            const col = h.type==='goal' ? 'var(--green)' : 'var(--lime)';
+            const borderCol = h.type==='goal' ? 'rgba(57,211,83,.2)' : 'rgba(168,224,80,.2)';
+            const icon = h.type==='goal' ? '⚽' : '🎯';
+            const mins = h.time ? h.time.split(':')[0].replace(/^0/,'') : '?';
+            return `<div style="background:var(--card2);border:1px solid ${borderCol};border-radius:8px;padding:8px 12px;min-width:110px;${ytSecs!==null?'cursor:pointer':''}"
+              ${ytSecs!==null ? `onclick="seekYtVideo('${matchKey}','${h.ytId}',${ytSecs})" title="▶ Watch"` : ''}>
+              <div style="display:flex;align-items:center;gap:5px;margin-bottom:3px">
+                <span style="font-size:.8rem">${icon}</span>
                 <span style="font-family:'Bebas Neue',sans-serif;font-size:1rem;color:${col}">${mins}'</span>
-                <span style="font-size:.6rem;color:var(--muted)">${h.half}</span>
-                ${ytSecs!==null?`<span style="margin-left:auto;color:var(--amber);font-size:.75rem">▶</span>`:''}
+                <span style="font-size:.58rem;color:var(--muted)">${h.half}</span>
+                ${ytSecs!==null ? `<span style="margin-left:auto;color:var(--amber);font-size:.75rem">▶</span>` : ''}
               </div>
-              <div style="font-size:.72rem;font-weight:600;color:var(--text)">${h.scorer}</div>
-              ${h.assister?`<div style="font-size:.65rem;color:var(--muted)">← ${h.assister}</div>`:''}
-              <div style="font-size:.6rem;color:var(--muted);margin-top:4px">${h.match.date}</div>
+              <div style="font-size:.72rem;font-weight:600">${h.scorer}</div>
+              ${h.assister ? `<div style="font-size:.6rem;color:var(--muted)">← ${h.assister}</div>` : ''}
+              <div style="font-size:.58rem;color:var(--muted);margin-top:3px;opacity:.7">${h.match.date}</div>
             </div>`;
           }).join('')}
         </div>
-        ${!highlights.some(h=>h.ytId)?`<div style="font-size:.65rem;color:var(--muted);margin-top:8px">Link match videos to enable ▶ playback</div>`:''}
-        <div style="font-size:.62rem;color:var(--muted);margin-top:6px;opacity:.7">Flag goals with ! and assists with * in the Goal Combos importer</div>
+        ${!highlights.some(h=>h.ytId) ? `<div style="font-size:.6rem;color:var(--muted);margin-top:8px;opacity:.6">Flag goals with ! and assists with * in the Goal Combos importer</div>` : ''}
       </div>`;
     })()}
 
-      <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:14px">
-        <div style="font-family:'Barlow Condensed',sans-serif;font-size:.7rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:14px">⚽ Attacking</div>
-        ${(()=>{
-          const pool = Object.values(getDisplayStats()).filter(p=>p.games>=3);
-          const avgPg = (key) => pool.reduce((s,p)=>s+p[key]/Math.max(p.games,1),0)/Math.max(pool.length,1);
-          const maxPg = (key) => Math.max(...pool.map(p=>p[key]/Math.max(p.games,1)),0.01);
-          const atkStats = [
-            { lbl:'Goals',        val:s.goals/g,                                  avg:avgPg('goals'),          max:maxPg('goals'),          fmt: v=>v.toFixed(2)+'/g', tip:'Goals per game vs squad average' },
-            { lbl:'Assists',      val:s.assists/g,                                avg:avgPg('assists'),        max:maxPg('assists'),        fmt: v=>v.toFixed(2)+'/g', tip:'Assists per game vs squad average' },
-            { lbl:'Shots',        val:s.total_shots/g,                            avg:avgPg('total_shots'),    max:maxPg('total_shots'),    fmt: v=>v.toFixed(1)+'/g', tip:'Shots per game vs squad average' },
-            { lbl:'Shot Conv %',  val:s.total_shots>0?s.goals/s.total_shots:0,   avg:pool.reduce((sum,p)=>sum+(p.total_shots>0?p.goals/p.total_shots:0),0)/Math.max(pool.length,1), max:Math.max(...pool.map(p=>p.total_shots>0?p.goals/p.total_shots:0),0.01), fmt: v=>(v*100).toFixed(0)+'%', tip:'Shot conversion % vs squad average' },
-            { lbl:'Nutmegs',      val:s.nutmegs/g,                                avg:avgPg('nutmegs'),        max:maxPg('nutmegs'),        fmt: v=>v.toFixed(2)+'/g', tip:'Nutmegs per game vs squad average' },
-          ];
-          return atkStats.map(({lbl,val,avg,max,fmt,tip})=>{
-            const pct = Math.min(val/max*100,100).toFixed(0);
-            const avgPct = Math.min(avg/max*100,100).toFixed(0);
-            const aboveAvg = val > avg*1.1;
-            const belowAvg = val < avg*0.9;
-            const barCol = aboveAvg?'var(--green)':belowAvg?'rgba(57,211,83,.3)':'rgba(57,211,83,.55)';
-            return `<div style="margin-bottom:12px" title="${tip}">
-              <div style="display:flex;justify-content:space-between;margin-bottom:3px">
-                <span style="font-size:.72rem;color:var(--muted);font-family:'Barlow Condensed',sans-serif;letter-spacing:.5px;text-transform:uppercase">${lbl}</span>
-                <span style="font-size:.72rem;color:${aboveAvg?'var(--green)':belowAvg?'var(--muted)':'var(--text2)'}">${fmt(val)} <span style="opacity:.5;font-size:.65rem">avg ${fmt(avg)}</span></span>
-              </div>
-              <div style="height:5px;background:var(--card2);border-radius:3px;overflow:visible;position:relative">
-                <div style="width:${pct}%;height:100%;background:${barCol};border-radius:3px;transition:width .4s"></div>
-                <div style="position:absolute;top:-2px;left:${avgPct}%;width:2px;height:9px;background:rgba(255,255,255,.4);border-radius:1px" title="Squad avg"></div>
-              </div>
-            </div>`;
-          }).join('');
-        })()}
-      </div>
-
-      <!-- DEFENCE & PLAYMAKING -->
-      <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px">
-        <div style="font-family:'Barlow Condensed',sans-serif;font-size:.7rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:14px">🛡 Defence &amp; Playmaking</div>
-        ${(()=>{
-          const pool = Object.values(getDisplayStats()).filter(p=>p.games>=3);
-          const avgPg = (key) => pool.reduce((s,p)=>s+p[key]/Math.max(p.games,1),0)/Math.max(pool.length,1);
-          const maxPg = (key) => Math.max(...pool.map(p=>p[key]/Math.max(p.games,1)),0.01);
-          const defStats = [
-            { lbl:'Tackles',       val:s.tackles/g,           avg:avgPg('tackles'),       max:maxPg('tackles'),       fmt: v=>v.toFixed(2)+'/g', tip:'Tackles per game vs squad average' },
-            { lbl:'Interceptions', val:s.interceptions/g,     avg:avgPg('interceptions'), max:maxPg('interceptions'), fmt: v=>v.toFixed(2)+'/g', tip:'Interceptions per game vs squad average' },
-            { lbl:'Blocks',        val:(s.blocks||0)/g,       avg:avgPg('blocks'),        max:maxPg('blocks'),        fmt: v=>v.toFixed(2)+'/g', tip:'Blocks per game vs squad average' },
-            { lbl:'GK Saves',      val:(s.goalkeeper_saves||0)/g, avg:avgPg('goalkeeper_saves'), max:maxPg('goalkeeper_saves'), fmt: v=>v.toFixed(2)+'/g', tip:'Goalkeeper saves per game vs squad average' },
-            { lbl:'Key Passes',    val:s.key_passes/g,        avg:avgPg('key_passes'),    max:maxPg('key_passes'),    fmt: v=>v.toFixed(2)+'/g', tip:'Key passes per game vs squad average' },
-          ];
-          return defStats.map(({lbl,val,avg,max,fmt,tip})=>{
-            const pct = Math.min(val/max*100,100).toFixed(0);
-            const avgPct = Math.min(avg/max*100,100).toFixed(0);
-            const aboveAvg = val > avg*1.1;
-            const belowAvg = val < avg*0.9;
-            const barCol = aboveAvg?'var(--green)':belowAvg?'rgba(57,211,83,.3)':'rgba(57,211,83,.55)';
-            return `<div style="margin-bottom:12px" title="${tip}">
-              <div style="display:flex;justify-content:space-between;margin-bottom:3px">
-                <span style="font-size:.72rem;color:var(--muted);font-family:'Barlow Condensed',sans-serif;letter-spacing:.5px;text-transform:uppercase">${lbl}</span>
-                <span style="font-size:.72rem;color:${aboveAvg?'var(--green)':belowAvg?'var(--muted)':'var(--text2)'}">${fmt(val)} <span style="opacity:.5;font-size:.65rem">avg ${fmt(avg)}</span></span>
-              </div>
-              <div style="height:5px;background:var(--card2);border-radius:3px;overflow:visible;position:relative">
-                <div style="width:${pct}%;height:100%;background:${barCol};border-radius:3px;transition:width .4s"></div>
-                <div style="position:absolute;top:-2px;left:${avgPct}%;width:2px;height:9px;background:rgba(255,255,255,.4);border-radius:1px" title="Squad avg"></div>
-              </div>
-            </div>`;
-          }).join('');
-        })()}
-        <div style="font-size:.62rem;color:var(--muted);margin-top:4px;opacity:.6">Bright bar = above squad average · faint bar = below · white line = squad average</div>
-      </div>
-
-    </div>
-
-    <!-- Striker Rating -->
+    <!-- ═══ CAREER HIGHS ═══ -->
     ${(() => {
-      const sr = computeStrikerRating(name);
-      if (!sr || sr.games < 1) return '';
-      const ratingCol = sr.rating >= 8 ? 'var(--green)' : sr.rating >= 6 ? 'var(--lime)' : sr.rating >= 4 ? 'var(--amber,#f59e0b)' : 'var(--muted)';
-      const barW = Math.round(sr.rating / 10 * 100);
-      const gameRows = sr.detail.map(d => {
-        const wCol = d.weight >= 1.2 ? 'var(--green)' : d.weight >= 0.9 ? 'var(--lime)' : d.weight >= 0.6 ? 'var(--amber,#f59e0b)' : 'var(--muted)';
-        return `<div style="display:flex;align-items:center;gap:8px;padding:3px 0;font-size:.72rem;border-bottom:1px solid rgba(255,255,255,.04)">
-          <span style="color:var(--muted);min-width:70px">${d.date||'—'}</span>
-          <span style="color:var(--text);min-width:14px;font-weight:600">${d.goals}</span>
-          <span style="color:var(--muted);font-size:.65rem;flex:1">opposition conceded ${d.oppConceded != null ? d.oppConceded+'g · '+(d.oppConceded <= 3 ? 'strong defence' : d.oppConceded <= 6 ? 'average defence' : 'weak defence') : '—'}</span>
-          <span style="color:${wCol};min-width:28px;text-align:right;font-size:.7rem" data-tip="Quality multiplier — league avg ${sr.leagueAvg} ÷ opp avg ${d.oppAvgConceded}">${d.weight != null ? '×'+d.weight : ''}</span>
-          <span style="color:var(--lime);min-width:32px;text-align:right;font-weight:600">${d.qualityGoals}</span>
+      if (!s.matches.length) return '';
+      const statBests = [
+        ['Most Goals','goals','⚽'],['Most Assists','assists','🎯'],['Most Tackles','tackles','💪'],
+        ['Most Nutmegs','nutmegs','🪄'],['Most Key Passes','key_passes','🔑'],['Most Shots','total_shots','🔫'],
+      ].map(([lbl, stat, icon]) => {
+        const best = s.matches.reduce((b, r) => n(r[stat]) > n(b[stat]||0) ? r : b, s.matches[0]||{});
+        const val = best ? n(best[stat]) : 0;
+        if (!val) return '';
+        const opp = best.team==='A' ? 'Team B' : 'Team A';
+        return `<div style="background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:10px 12px">
+          <div style="font-size:.55rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:3px">${icon} ${lbl}</div>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:1.8rem;color:var(--green);line-height:1;margin-bottom:2px">${val}</div>
+          <div style="font-size:.6rem;color:var(--muted)">${opp} · ${best.match_date||''}</div>
         </div>`;
-      }).join('');
-      return `<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:14px">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
-          <div style="font-family:'Barlow Condensed',sans-serif;font-size:.7rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted)">⚽ Striker Rating</div>
-          <div style="font-size:.68rem;color:var(--muted)" data-tip="Quality-adjusted goals per game over the last ${sr.games} game${sr.games!==1?'s':''} — weighted by how strong the opposition defence was. League avg conceded: ${sr.leagueAvg}g/game. Group 85th percentile (= 10): ${sr.scale} adj goals/game">Last ${sr.games} game${sr.games!==1?'s':''} · scale: ${sr.scale} = 10</div>
-        </div>
-        <div style="display:flex;align-items:center;gap:16px;margin-bottom:14px">
-          <div>
-            <div style="font-family:'Bebas Neue',sans-serif;font-size:3rem;color:${ratingCol};line-height:1">${sr.rating}</div>
-            <div style="font-size:.72rem;color:${ratingCol};letter-spacing:.5px;margin-top:2px">${sr.label}</div>
-          </div>
-          <div style="flex:1">
-            <div style="height:6px;background:var(--card2);border-radius:3px;overflow:hidden;margin-bottom:6px">
-              <div style="height:100%;width:${barW}%;background:${ratingCol};border-radius:3px;transition:width .4s"></div>
-            </div>
-            <div style="font-size:.7rem;color:var(--muted)">${sr.avgQualityGoals.toFixed(2)} quality-adjusted goals/game</div>
-            <div style="font-size:.65rem;color:var(--muted);margin-top:2px">Goals against stronger defences score higher · max 10</div>
+      }).filter(Boolean);
+      return `<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 20px;margin-bottom:12px">
+        <div style="font-size:.58rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:12px">Career Highs</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px">
+          ${statBests.join('')}
+          <div style="background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:10px 12px">
+            <div style="font-size:.55rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:3px">🏆 Best Streak</div>
+            <div style="font-family:'Bebas Neue',sans-serif;font-size:1.8rem;color:var(--green);line-height:1;margin-bottom:2px">${s.longestWinStreak}</div>
+            <div style="font-size:.6rem;color:var(--muted)">wins in a row</div>
           </div>
         </div>
-        ${adminMode ? `<div>
-          <div style="display:flex;font-size:.63rem;color:var(--muted);margin-bottom:3px;padding:0 0 3px;border-bottom:1px solid var(--border)">
-            <span style="min-width:70px">Date</span>
-            <span style="min-width:14px">G</span>
-            <span style="flex:1">Opposition</span>
-            <span style="min-width:28px;text-align:right">×wt</span>
-            <span style="min-width:32px;text-align:right">Adj</span>
-          </div>
-          ${gameRows}
-        </div>` : ''}
-        ${(() => {
-          // GK head-to-head — find all keepers this striker has faced via event log
-          let logs;
-          try { logs = JSON.parse(localStorage.getItem('aero_event_logs') || '{}'); } catch(e) { return ''; }
-          // Collect unique keeper names from all matches
-          const gkNames = new Set();
-          Object.values(logs).forEach(log => {
-            Object.values(log.gkRotation || {}).forEach(segs => segs.forEach(seg => gkNames.add(seg.player)));
-          });
-          const h2h = [...gkNames]
-            .map(gk => ({ gk, ...computeStrikerRatingVsGK(name, gk) }))
-            .filter(r => r && r.attempts > 0)
-            .sort((a,b) => b.attempts - a.attempts);
-          if (!h2h.length) return '';
-          return `<div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">
-            <div style="font-family:'Barlow Condensed',sans-serif;font-size:.65rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:8px">Head to Head vs Keepers</div>
-            <div style="display:flex;flex-direction:column;gap:4px">
-              ${h2h.map(r => {
-                const pctCol = r.pct >= 50 ? 'var(--green)' : r.pct >= 30 ? 'var(--lime)' : r.pct >= 15 ? 'var(--amber,#f59e0b)' : 'rgba(248,113,113,.8)';
-                const barW2 = r.pct;
-                return `<div style="display:flex;align-items:center;gap:8px;padding:5px 8px;background:var(--card2);border-radius:6px"
-                  data-tip="${r.goals} goal${r.goals!==1?'s':''} in ${r.attempts} attempt${r.attempts!==1?'s':''} vs ${r.gk} · ${r.saves} save${r.saves!==1?'s':''} made against">
-                  <span style="flex:1;font-size:.78rem;font-weight:500">${r.gk}</span>
-                  <div style="width:60px;height:4px;background:rgba(255,255,255,.08);border-radius:2px;overflow:hidden">
-                    <div style="height:100%;width:${barW2}%;background:${pctCol};border-radius:2px"></div>
-                  </div>
-                  <span style="font-size:.72rem;color:${pctCol};min-width:36px;text-align:right;font-weight:600">${r.goals}/${r.attempts}</span>
-                  <span style="font-size:.68rem;color:var(--muted);min-width:30px;text-align:right">${r.pct}%</span>
-                </div>`;
-              }).join('')}
-            </div>
-          </div>`;
-        })()}
       </div>`;
     })()}
 
-    <!-- Career Highs -->
-    <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:14px">
-      <div style="font-family:'Barlow Condensed',sans-serif;font-size:.7rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:14px">Career Highs</div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px">
-        ${[['Most Goals', 'goals'],['Most Assists', 'assists'],['Most Tackles', 'tackles'],['Most Nutmegs', 'nutmegs']].map(([lbl, stat]) => {
-          const best = s.matches.reduce((b, r) => n(r[stat]) > n(b[stat]) ? r : b, s.matches[0]||{});
-          const val = best ? n(best[stat]) : 0;
-          return `<div style="background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:12px">
-            <div style="font-size:.6rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:6px">${lbl}</div>
-            <div style="font-family:'Bebas Neue',sans-serif;font-size:2rem;color:var(--green);line-height:1;margin-bottom:4px">${val}</div>
-            ${best?.match_date ? `<div style="font-size:.65rem;color:var(--muted)">vs Team ${best.team==='A'?'B':'A'} · ${best.match_date}</div>` : ''}
-          </div>`;
-        }).join('')}
-        <div style="background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:12px">
-          <div style="font-size:.6rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:6px">Total Tackles</div>
-          <div style="font-family:'Bebas Neue',sans-serif;font-size:2rem;color:var(--green);line-height:1;margin-bottom:4px">${s.tackles}</div>
-          <div style="font-size:.65rem;color:var(--muted)">${(s.tackles/g).toFixed(1)} per game</div>
-        </div>
-        <div style="background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:12px">
-          <div style="font-size:.6rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:6px">Best Streak</div>
-          <div style="font-family:'Bebas Neue',sans-serif;font-size:2rem;color:var(--green);line-height:1;margin-bottom:4px">${s.longestWinStreak}</div>
-          <div style="font-size:.65rem;color:var(--muted)">wins in a row</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Notes + Spider (full width) -->
-    <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:14px">
-      <div style="font-family:'Barlow Condensed',sans-serif;font-size:.7rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:8px">📝 Notes</div>
-      <textarea id="profile-notes-${name.replace(/\s/g,'_')}"
-        placeholder="Add a note about this player — injury status, role preference, availability…"
-        onblur="savePlayerNote('${name}',this.value)"
-        style="width:100%;background:var(--card2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'Barlow',sans-serif;font-size:.82rem;padding:10px 12px;resize:vertical;min-height:60px;outline:none;box-sizing:border-box;line-height:1.5">${(playerNotes[name]||'').replace(/</g,'&lt;')}</textarea>
-    </div>
-
-    ${(() => {
-      const chem = (window._filteredChemistry || []).filter(c =>
-        (c.p1 === name || c.p2 === name) && c.games >= 2
-      ).sort((a,b) => b.games - a.games || Math.abs(b.delta) - Math.abs(a.delta));
-      if (!chem.length) return '';
-      const rows = chem.slice(0, 8).map(c => {
-        const partner = c.p1 === name ? c.p2 : c.p1;
-        const d = c.delta;
-        const col = d >= 8 ? 'var(--green)' : d >= 2 ? 'var(--lime)' : d <= -8 ? 'var(--red)' : d <= -2 ? 'var(--amber,#f59e0b)' : 'var(--muted)';
-        const bar = Math.min(Math.abs(d), 30) / 30 * 100;
-        const sign = d > 0 ? '+' : '';
-        return `<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.04);cursor:pointer" onclick="nav('profile','${partner}')" data-tip="${c.games} games together · ${c.winRate}% win rate · baseline ${c.baseline}%">
-          <div style="width:28px;height:28px;border-radius:6px;background:var(--card2);display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:.72rem;color:var(--muted);flex-shrink:0">${partner.slice(0,2).toUpperCase()}</div>
-          <div style="flex:1;min-width:0">
-            <div style="font-size:.82rem;font-weight:600;color:var(--text)">${partner}</div>
-            <div style="margin-top:3px;height:3px;background:var(--card2);border-radius:2px;overflow:hidden">
-              <div style="height:100%;width:${bar}%;background:${col};border-radius:2px;${d < 0 ? 'margin-left:auto' : ''}"></div>
-            </div>
-          </div>
-          <div style="text-align:right;flex-shrink:0">
-            <div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:${col};line-height:1">${sign}${d}%</div>
-            <div style="font-size:.6rem;color:var(--muted)">${c.games}g</div>
-          </div>
-        </div>`;
-      }).join('');
-      return `<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:14px">
-        <div style="font-family:'Barlow Condensed',sans-serif;font-size:.7rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:4px">🤝 Chemistry</div>
-        <div style="font-size:.65rem;color:var(--muted);margin-bottom:12px">Win rate impact vs baseline when playing alongside each teammate</div>
-        ${rows}
-      </div>`;
-    })()}
-
-    <!-- Time-Based Stats (from event log) -->
-    <div id="profile-time-stats"></div>
-
-    <!-- Goal Foot Breakdown & Net Map -->
-    ${renderGoalFootBreakdown(name)}
-    ${renderGoalNetMap(name)}
-
-    <!-- Shot Heatmap -->
-    <div id="profile-heatmap-section" style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:14px">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
-        <div style="font-family:'Barlow Condensed',sans-serif;font-size:.7rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted)" id="profile-heatmap-title">📍 Locations</div>
-        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-          <!-- Pill size -->
-          <div style="display:flex;align-items:center;gap:5px" data-tip="Adjust the size of the number badges on the heatmap">
-            <span style="font-size:.6rem;color:var(--muted);letter-spacing:.5px;text-transform:uppercase">Size</span>
-            <input type="range" min="3" max="18" step="1" value="9"
-              style="width:52px;accent-color:var(--lime);cursor:pointer;vertical-align:middle"
-              oninput="window._hmapPillSize=this.value/10;renderProfileHeatmap(currentProfileName,window._hmapType||'shot')">
-          </div>
-          <!-- Numbers toggle -->
-          <button id="hmap-nums-btn" onclick="window._hmapShowNumbers=!(window._hmapShowNumbers??true);this.style.opacity=(window._hmapShowNumbers??true)?'1':'0.4';renderProfileHeatmap(currentProfileName,window._hmapType||'shot')"
-            style="font-family:'Barlow Condensed',sans-serif;font-size:.7rem;padding:3px 8px;border-radius:5px;border:1px solid var(--border);background:var(--card2);color:var(--muted);cursor:pointer;letter-spacing:.3px"
-            data-tip="Toggle shot count numbers on the heatmap badges">123</button>
-          <!-- Shot / Assist tabs -->
-          <button id="hmap-tab-shot" onclick="window._hmapType='shot';renderProfileHeatmap(currentProfileName,'shot')" style="font-family:'Barlow Condensed',sans-serif;font-size:.72rem;letter-spacing:.5px;padding:3px 10px;border-radius:5px;border:1px solid var(--border);background:var(--card2);color:var(--lime);cursor:pointer" data-tip="Show where this player scored from — heat intensity = how often shots came from that zone">⚽ Shots</button>
-          <button id="hmap-tab-assist" onclick="window._hmapType='assist';renderProfileHeatmap(currentProfileName,'assist')" style="font-family:'Barlow Condensed',sans-serif;font-size:.72rem;letter-spacing:.5px;padding:3px 10px;border-radius:5px;border:1px solid var(--border);background:var(--card2);color:var(--amber,#f59e0b);cursor:pointer" data-tip="Show where this player created from — heat intensity = how often assists came from that zone">🅰️ Assists</button>
-        </div>
-      </div>
-      <div id="profile-heatmap-debug" style="font-size:.65rem;color:var(--amber);font-family:monospace;margin-bottom:8px"></div>
-      <canvas id="profile-heatmap" width="400" height="208" style="display:block;width:100%;border-radius:8px;background:#1a7a32"></canvas>
-      <div style="display:flex;align-items:center;gap:8px;margin-top:8px">
-        <span style="font-size:.7rem;color:var(--muted)">Low</span>
-        <div style="width:80px;height:6px;border-radius:3px;background:linear-gradient(to right,#3b82f6,#22c55e,#eab308,#f97316,#dc2626)"></div>
-        <span style="font-size:.7rem;color:var(--muted)">High</span>
-      </div>
-      <div id="profile-heatmap-stats" style="display:none;margin-top:12px;display:grid;grid-template-columns:repeat(3,1fr);gap:8px"></div>
-    </div>
-
-    <!-- Match History -->
-    <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:14px">
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
-        <div style="font-family:'Barlow Condensed',sans-serif;font-size:.7rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted)">Recent Matches</div>
-        <div style="font-size:.62rem;color:var(--muted);opacity:.6">· click for full match</div>
-      </div>
-
-      <!-- Desktop table -->
-      <div class="mobile-hide" style="overflow-x:auto">
-        <table style="width:100%;border-collapse:collapse;font-family:'Barlow Condensed',sans-serif">
-          <thead>
-            <tr style="border-bottom:1px solid var(--border)">
-              ${['Date','Team','Result','Score','G','A','SH','KP','TK','INT','NM','GKS','BLK'].map(h =>
-                `<th style="padding:5px 8px;text-align:${h==='Date'?'left':'center'};font-size:.62rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);white-space:nowrap;font-weight:600">${h}</th>`
-              ).join('')}
-            </tr>
-          </thead>
-          <tbody>
-            ${sortedMatches.slice(0,20).map(r => {
-              const m = matchList.find(m => m.id === r.match_id);
-              const won = m && ((r.team==='A'&&m.goalsA>m.goalsB)||(r.team==='B'&&m.goalsB>m.goalsA));
-              const drew = m && m.goalsA===m.goalsB;
-              const resultCol = won?'var(--green)':drew?'var(--amber)':'var(--red)';
-              const resultLbl = won?'W':drew?'D':'L';
-              const isMvp = m?.mvpList?.[0]?.player === name;
-              const mvpBadge = isMvp ? `<span style="background:rgba(240,192,64,.2);color:var(--gold);font-size:.6rem;padding:1px 5px;border-radius:3px;margin-left:4px">★ MVP</span>` : '';
-              const isSwapped = m?.swappedPlayers?.some(sp => sp.player === name);
-              const swapInfo = isSwapped ? m.swappedPlayers.find(sp => sp.player === name) : null;
-              const swapHalf = swapInfo ? (r.team === swapInfo.from ? '1H' : '2H') : null;
-              const teamDisplay = swapHalf
-                ? `${r.team} <span style="font-size:.58rem;color:#60a5fa;background:rgba(96,165,250,.15);padding:1px 4px;border-radius:3px">${swapHalf}</span>`
-                : r.team;
-              const h1 = m ? m.rows.find(x => x.player === name && x.half === '1H') : null;
-              const h2 = m ? m.rows.find(x => x.player === name && x.half === '2H') : null;
-              const halfStr = h1 && h2
-                ? `<div style="font-size:.58rem;color:var(--muted);opacity:.7;margin-top:1px">1H: ${n(h1.goals)}G ${n(h1.assists)}A · 2H: ${n(h2.goals)}G ${n(h2.assists)}A</div>`
-                : '';
-              const td = (val, col='var(--text2)', bold=false) =>
-                `<td style="padding:6px 8px;text-align:center;font-size:.78rem;color:${val===0||val==='0'?'var(--muted)':col};${bold?'font-weight:700':''};">${val===0||val==='0'?'–':val}</td>`;
-              return `<tr style="border-bottom:1px solid rgba(255,255,255,.04);cursor:pointer;transition:background .1s" onclick="navToMatch('${r.match_id}')" onmouseover="this.style.background='rgba(255,255,255,.03)'" onmouseout="this.style.background=''">
-                <td style="padding:6px 8px;font-size:.75rem;white-space:nowrap">
-                  <div><span style="color:var(--text)">${r.match_date?.replace(/(\d{4})-(\d{2})-(\d{2})/, '$3/$2')}</span> <span style="color:var(--muted);font-size:.68rem">${r.match_date?.slice(0,4)}</span></div>
-                  ${halfStr}
-                </td>
-                <td style="padding:6px 8px;text-align:center;font-size:.78rem;color:${r.team==='A'?'var(--green)':'var(--blue)'};font-weight:700">${teamDisplay}</td>
-                <td style="padding:6px 8px;text-align:center">
-                  <span style="background:${won?'rgba(57,211,83,.2)':drew?'rgba(240,160,48,.2)':'rgba(240,96,96,.2)'};color:${resultCol};font-family:'Bebas Neue',sans-serif;font-size:.9rem;padding:2px 8px;border-radius:4px">${resultLbl}</span>
-                  ${mvpBadge}
-                </td>
-                <td style="padding:6px 8px;text-align:center;font-size:.75rem;color:var(--muted)">${m?`${m.goalsA}–${m.goalsB}`:''}</td>
-                ${td(n(r.goals), 'var(--green)', true)}
-                ${td(n(r.assists), 'var(--text2)')}
-                ${td(n(r.total_shots))}
-                ${td(n(r.key_passes))}
-                ${td(n(r.tackles))}
-                ${td(n(r.interceptions))}
-                ${td(n(r.nutmegs))}
-                ${td(n(r.goalkeeper_saves))}
-                ${td(n(r.blocks))}
-              </tr>`;
-            }).join('')}
-          </tbody>
-        </table>
-      </div>
-
-      <!-- Mobile cards -->
-      <div class="mobile-cards" style="display:none">
-        ${sortedMatches.slice(0,20).map(r => {
-          const m = matchList.find(m => m.id === r.match_id);
+    <!-- ═══ RECENT MATCHES ═══ -->
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 20px;margin-bottom:14px">
+      <div style="font-size:.58rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:12px">Recent Matches</div>
+      <div style="display:flex;flex-direction:column">
+        ${[...s.matches].sort((a,b)=>(b.match_date||'').localeCompare(a.match_date||'')).slice(0,10).map(r => {
+          const m = matchList.find(x=>x.id===r.match_id);
           const won = m && ((r.team==='A'&&m.goalsA>m.goalsB)||(r.team==='B'&&m.goalsB>m.goalsA));
           const drew = m && m.goalsA===m.goalsB;
-          const resultCol = won?'var(--green)':drew?'var(--amber)':'var(--red)';
-          const resultLbl = won?'W':drew?'D':'L';
-          const isMvp = m?.mvpList?.[0]?.player === name;
-          const score = m ? `${m.goalsA}–${m.goalsB}` : '';
-          const dateStr = r.match_date?.replace(/(\d{4})-(\d{2})-(\d{2})/, '$3/$2/$1') || '';
-          const mSwapInfo = m?.swappedPlayers?.find(sp => sp.player === name);
-          const mSwapHalf = mSwapInfo ? (r.team === mSwapInfo.from ? '1H' : '2H') : null;
-          const mSwapBadge = mSwapHalf ? `<span style="font-size:.55rem;color:#60a5fa;background:rgba(96,165,250,.15);padding:1px 4px;border-radius:3px">${mSwapHalf}</span>` : '';
-          const statGrid = [
-            ['G',  n(r.goals),              'var(--green)'],
-            ['A',  n(r.assists),            '#a0c4ff'],
-            ['SH', n(r.total_shots),        'var(--text2)'],
-            ['KP', n(r.key_passes),         'var(--text2)'],
-            ['TK', n(r.tackles),            'var(--text2)'],
-            ['INT',n(r.interceptions),      'var(--text2)'],
-            ['NM', n(r.nutmegs),            'var(--muted)'],
-            ['GKS',n(r.goalkeeper_saves),   'var(--muted)'],
-            ['BLK',n(r.blocks),             'var(--muted)'],
-          ].map(([lbl,val,col]) => `
-            <div style="text-align:center">
-              <div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:${val>0?col:'rgba(255,255,255,.15)'};line-height:1">${val||'–'}</div>
-              <div style="font-size:.55rem;color:var(--muted);letter-spacing:.5px;text-transform:uppercase">${lbl}</div>
-            </div>`).join('');
-          return `<div onclick="navToMatch('${r.match_id}')" style="border:1px solid var(--border);border-radius:9px;padding:10px 12px;margin-bottom:8px;cursor:pointer;background:${won?'rgba(57,211,83,.04)':drew?'rgba(240,160,48,.04)':'rgba(240,96,96,.04)'}">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-              <div style="display:flex;align-items:center;gap:8px">
-                <span style="background:${won?'rgba(57,211,83,.2)':drew?'rgba(240,160,48,.2)':'rgba(240,96,96,.2)'};color:${resultCol};font-family:'Bebas Neue',sans-serif;font-size:1rem;padding:2px 10px;border-radius:4px">${resultLbl}</span>
-                <span style="font-size:.8rem;color:var(--muted)">${score}</span>
-                ${isMvp?`<span style="background:rgba(240,192,64,.2);color:var(--gold);font-size:.6rem;padding:1px 5px;border-radius:3px">★ MVP</span>`:''}
-                ${mSwapBadge}
-              </div>
-              <span style="font-size:.68rem;color:var(--muted)">${dateStr}</span>
-            </div>
-            <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px">${statGrid}</div>
+          const res = won?'W':drew?'D':'L';
+          const resCol = won?'var(--green)':drew?'var(--amber)':'var(--red)';
+          const resBg = won?'rgba(57,211,83,.1)':drew?'rgba(245,158,11,.1)':'rgba(248,113,113,.08)';
+          const dateStr = r.match_date ? r.match_date.replace(/^(\d{4})-(\d{2})-(\d{2})$/,'$3/$2/$1') : '';
+          const isMvp = m && ((m.mvp===r.player)||(m.mvp2===r.player)||(m.mvp3===r.player));
+          const chips = [['⚽',n(r.goals)],['🎯',n(r.assists)],['🔫',n(r.total_shots)],['🔑',n(r.key_passes)],['✂',n(r.interceptions)]].filter(([,v])=>v>0).map(([ic,v])=>`<span style="font-size:.68rem;color:var(--muted)">${ic}<span style="color:var(--text);font-family:'Bebas Neue',sans-serif;font-size:.82rem"> ${v}</span></span>`).join('');
+          return `<div onclick="openMatchDetailFromProfile('${r.match_id}')" style="display:grid;grid-template-columns:64px 50px 1fr auto;align-items:center;gap:10px;padding:9px 8px;border-radius:7px;cursor:pointer;transition:background .12s;border-bottom:1px solid rgba(255,255,255,.03)" onmouseenter="this.style.background='var(--card2)'" onmouseleave="this.style.background='transparent'">
+            <div style="font-size:.68rem;color:var(--muted)">${dateStr}</div>
+            <div style="display:flex;align-items:center;gap:5px"><span style="width:20px;height:20px;border-radius:50%;background:${resBg};border:1px solid ${resCol};color:${resCol};font-family:'Bebas Neue',sans-serif;font-size:.68rem;display:flex;align-items:center;justify-content:center;flex-shrink:0">${res}</span><span style="font-size:.62rem;color:var(--muted)">T${r.team}</span></div>
+            <div style="display:flex;gap:9px;flex-wrap:wrap">${chips}</div>
+            <div style="display:flex;align-items:center;gap:5px;flex-shrink:0">${isMvp?'<span style="font-size:.6rem;color:var(--gold)">👑</span>':''}<span style="font-family:'Bebas Neue',sans-serif;font-size:.88rem;color:var(--muted)">${m?m.goalsA+'–'+m.goalsB:'–'}</span></div>
           </div>`;
         }).join('')}
+        ${s.matches.length > 10 ? `<div style="font-size:.68rem;color:var(--muted);text-align:center;padding:8px 0">${s.matches.length-10} more matches in career</div>` : ''}
       </div>
+    </div>
 
-      ${s.matches.length > 20 ? `<div style="font-size:.72rem;color:var(--muted);text-align:center;padding:8px 0;border-top:1px solid var(--border);margin-top:8px">${s.matches.length - 20} more matches not shown</div>` : ''}
-    </div>`;
+    <!-- ═══ MORE DETAIL (collapsed) ═══ -->
+    <details style="margin-bottom:20px" id="profile-details-section">
+      <summary style="list-style:none;cursor:pointer;padding:12px 18px;background:var(--card);border:1px solid var(--border);border-radius:12px;font-family:'Barlow Condensed',sans-serif;font-size:.78rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);display:flex;align-items:center;justify-content:space-between;user-select:none">
+        <span>More Detail</span><span style="font-size:.8rem">▼</span>
+      </summary>
+      <div style="border:1px solid var(--border);border-top:none;border-radius:0 0 12px 12px;padding:18px;display:flex;flex-direction:column;gap:14px;background:var(--card)">
+        ${bestGameHtml}
+        ${(() => {
+          const { scoredFrom, assistedTo } = getPlayerComboStats(name);
+          if (!scoredFrom.length && !assistedTo.length) return '';
+          const partnerCard = (p, type) => {
+            const col = type==='scored'?'var(--green)':'var(--lime)';
+            const rel = type==='scored'
+              ? `<span>${name}</span> <span style="color:var(--muted)">←</span> <span style="color:${col}">${p.name}</span>`
+              : `<span style="color:${col}">${p.name}</span> <span style="color:var(--muted)">←</span> <span>${name}</span>`;
+            const assister=type==='scored'?p.name:name, scorer=type==='scored'?name:p.name;
+            const pairGeos=[],pairPassLens=[];
+            Object.values(goalCombos).forEach(data=>{[...(data.h1||[]),...(data.h2||[])].forEach(g=>{
+              if(!g.isOG&&g.scorer===scorer&&g.assister===assister&&g.ax!=null&&g.ay!=null){
+                pairGeos.push({sx:g.ax,sy:g.ay});
+                if(g.sx!=null&&g.sy!=null){const dx=(g.sx-g.ax)*300,dy=(g.sy-g.ay)*156;pairPassLens.push(Math.hypot(dx,dy)/Math.hypot(300,156));}
+              }
+            });});
+            const avgPL=pairPassLens.length>0?Math.round(pairPassLens.reduce((s,v)=>s+v,0)/pairPassLens.length*100):null;
+            const courtId=`court-${name.replace(/\s/g,'_')}-${p.name.replace(/\s/g,'_')}-${type}`;
+            if(pairGeos.length>0){window._pendingMiniCourts=window._pendingMiniCourts||[];window._pendingMiniCourts.push({id:courtId,shots:pairGeos});}
+            return `<div style="background:var(--card);border:1px solid var(--border);border-radius:9px;padding:9px;display:flex;align-items:center;gap:9px">
+              <div style="width:28px;height:28px;border-radius:50%;background:var(--card2);display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:.8rem;color:${col};flex-shrink:0">${p.name[0]}</div>
+              <div style="flex:1;min-width:0"><div style="font-size:.72rem;margin-bottom:1px">${rel}</div><div style="font-size:.6rem;color:var(--muted)">${p.goals}g · ${p.comboMatches}/${p.sharedGames} games</div></div>
+              <div style="text-align:right;flex-shrink:0">
+                ${pairGeos.length>0?`<canvas id="${courtId}" width="44" height="23" style="display:block;border-radius:3px;background:#1a7a32;margin-bottom:2px"></canvas>`:''}
+                ${avgPL!==null?`<div style="font-size:.58rem;color:var(--muted)">↗ ${avgPL}%</div>`:''}
+                <div style="font-family:'Bebas Neue',sans-serif;font-size:1rem;color:${col}">${p.goals}</div>
+              </div>
+            </div>`;
+          };
+          const best=[...scoredFrom,...assistedTo].sort((a,b)=>b.goals-a.goals)[0];
+          return `<div style="background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:14px">
+            <div style="font-size:.58rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:4px">🤝 Strike Partnerships</div>
+            ${best?`<div style="font-size:.68rem;color:var(--lime);margin-bottom:10px">🔗 Best: ${best.name} — ${best.goals} combined goal involvements</div>`:''}
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+              <div><div style="font-size:.57rem;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:6px">Who sets up ${name}</div><div style="display:flex;flex-direction:column;gap:5px">${scoredFrom.slice(0,4).map(p=>partnerCard(p,'scored')).join('')}</div></div>
+              <div><div style="font-size:.57rem;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:6px">Who ${name} sets up</div><div style="display:flex;flex-direction:column;gap:5px">${assistedTo.slice(0,4).map(p=>partnerCard(p,'assists')).join('')}</div></div>
+            </div>
+          </div>`;
+        })()}
+        <div id="profile-time-stats"></div>
+      </div>
+    </details>
+`;
 
 
   // Draw mini courts registered during HTML generation, then charts
