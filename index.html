@@ -6540,9 +6540,23 @@ function computeFilteredStats() {
   Object.keys(playerStats).forEach(name => {
     if (newStats[name]) {
       const ps = playerStats[name];
-      newStats[name].wins            = ps.wins;
-      newStats[name].losses          = ps.losses;
-      newStats[name].draws           = ps.draws;
+      // Recompute wins/losses/draws from the filtered match rows
+      const filteredMatchIds = new Set(filteredFull.filter(r => r.player === name).map(r => r.match_id));
+      let filtWins = 0, filtLosses = 0, filtDraws = 0;
+      filteredMatchIds.forEach(mid => {
+        const m = matchList.find(x => x.id === mid);
+        const row = filteredFull.find(r => r.player === name && r.match_id === mid);
+        if (!m || !row) return;
+        const team = row.team;
+        const myG = team === 'A' ? m.goalsA : m.goalsB;
+        const opG = team === 'A' ? m.goalsB : m.goalsA;
+        if (myG > opG) filtWins++;
+        else if (myG < opG) filtLosses++;
+        else filtDraws++;
+      });
+      newStats[name].wins            = filtWins;
+      newStats[name].losses          = filtLosses;
+      newStats[name].draws           = filtDraws;
       newStats[name].mvps            = ps.mvps;
       newStats[name].mvp2s           = ps.mvp2s;
       newStats[name].mvp3s           = ps.mvp3s;
@@ -8142,43 +8156,53 @@ function initShotMap(safeName, allGoalData, allAssistData) {
     if (dbg) dbg.textContent = data.length + (mode==='assists'?' assist':' goal') + (data.length!==1?'s':'') + ' mapped';
 
     if (viewNet) {
-      // ── NET VIEW — capped width ──
+      // ── NET VIEW — Option C: app-themed, 3D depth, 8×4 grid ──
       const withNet = data.filter(g => g.netX != null);
+      // Goal mouth coords: x 34–166, y 32–104 inside a 200×130 viewBox
       const netDotsSvg = withNet.map((g, i) => {
         const col = g.foot ? (footColor[g.foot] || '#aaa') : '#aaa';
-        const cx = (6 + g.netX * 144).toFixed(1);
-        const cy = (4 + g.netY * 42).toFixed(1);
-        return `<circle cx="${cx}" cy="${cy}" r="5" fill="${col}" fill-opacity="0.9" stroke="rgba(0,0,0,.45)" stroke-width="1.2" data-idx="${i}" style="cursor:pointer"/>`;
+        const cx = (34 + g.netX * 132).toFixed(1);
+        const cy = (32 + g.netY * 72).toFixed(1);
+        return `<circle cx="${cx}" cy="${cy}" r="4" fill="${col}" fill-opacity="0.95" stroke="#0a110c" stroke-width="1.2" data-idx="${i}" style="cursor:pointer"/>`;
       }).join('');
-      // Wide 3:1 ratio goal frame with zone labels (like the reference image)
-      pitchEl.innerHTML = `<div style="max-width:520px"><svg viewBox="0 0 156 56" style="width:100%;display:block;border-radius:8px" xmlns="http://www.w3.org/2000/svg">
-        <rect width="156" height="56" fill="#0d1f10" rx="6"/>
-        <!-- Goal inner area -->
-        <rect x="6" y="4" width="144" height="44" fill="rgba(255,255,255,.03)" stroke="rgba(255,255,255,.12)" stroke-width=".5"/>
-        <!-- Grid lines — 3 cols × 3 rows = 9 zones -->
-        <line x1="54" y1="4" x2="54" y2="48" stroke="rgba(255,255,255,.15)" stroke-width=".6"/>
-        <line x1="102" y1="4" x2="102" y2="48" stroke="rgba(255,255,255,.15)" stroke-width=".6"/>
-        <line x1="6" y1="19" x2="150" y2="19" stroke="rgba(255,255,255,.15)" stroke-width=".6"/>
-        <line x1="6" y1="33" x2="150" y2="33" stroke="rgba(255,255,255,.15)" stroke-width=".6"/>
-        <!-- Zone labels -->
-        <text x="30" y="13" text-anchor="middle" font-size="4" fill="rgba(255,255,255,.25)" font-family="sans-serif">Top L</text>
-        <text x="78" y="13" text-anchor="middle" font-size="4" fill="rgba(255,255,255,.25)" font-family="sans-serif">Top</text>
-        <text x="126" y="13" text-anchor="middle" font-size="4" fill="rgba(255,255,255,.25)" font-family="sans-serif">Top R</text>
-        <text x="30" y="27" text-anchor="middle" font-size="4" fill="rgba(255,255,255,.2)" font-family="sans-serif">L</text>
-        <text x="78" y="27" text-anchor="middle" font-size="4" fill="rgba(255,255,255,.2)" font-family="sans-serif">Centre</text>
-        <text x="126" y="27" text-anchor="middle" font-size="4" fill="rgba(255,255,255,.2)" font-family="sans-serif">R</text>
-        <text x="30" y="44" text-anchor="middle" font-size="4" fill="rgba(255,255,255,.2)" font-family="sans-serif">Bot L</text>
-        <text x="78" y="44" text-anchor="middle" font-size="4" fill="rgba(255,255,255,.2)" font-family="sans-serif">Bot</text>
-        <text x="126" y="44" text-anchor="middle" font-size="4" fill="rgba(255,255,255,.2)" font-family="sans-serif">Bot R</text>
-        <!-- Posts + crossbar — thick white -->
-        <line x1="6" y1="4" x2="6" y2="48" stroke="white" stroke-width="2.5"/>
-        <line x1="150" y1="4" x2="150" y2="48" stroke="white" stroke-width="2.5"/>
-        <line x1="6" y1="4" x2="150" y2="4" stroke="white" stroke-width="2.5"/>
-        <!-- Ground -->
-        <line x1="3" y1="48" x2="153" y2="48" stroke="rgba(255,255,255,.4)" stroke-width="1.5"/>
-        <text x="78" y="54" text-anchor="middle" font-size="3" fill="rgba(255,255,255,.2)" font-family="sans-serif">ground</text>
+      pitchEl.innerHTML = `<svg viewBox="0 0 200 130" style="width:100%;max-width:480px;display:block;border-radius:10px" xmlns="http://www.w3.org/2000/svg">
+        <!-- outer card -->
+        <rect width="200" height="130" fill="#111a13" rx="10"/>
+        <!-- inset goal mouth -->
+        <rect x="34" y="32" width="132" height="72" fill="#0a110c" rx="2"/>
+        <!-- 3D perspective depth lines from inner frame corners outward -->
+        <line x1="34" y1="32" x2="10" y2="14" stroke="rgba(57,211,83,.18)" stroke-width=".8"/>
+        <line x1="166" y1="32" x2="190" y2="14" stroke="rgba(57,211,83,.18)" stroke-width=".8"/>
+        <line x1="34" y1="104" x2="10" y2="116" stroke="rgba(57,211,83,.18)" stroke-width=".8"/>
+        <line x1="166" y1="104" x2="190" y2="116" stroke="rgba(57,211,83,.18)" stroke-width=".8"/>
+        <!-- depth panel fills -->
+        <polygon points="10,14 34,32 34,104 10,116" fill="rgba(57,211,83,.04)" stroke="rgba(57,211,83,.12)" stroke-width=".5"/>
+        <polygon points="190,14 166,32 166,104 190,116" fill="rgba(57,211,83,.04)" stroke="rgba(57,211,83,.12)" stroke-width=".5"/>
+        <polygon points="10,14 190,14 166,32 34,32" fill="rgba(57,211,83,.06)" stroke="rgba(57,211,83,.12)" stroke-width=".5"/>
+        <polygon points="10,116 190,116 166,104 34,104" fill="rgba(57,211,83,.03)" stroke="rgba(57,211,83,.1)" stroke-width=".5"/>
+        <!-- 8×4 grid inside goal mouth (7 vertical lines, 3 horizontal) -->
+        <line x1="50.5" y1="32" x2="50.5" y2="104" stroke="rgba(57,211,83,.12)" stroke-width=".5"/>
+        <line x1="67" y1="32" x2="67" y2="104" stroke="rgba(57,211,83,.12)" stroke-width=".5"/>
+        <line x1="83.5" y1="32" x2="83.5" y2="104" stroke="rgba(57,211,83,.12)" stroke-width=".5"/>
+        <line x1="100" y1="32" x2="100" y2="104" stroke="rgba(57,211,83,.12)" stroke-width=".5"/>
+        <line x1="116.5" y1="32" x2="116.5" y2="104" stroke="rgba(57,211,83,.12)" stroke-width=".5"/>
+        <line x1="133" y1="32" x2="133" y2="104" stroke="rgba(57,211,83,.12)" stroke-width=".5"/>
+        <line x1="149.5" y1="32" x2="149.5" y2="104" stroke="rgba(57,211,83,.12)" stroke-width=".5"/>
+        <line x1="34" y1="50" x2="166" y2="50" stroke="rgba(57,211,83,.12)" stroke-width=".5"/>
+        <line x1="34" y1="68" x2="166" y2="68" stroke="rgba(57,211,83,.12)" stroke-width=".5"/>
+        <line x1="34" y1="86" x2="166" y2="86" stroke="rgba(57,211,83,.12)" stroke-width=".5"/>
+        <!-- posts as rounded rects -->
+        <rect x="31" y="29" width="5" height="77" fill="rgba(255,255,255,.88)" rx="1.5"/>
+        <rect x="164" y="29" width="5" height="77" fill="rgba(255,255,255,.88)" rx="1.5"/>
+        <rect x="31" y="29" width="138" height="5" fill="rgba(255,255,255,.92)" rx="1.5"/>
+        <!-- ground line -->
+        <line x1="8" y1="116" x2="192" y2="116" stroke="rgba(57,211,83,.25)" stroke-width="1"/>
+        <!-- dots -->
         ${netDotsSvg}
-      </svg></div>`;
+      </svg>`;
+      pitchEl.querySelectorAll('circle[data-idx]').forEach(el => {
+        el.addEventListener('click', () => { showDetail(withNet[+el.dataset.idx]); });
+      });
       pitchEl.querySelectorAll('circle[data-idx]').forEach(el => {
         el.addEventListener('click', () => { showDetail(withNet[+el.dataset.idx]); });
       });
@@ -8226,24 +8250,39 @@ function initShotMap(safeName, allGoalData, allAssistData) {
     const footLabel = g.foot ? g.foot.charAt(0).toUpperCase() + g.foot.slice(1) + ' foot' : '—';
     const footCol = g.foot ? (footColor[g.foot] || 'var(--text)') : 'var(--muted)';
 
-    // Mini net map — wide 3:1 goal frame with zone labels
+    // Mini net map — Option C style (app-themed, 3D depth, 8×4 grid)
     let netMapHtml = '';
     if (g.netX != null) {
       const col = g.foot ? (footColor[g.foot] || '#aaa') : '#aaa';
-      const cx = (6 + g.netX * 144).toFixed(1);
-      const cy = (4 + g.netY * 42).toFixed(1);
-      netMapHtml = `<svg viewBox="0 0 156 56" style="width:110px;height:40px;display:block;border-radius:4px" xmlns="http://www.w3.org/2000/svg">
-        <rect width="156" height="56" fill="#0d1f10" rx="4"/>
-        <rect x="6" y="4" width="144" height="44" fill="rgba(255,255,255,.03)" stroke="rgba(255,255,255,.1)" stroke-width=".5"/>
-        <line x1="54" y1="4" x2="54" y2="48" stroke="rgba(255,255,255,.12)" stroke-width=".6"/>
-        <line x1="102" y1="4" x2="102" y2="48" stroke="rgba(255,255,255,.12)" stroke-width=".6"/>
-        <line x1="6" y1="19" x2="150" y2="19" stroke="rgba(255,255,255,.12)" stroke-width=".6"/>
-        <line x1="6" y1="33" x2="150" y2="33" stroke="rgba(255,255,255,.12)" stroke-width=".6"/>
-        <line x1="6" y1="4" x2="6" y2="48" stroke="white" stroke-width="2"/>
-        <line x1="150" y1="4" x2="150" y2="48" stroke="white" stroke-width="2"/>
-        <line x1="6" y1="4" x2="150" y2="4" stroke="white" stroke-width="2"/>
-        <line x1="3" y1="48" x2="153" y2="48" stroke="rgba(255,255,255,.35)" stroke-width="1.2"/>
-        <circle cx="${cx}" cy="${cy}" r="5.5" fill="${col}" fill-opacity="0.95" stroke="rgba(0,0,0,.4)" stroke-width="1"/>
+      // Scale into goal mouth coords: x 34–166, y 32–104 of 200×130 viewBox
+      const cx = (34 + g.netX * 132).toFixed(1);
+      const cy = (32 + g.netY * 72).toFixed(1);
+      netMapHtml = `<svg viewBox="0 0 200 130" style="width:100px;height:65px;display:block;border-radius:6px" xmlns="http://www.w3.org/2000/svg">
+        <rect width="200" height="130" fill="#111a13" rx="6"/>
+        <rect x="34" y="32" width="132" height="72" fill="#0a110c" rx="2"/>
+        <line x1="34" y1="32" x2="10" y2="14" stroke="rgba(57,211,83,.18)" stroke-width=".8"/>
+        <line x1="166" y1="32" x2="190" y2="14" stroke="rgba(57,211,83,.18)" stroke-width=".8"/>
+        <line x1="34" y1="104" x2="10" y2="116" stroke="rgba(57,211,83,.18)" stroke-width=".8"/>
+        <line x1="166" y1="104" x2="190" y2="116" stroke="rgba(57,211,83,.18)" stroke-width=".8"/>
+        <polygon points="10,14 34,32 34,104 10,116" fill="rgba(57,211,83,.04)" stroke="rgba(57,211,83,.12)" stroke-width=".5"/>
+        <polygon points="190,14 166,32 166,104 190,116" fill="rgba(57,211,83,.04)" stroke="rgba(57,211,83,.12)" stroke-width=".5"/>
+        <polygon points="10,14 190,14 166,32 34,32" fill="rgba(57,211,83,.06)" stroke="rgba(57,211,83,.12)" stroke-width=".5"/>
+        <polygon points="10,116 190,116 166,104 34,104" fill="rgba(57,211,83,.03)" stroke="rgba(57,211,83,.1)" stroke-width=".5"/>
+        <line x1="50.5" y1="32" x2="50.5" y2="104" stroke="rgba(57,211,83,.12)" stroke-width=".5"/>
+        <line x1="67" y1="32" x2="67" y2="104" stroke="rgba(57,211,83,.12)" stroke-width=".5"/>
+        <line x1="83.5" y1="32" x2="83.5" y2="104" stroke="rgba(57,211,83,.12)" stroke-width=".5"/>
+        <line x1="100" y1="32" x2="100" y2="104" stroke="rgba(57,211,83,.12)" stroke-width=".5"/>
+        <line x1="116.5" y1="32" x2="116.5" y2="104" stroke="rgba(57,211,83,.12)" stroke-width=".5"/>
+        <line x1="133" y1="32" x2="133" y2="104" stroke="rgba(57,211,83,.12)" stroke-width=".5"/>
+        <line x1="149.5" y1="32" x2="149.5" y2="104" stroke="rgba(57,211,83,.12)" stroke-width=".5"/>
+        <line x1="34" y1="50" x2="166" y2="50" stroke="rgba(57,211,83,.12)" stroke-width=".5"/>
+        <line x1="34" y1="68" x2="166" y2="68" stroke="rgba(57,211,83,.12)" stroke-width=".5"/>
+        <line x1="34" y1="86" x2="166" y2="86" stroke="rgba(57,211,83,.12)" stroke-width=".5"/>
+        <rect x="31" y="29" width="5" height="77" fill="rgba(255,255,255,.88)" rx="1.5"/>
+        <rect x="164" y="29" width="5" height="77" fill="rgba(255,255,255,.88)" rx="1.5"/>
+        <rect x="31" y="29" width="138" height="5" fill="rgba(255,255,255,.92)" rx="1.5"/>
+        <line x1="8" y1="116" x2="192" y2="116" stroke="rgba(57,211,83,.25)" stroke-width="1"/>
+        <circle cx="${cx}" cy="${cy}" r="5" fill="${col}" fill-opacity="0.95" stroke="#0a110c" stroke-width="1.2"/>
       </svg>`;
     }
 
