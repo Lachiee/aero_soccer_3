@@ -7711,8 +7711,9 @@ function renderProfileGkTimeline(name) {
     </div>`;
   }).join('');
 
-  const totalMins = (ts.totalGkSecs / 60).toFixed(0);
-  const avgMins = matches.length ? (ts.totalGkSecs / 60 / matches.length).toFixed(1) : 0;
+  const totalMins = ts.gkMinutes || 0;
+  const avgMins = matches.length ? (totalMins / matches.length).toFixed(1) : 0;
+  const totalSaves = ts.gkSaves || 0;
 
   el.innerHTML = `<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 20px;margin-bottom:12px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
@@ -7720,7 +7721,7 @@ function renderProfileGkTimeline(name) {
       <div style="display:flex;gap:14px">
         <div style="text-align:center"><div style="font-family:'Bebas Neue',sans-serif;font-size:1.2rem;color:var(--text)">${totalMins}'</div><div style="font-size:.55rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Total</div></div>
         <div style="text-align:center"><div style="font-family:'Bebas Neue',sans-serif;font-size:1.2rem;color:var(--text)">${avgMins}'</div><div style="font-size:.55rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Avg/game</div></div>
-        <div style="text-align:center"><div style="font-family:'Bebas Neue',sans-serif;font-size:1.2rem;color:var(--text)">${ts.totalGkSaves||0}</div><div style="font-size:.55rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Saves</div></div>
+        <div style="text-align:center"><div style="font-family:'Bebas Neue',sans-serif;font-size:1.2rem;color:var(--text)">${totalSaves}</div><div style="font-size:.55rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Saves</div></div>
       </div>
     </div>
     <div style="margin-bottom:8px;display:flex;gap:12px;align-items:center">
@@ -8145,26 +8146,37 @@ function initShotMap(safeName, allGoalData, allAssistData) {
       const withNet = data.filter(g => g.netX != null);
       const netDotsSvg = withNet.map((g, i) => {
         const col = g.foot ? (footColor[g.foot] || '#aaa') : '#aaa';
-        const cx = (8 + g.netX * 84).toFixed(1);
-        const cy = (6 + g.netY * 50).toFixed(1);
-        return `<circle cx="${cx}" cy="${cy}" r="5.5" fill="${col}" fill-opacity="0.9" stroke="rgba(0,0,0,.45)" stroke-width="1.2" data-idx="${i}" style="cursor:pointer"/>`;
+        const cx = (6 + g.netX * 144).toFixed(1);
+        const cy = (4 + g.netY * 42).toFixed(1);
+        return `<circle cx="${cx}" cy="${cy}" r="5" fill="${col}" fill-opacity="0.9" stroke="rgba(0,0,0,.45)" stroke-width="1.2" data-idx="${i}" style="cursor:pointer"/>`;
       }).join('');
-      pitchEl.innerHTML = `<div style="max-width:400px"><svg viewBox="0 0 100 66" style="width:100%;display:block;border-radius:10px" xmlns="http://www.w3.org/2000/svg">
-        <rect width="100" height="66" fill="rgba(8,16,10,.9)" rx="10"/>
-        <!-- Net background tint -->
-        <rect x="8" y="6" width="84" height="50" fill="rgba(255,255,255,.03)"/>
-        <!-- Grid -->
-        <line x1="36" y1="6" x2="36" y2="56" stroke="rgba(255,255,255,.1)" stroke-width=".6" stroke-dasharray="2,2"/>
-        <line x1="64" y1="6" x2="64" y2="56" stroke="rgba(255,255,255,.1)" stroke-width=".6" stroke-dasharray="2,2"/>
-        <line x1="8" y1="23" x2="92" y2="23" stroke="rgba(255,255,255,.1)" stroke-width=".6" stroke-dasharray="2,2"/>
-        <line x1="8" y1="39" x2="92" y2="39" stroke="rgba(255,255,255,.1)" stroke-width=".6" stroke-dasharray="2,2"/>
-        <!-- Posts + crossbar -->
-        <line x1="8" y1="6" x2="8" y2="56" stroke="white" stroke-width="2.5"/>
-        <line x1="92" y1="6" x2="92" y2="56" stroke="white" stroke-width="2.5"/>
-        <line x1="8" y1="6" x2="92" y2="6" stroke="white" stroke-width="2.5"/>
+      // Wide 3:1 ratio goal frame with zone labels (like the reference image)
+      pitchEl.innerHTML = `<div style="max-width:520px"><svg viewBox="0 0 156 56" style="width:100%;display:block;border-radius:8px" xmlns="http://www.w3.org/2000/svg">
+        <rect width="156" height="56" fill="#0d1f10" rx="6"/>
+        <!-- Goal inner area -->
+        <rect x="6" y="4" width="144" height="44" fill="rgba(255,255,255,.03)" stroke="rgba(255,255,255,.12)" stroke-width=".5"/>
+        <!-- Grid lines — 3 cols × 3 rows = 9 zones -->
+        <line x1="54" y1="4" x2="54" y2="48" stroke="rgba(255,255,255,.15)" stroke-width=".6"/>
+        <line x1="102" y1="4" x2="102" y2="48" stroke="rgba(255,255,255,.15)" stroke-width=".6"/>
+        <line x1="6" y1="19" x2="150" y2="19" stroke="rgba(255,255,255,.15)" stroke-width=".6"/>
+        <line x1="6" y1="33" x2="150" y2="33" stroke="rgba(255,255,255,.15)" stroke-width=".6"/>
+        <!-- Zone labels -->
+        <text x="30" y="13" text-anchor="middle" font-size="4" fill="rgba(255,255,255,.25)" font-family="sans-serif">Top L</text>
+        <text x="78" y="13" text-anchor="middle" font-size="4" fill="rgba(255,255,255,.25)" font-family="sans-serif">Top</text>
+        <text x="126" y="13" text-anchor="middle" font-size="4" fill="rgba(255,255,255,.25)" font-family="sans-serif">Top R</text>
+        <text x="30" y="27" text-anchor="middle" font-size="4" fill="rgba(255,255,255,.2)" font-family="sans-serif">L</text>
+        <text x="78" y="27" text-anchor="middle" font-size="4" fill="rgba(255,255,255,.2)" font-family="sans-serif">Centre</text>
+        <text x="126" y="27" text-anchor="middle" font-size="4" fill="rgba(255,255,255,.2)" font-family="sans-serif">R</text>
+        <text x="30" y="44" text-anchor="middle" font-size="4" fill="rgba(255,255,255,.2)" font-family="sans-serif">Bot L</text>
+        <text x="78" y="44" text-anchor="middle" font-size="4" fill="rgba(255,255,255,.2)" font-family="sans-serif">Bot</text>
+        <text x="126" y="44" text-anchor="middle" font-size="4" fill="rgba(255,255,255,.2)" font-family="sans-serif">Bot R</text>
+        <!-- Posts + crossbar — thick white -->
+        <line x1="6" y1="4" x2="6" y2="48" stroke="white" stroke-width="2.5"/>
+        <line x1="150" y1="4" x2="150" y2="48" stroke="white" stroke-width="2.5"/>
+        <line x1="6" y1="4" x2="150" y2="4" stroke="white" stroke-width="2.5"/>
         <!-- Ground -->
-        <line x1="4" y1="56" x2="96" y2="56" stroke="rgba(255,255,255,.35)" stroke-width="1.5"/>
-        <text x="50" y="63" text-anchor="middle" font-size="3" fill="rgba(255,255,255,.2)" font-family="sans-serif">ground</text>
+        <line x1="3" y1="48" x2="153" y2="48" stroke="rgba(255,255,255,.4)" stroke-width="1.5"/>
+        <text x="78" y="54" text-anchor="middle" font-size="3" fill="rgba(255,255,255,.2)" font-family="sans-serif">ground</text>
         ${netDotsSvg}
       </svg></div>`;
       pitchEl.querySelectorAll('circle[data-idx]').forEach(el => {
@@ -8214,33 +8226,24 @@ function initShotMap(safeName, allGoalData, allAssistData) {
     const footLabel = g.foot ? g.foot.charAt(0).toUpperCase() + g.foot.slice(1) + ' foot' : '—';
     const footCol = g.foot ? (footColor[g.foot] || 'var(--text)') : 'var(--muted)';
 
-    // Mini net map — FotMob style
+    // Mini net map — wide 3:1 goal frame with zone labels
     let netMapHtml = '';
     if (g.netX != null) {
       const col = g.foot ? (footColor[g.foot] || '#aaa') : '#aaa';
-      // Map netX/netY into the inner goal area (posts x: 8-92, crossbar y: 6, ground y: 56)
-      const cx = (8 + g.netX * 84).toFixed(1);
-      const cy = (6 + g.netY * 50).toFixed(1);
-      netMapHtml = `<svg viewBox="0 0 100 66" style="width:90px;height:59px;display:block;border-radius:4px" xmlns="http://www.w3.org/2000/svg">
-        <rect width="100" height="66" fill="rgba(8,16,10,.85)" rx="4"/>
-        <!-- Net background tint -->
-        <rect x="8" y="6" width="84" height="50" fill="rgba(255,255,255,.03)"/>
-        <!-- Grid lines inside net -->
-        <line x1="8" y1="6" x2="92" y2="6" stroke="rgba(255,255,255,.12)" stroke-width=".6"/>
-        <line x1="36" y1="6" x2="36" y2="56" stroke="rgba(255,255,255,.1)" stroke-width=".5"/>
-        <line x1="64" y1="6" x2="64" y2="56" stroke="rgba(255,255,255,.1)" stroke-width=".5"/>
-        <line x1="8" y1="23" x2="92" y2="23" stroke="rgba(255,255,255,.1)" stroke-width=".5"/>
-        <line x1="8" y1="39" x2="92" y2="39" stroke="rgba(255,255,255,.1)" stroke-width=".5"/>
-        <!-- Goal posts and crossbar — thick white -->
-        <line x1="8" y1="6" x2="8" y2="56" stroke="white" stroke-width="2.5"/>
-        <line x1="92" y1="6" x2="92" y2="56" stroke="white" stroke-width="2.5"/>
-        <line x1="8" y1="6" x2="92" y2="6" stroke="white" stroke-width="2.5"/>
-        <!-- Ground line -->
-        <line x1="4" y1="56" x2="96" y2="56" stroke="rgba(255,255,255,.35)" stroke-width="1.5"/>
-        <!-- Ground label -->
-        <text x="50" y="63" text-anchor="middle" font-size="4" fill="rgba(255,255,255,.22)" font-family="sans-serif">ground</text>
-        <!-- Goal dot -->
-        <circle cx="${cx}" cy="${cy}" r="5.5" fill="${col}" fill-opacity="0.95" stroke="rgba(0,0,0,.45)" stroke-width="1"/>
+      const cx = (6 + g.netX * 144).toFixed(1);
+      const cy = (4 + g.netY * 42).toFixed(1);
+      netMapHtml = `<svg viewBox="0 0 156 56" style="width:110px;height:40px;display:block;border-radius:4px" xmlns="http://www.w3.org/2000/svg">
+        <rect width="156" height="56" fill="#0d1f10" rx="4"/>
+        <rect x="6" y="4" width="144" height="44" fill="rgba(255,255,255,.03)" stroke="rgba(255,255,255,.1)" stroke-width=".5"/>
+        <line x1="54" y1="4" x2="54" y2="48" stroke="rgba(255,255,255,.12)" stroke-width=".6"/>
+        <line x1="102" y1="4" x2="102" y2="48" stroke="rgba(255,255,255,.12)" stroke-width=".6"/>
+        <line x1="6" y1="19" x2="150" y2="19" stroke="rgba(255,255,255,.12)" stroke-width=".6"/>
+        <line x1="6" y1="33" x2="150" y2="33" stroke="rgba(255,255,255,.12)" stroke-width=".6"/>
+        <line x1="6" y1="4" x2="6" y2="48" stroke="white" stroke-width="2"/>
+        <line x1="150" y1="4" x2="150" y2="48" stroke="white" stroke-width="2"/>
+        <line x1="6" y1="4" x2="150" y2="4" stroke="white" stroke-width="2"/>
+        <line x1="3" y1="48" x2="153" y2="48" stroke="rgba(255,255,255,.35)" stroke-width="1.2"/>
+        <circle cx="${cx}" cy="${cy}" r="5.5" fill="${col}" fill-opacity="0.95" stroke="rgba(0,0,0,.4)" stroke-width="1"/>
       </svg>`;
     }
 
