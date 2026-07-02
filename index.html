@@ -663,6 +663,7 @@ canvas.spider{display:block;margin:0 auto}
     <button class="btn-primary" onclick="autoBalance()">⚖ Smart Balance</button>
     <button class="btn-secondary" onclick="shuffleTeams()" title="Randomly redistribute selected players into two equal teams">🔀 Shuffle</button>
     <button class="btn-secondary" onclick="clearTeams()">Clear</button>
+    <button class="btn-secondary" onclick="selectRegulars()" title="Select the usual regulars">⭐ Regulars</button>
     <button id="streak-aug-btn" onclick="toggleStreakAugment()"
       style="padding:6px 14px;border-radius:7px;cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-size:.82rem;letter-spacing:.5px;text-transform:uppercase;border:1px solid var(--border);background:transparent;color:var(--muted);transition:all .15s"
       title="Adjusts player ratings based on win rate — high win rate gets a small nerf, low win rate gets a small buff">
@@ -7672,6 +7673,65 @@ function renderPlayers() {
 // =====================================================================
 // RENDER PLAYER PROFILE
 // =====================================================================
+function renderProfileGkTimeline(name) {
+  const el = document.getElementById('profile-gk-timeline');
+  if (!el) return;
+  const ts = getPlayerEventStats(name);
+  if (!ts || !ts.gkSpellHistory || ts.gkSpellHistory.length === 0) { el.innerHTML = ''; return; }
+
+  const spells = ts.gkSpellHistory;
+  // Group by match date
+  const byMatch = {};
+  spells.forEach(s => {
+    const key = s.date || s.matchId;
+    if (!byMatch[key]) byMatch[key] = { date: s.date, spells: [] };
+    byMatch[key].spells.push(s);
+  });
+  const matches = Object.values(byMatch).sort((a,b) => (a.date||'').localeCompare(b.date||''));
+
+  // Find max match duration for scaling
+  const maxDur = Math.max(...matches.map(m => Math.max(...m.spells.map(s => s.toMins))), 60);
+
+  const rows = matches.map(m => {
+    const dateStr = m.date ? m.date.replace(/^(\d{4})-(\d{2})-(\d{2})$/, '$3/$2') : '';
+    const totalGkMins = m.spells.reduce((s, sp) => s + sp.durMins, 0);
+    const saves = m.spells.reduce((s, sp) => s + sp.saves, 0);
+
+    const bars = m.spells.map(sp => {
+      const left = (sp.fromMins / maxDur * 100).toFixed(1);
+      const width = Math.max((sp.durMins / maxDur * 100).toFixed(1), 0.5);
+      const col = sp.half === '1H' ? '#60a5fa' : '#a78bfa';
+      return `<div style="position:absolute;left:${left}%;width:${width}%;height:100%;background:${col};border-radius:3px;opacity:.85" title="${sp.fromMins}–${sp.toMins} min (${sp.half}) · ${sp.saves} saves"></div>`;
+    }).join('');
+
+    return `<div style="display:grid;grid-template-columns:44px 1fr 52px;align-items:center;gap:10px;margin-bottom:6px">
+      <div style="font-size:.65rem;color:var(--muted);text-align:right">${dateStr}</div>
+      <div style="position:relative;height:12px;background:var(--card2);border-radius:3px;overflow:hidden">${bars}</div>
+      <div style="font-size:.65rem;color:var(--muted)">${totalGkMins.toFixed(1)}min${saves > 0 ? ` · <span style="color:var(--green)">${saves}sv</span>` : ''}</div>
+    </div>`;
+  }).join('');
+
+  const totalMins = (ts.totalGkSecs / 60).toFixed(0);
+  const avgMins = matches.length ? (ts.totalGkSecs / 60 / matches.length).toFixed(1) : 0;
+
+  el.innerHTML = `<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 20px;margin-bottom:12px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+      <div style="font-size:.58rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted)">🧤 Time In Goal</div>
+      <div style="display:flex;gap:14px">
+        <div style="text-align:center"><div style="font-family:'Bebas Neue',sans-serif;font-size:1.2rem;color:var(--text)">${totalMins}'</div><div style="font-size:.55rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Total</div></div>
+        <div style="text-align:center"><div style="font-family:'Bebas Neue',sans-serif;font-size:1.2rem;color:var(--text)">${avgMins}'</div><div style="font-size:.55rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Avg/game</div></div>
+        <div style="text-align:center"><div style="font-family:'Bebas Neue',sans-serif;font-size:1.2rem;color:var(--text)">${ts.totalGkSaves||0}</div><div style="font-size:.55rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Saves</div></div>
+      </div>
+    </div>
+    <div style="margin-bottom:8px;display:flex;gap:12px;align-items:center">
+      <div style="display:flex;align-items:center;gap:4px;font-size:.6rem;color:var(--muted)"><span style="width:10px;height:6px;background:#60a5fa;border-radius:2px;display:inline-block"></span>1st Half</div>
+      <div style="display:flex;align-items:center;gap:4px;font-size:.6rem;color:var(--muted)"><span style="width:10px;height:6px;background:#a78bfa;border-radius:2px;display:inline-block"></span>2nd Half</div>
+      <div style="font-size:.6rem;color:var(--muted);margin-left:auto;opacity:.6">← 0 min &nbsp;&nbsp; ${Math.round(maxDur)} min →</div>
+    </div>
+    ${rows}
+  </div>`;
+}
+
 function renderProfileTimeStats(name) {
   const el = document.getElementById('profile-time-stats');
   if (!el) return;
@@ -8774,6 +8834,9 @@ function renderProfile(name) {
       </div>
     </div>
 
+    <!-- ═══ GK TIME GRAPH ═══ -->
+    <div id="profile-gk-timeline"></div>
+
     <!-- ═══ BEST GAME ═══ -->
     ${bestGameHtml}
 
@@ -8789,6 +8852,7 @@ function renderProfile(name) {
   // Draw charts after DOM paint
   setTimeout(() => {
     renderProfileHeatmap(name, window._hmapType||'shot');
+    renderProfileGkTimeline(name);
 
     // Init interactive shot map
     (() => {
@@ -8866,7 +8930,7 @@ const LB_STATS = [
   ['total_shots','Shots'],['shot_accuracy','Shot Accuracy %'],['shot_conversion','Shot Conv %'],
   ['tackles','Tackles'],['interceptions','Intercepts'],
   ['nutmegs','Nutmegs'],['key_passes','Key Passes'],['blocks','Blocks'],
-  ['goalkeeper_saves','GK Saves'],['wins','Wins'],['win_rate','Win %'],['mvps','MVPs 👑'],
+  ['goalkeeper_saves','GK Saves'],['wins','Wins / Win %'],['mvps','MVPs 👑'],
   ['gd','Goal Difference'],['attendance','Attendance %'],
   ['goals_left','🦶 Left Foot'],['goals_right','👟 Right Foot'],['goals_header','🤕 Headers'],
 ];
@@ -8894,9 +8958,11 @@ function renderLeaderboard() {
       </button>
     </div>
     <div style="display:flex;flex-wrap:wrap;gap:4px">
-      ${LB_STATS.filter(([k]) => k !== 'rating' || adminMode).map(([k,l]) =>
-        `<button class="stat-btn ${k===lbStat?'active':''}" onclick="setLbStat('${k}')">${l}</button>`
-      ).join('')}
+      ${LB_STATS.filter(([k]) => k !== 'rating' || adminMode).filter(([k]) => k !== 'win_rate').map(([k,l]) => {
+        const isActive = k === lbStat || (k === 'wins' && lbStat === 'win_rate');
+        const label = k === 'wins' ? (lbStat === 'win_rate' ? 'Win % ↺' : 'Wins / Win %') : l;
+        return `<button class="stat-btn ${isActive?'active':''}" onclick="setLbStat('${k}')">${label}</button>`;
+      }).join('')}
     </div>`;
 
   // If rating is selected but admin is off, fall back to goals
@@ -8954,9 +9020,9 @@ function renderLeaderboard() {
     if (['goals_left','goals_right','goals_header'].includes(lbStat)) {
       const foot = lbStat.replace('goals_','');
       const { counts } = getPlayerGoalFootData(p.player);
-      const raw = counts[foot] || 0;
-      if (lbPerGame) return parseFloat((raw / Math.max(p.games,1)).toFixed(2));
-      return raw;
+      const total = (counts.left||0) + (counts.right||0) + (counts.header||0);
+      if (total === 0) return -1;
+      return parseFloat(((counts[foot]||0) / total * 100).toFixed(1));
     }
     const noPerGame = ['wins','losses','draws','mvps','mvp2s','mvp3s','rating','shot_conversion','shot_accuracy','win_rate','gd','attendance'];
     const raw = p[lbStat] ?? 0;
@@ -9042,13 +9108,19 @@ function renderLeaderboard() {
         (lbStat==='shot_conversion'||lbStat==='shot_accuracy'||lbStat==='attendance') ? v+'%' :
         lbStat==='win_rate' ? v+'% <span style="font-size:.65rem;opacity:.6">('+((p.wins||0)+(p.losses||0)+(p.draws||0))+'g)</span>' :
         lbStat==='gd' ? (v>0?'+':'')+v :
+        ['goals_left','goals_right','goals_header'].includes(lbStat) ? v+'%' :
         v
       }</div>
     </div>`;
   }).join('');
 }
 
-function setLbStat(s) { lbStat = s; renderLeaderboard(); }
+function setLbStat(s) {
+  // Wins button toggles between total wins and win %
+  if (s === 'wins' && lbStat === 'wins') { lbStat = 'win_rate'; renderLeaderboard(); return; }
+  if (s === 'wins' && lbStat === 'win_rate') { lbStat = 'wins'; renderLeaderboard(); return; }
+  lbStat = s; renderLeaderboard();
+}
 
 // =====================================================================
 // TEAM BUILDER
@@ -9271,6 +9343,13 @@ function renderTeamBuilder() {
   } else if (notesSec) {
     notesSec.style.display = 'none';
   }
+}
+
+function selectRegulars() {
+  const REGULARS = ['Gio','Ines','Jake','James','Richard','Bailey','Lachlan','Alberto','Amin','Austin'];
+  REGULARS.forEach(name => { if (playerStats[name]) selectedForTeams.add(name); });
+  renderTeamBuilder();
+  updateKeepApartDropdowns();
 }
 
 function toggleTeamPlayer(name) {
