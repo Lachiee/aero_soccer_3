@@ -2431,11 +2431,12 @@ function openMvpTuner() {
     const tdN = 'padding:3px 6px;font-size:.65rem;font-weight:600;white-space:nowrap;border-bottom:1px solid rgba(255,255,255,.04)';
     const calcMvp = r => {
       const w = mvpWeights;
-      return (w.goals*n(r.goals)+w.assists*n(r.assists)+w.key_passes*n(r.key_passes)+
+      const raw = (w.goals*n(r.goals)+w.assists*n(r.assists)+w.key_passes*n(r.key_passes)+
         w.shots_on_target*n(r.shots_on_target)+w.shots_off_target*n(r.shots_off_target)+
         w.blocks*n(r.blocks)+w.tackles*n(r.tackles)+w.interceptions*n(r.interceptions)+
-        w.goalkeeper_saves*n(r.goalkeeper_saves)+w.nutmegs*n(r.nutmegs)+w.post*n(r.post)
-      ).toFixed(1);
+        w.goalkeeper_saves*n(r.goalkeeper_saves)+w.nutmegs*n(r.nutmegs)+w.post*n(r.post));
+      const match = matchList[window._tunerMatchIdx];
+      return applyGkNorm(raw, r.player, match?.id).toFixed(1);
     };
     const teamTable = (rows, color, label) => `
       <div style="font-size:.58rem;letter-spacing:1.5px;text-transform:uppercase;color:${color};margin:10px 0 4px;font-weight:700">${label}</div>
@@ -2469,12 +2470,13 @@ function openMvpTuner() {
     const w = mvpWeights;
     const scored = allP.map(r => ({
       player: r.player,
-      score: parseFloat((
+      score: parseFloat(applyGkNorm(
         w.goals * n(r.goals) + w.assists * n(r.assists) + w.key_passes * n(r.key_passes) +
         w.nutmegs * n(r.nutmegs) + w.tackles * n(r.tackles) + w.interceptions * n(r.interceptions) +
         w.blocks * n(r.blocks) + w.goalkeeper_saves * n(r.goalkeeper_saves) +
         w.shots_on_target * n(r.shots_on_target) + w.shots_off_target * n(r.shots_off_target) +
-        w.post * n(r.post)
+        w.post * n(r.post),
+        r.player, previewMatch?.id
       ).toFixed(1))
     })).sort((a,b) => b.score - a.score).slice(0,5);
     const medals = ['👑','🥈','🥉','4th','5th'];
@@ -2510,6 +2512,20 @@ function openMvpTuner() {
                   oninput="mvpWeights['${stat}']=parseFloat(this.value);document.getElementById('w-val-${stat}').textContent=parseFloat(this.value).toFixed(1);document.getElementById('mvp-live-preview').innerHTML=window._mvpTunerPreview();document.getElementById('mvp-match-stats').innerHTML=window._mvpMatchStats()"
                   style="width:100%;accent-color:var(--lime)">
               </div>`).join('')}
+            <!-- GK Normalisation -->
+            <div style="margin-top:20px;padding-top:14px;border-top:1px solid var(--border)">
+              <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px">
+                <span style="font-size:.75rem;color:var(--text2)">🧤 GK Time Normalisation</span>
+                <span id="w-val-gkNorm" style="font-size:.75rem;color:var(--amber);font-weight:700;min-width:32px;text-align:right">${(gkNormStrength*100).toFixed(0)}%</span>
+              </div>
+              <input type="range" min="0" max="1" step="0.05" value="${gkNormStrength}"
+                oninput="gkNormStrength=parseFloat(this.value);document.getElementById('w-val-gkNorm').textContent=Math.round(this.value*100)+'%';document.getElementById('mvp-live-preview').innerHTML=window._mvpTunerPreview();document.getElementById('mvp-match-stats').innerHTML=window._mvpMatchStats()"
+                style="width:100%;accent-color:var(--amber)">
+              <div style="font-size:.65rem;color:var(--muted);margin-top:5px;line-height:1.5">
+                <strong style="color:var(--amber)">0%</strong> = off &nbsp;·&nbsp; <strong style="color:var(--amber)">100%</strong> = full normalisation<br>
+                Scales a player's score by their outfield time fraction. If someone spent 40% of the match in goals, at 100% strength their outfield stats are boosted ÷0.6 = ×1.67. Requires event log data.
+              </div>
+            </div>
             <div style="display:flex;gap:8px;margin-top:16px">
               <button onclick="window._mvpSaveWeights()" style="flex:1;background:var(--green);color:#071009;border:none;border-radius:7px;padding:9px;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:1px;cursor:pointer">💾 Save</button>
               <button onclick="window._mvpResetWeights()" style="flex:1;background:var(--card2);border:1px solid var(--border);color:var(--muted);border-radius:7px;padding:9px;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:1px;cursor:pointer">↺ Reset</button>
@@ -2539,6 +2555,7 @@ function openMvpTuner() {
   window._mvpMatchStats = renderMatchStats;
   window._mvpSaveWeights = () => {
     saveMvpWeights();
+    saveGkNormStrength();
     saveSettings();
     computeWinLoss(playerStats, matchList);
     computeAnalytics();
@@ -2550,7 +2567,9 @@ function openMvpTuner() {
   };
   window._mvpResetWeights = () => {
     mvpWeights = { ...MVP_WEIGHTS_DEFAULT };
+    gkNormStrength = 0;
     saveMvpWeights();
+    saveGkNormStrength();
     renderModal();
     document.getElementById('mvp-live-preview').innerHTML = recomputeLivePreview();
   };
@@ -2947,7 +2966,7 @@ function computeWinLoss(playerMap, matches) {
     const allPlayers = [...m.teamA, ...m.teamB];
     const w = mvpWeights;
     const scored = allPlayers.map(r => {
-      const score =
+      const raw =
         w.goals          * n(r.goals) +
         w.assists        * n(r.assists) +
         w.key_passes     * n(r.key_passes) +
@@ -2959,6 +2978,7 @@ function computeWinLoss(playerMap, matches) {
         w.shots_on_target  * n(r.shots_on_target) +
         w.shots_off_target * n(r.shots_off_target) +
         w.post           * n(r.post);
+      const score = applyGkNorm(raw, r.player, m.id);
       return { player: r.player, score: parseFloat(score.toFixed(2)) };
     });
     scored.sort((a, b) => b.score - a.score);
@@ -6754,6 +6774,10 @@ const MVP_WEIGHTS_DEFAULT = {
   interceptions: 0.5, blocks: 1.4, goalkeeper_saves: 1.0,
   shots_on_target: 0.5, shots_off_target: 0.1, nutmegs: 0.3, post: 0.2
 };
+let gkNormStrength = (() => {
+  try { const s = localStorage.getItem('aeroSoccer_gkNormStrength'); return s !== null ? parseFloat(s) : 0; }
+  catch(e) { return 0; }
+})();
 const LS_MVP_WEIGHTS = 'aeroSoccer_mvpWeights';
 let mvpWeights = (() => {
   try {
@@ -6833,6 +6857,41 @@ function saveSettings() {
 
 function saveMvpWeights() {
   try { localStorage.setItem(LS_MVP_WEIGHTS, JSON.stringify(mvpWeights)); } catch(e) {}
+}
+
+function saveGkNormStrength() {
+  try { localStorage.setItem('aeroSoccer_gkNormStrength', String(gkNormStrength)); } catch(e) {}
+}
+
+// Returns the outfield fraction (0–1) for a player in a specific match.
+// 1.0 = played full match outfield; 0.4 = spent 60% in goal.
+// Falls back to 1.0 if no event log data exists for this match.
+function getOutfieldFraction(playerName, matchId) {
+  if (!gkNormStrength) return 1; // feature off — no-op
+  let logs;
+  try { logs = JSON.parse(localStorage.getItem('aero_event_logs') || '{}'); } catch(e) { return 1; }
+  const log = logs[matchId];
+  if (!log?.timeStats?.playerStats?.[playerName]) return 1;
+  const ps = log.timeStats.playerStats[playerName];
+  if (!ps.gkTimeSecs || !log.timeStats?.halfDur) return 1;
+  const hd = log.timeStats.halfDur;
+  const h1 = hd['1H'] || 0;
+  const h2 = hd['2H'] ? Math.max(0, hd['2H'] - h1) : 0;
+  const totalSecs = h1 + h2;
+  if (totalSecs <= 0) return 1;
+  const outfieldSecs = Math.max(0, totalSecs - ps.gkTimeSecs);
+  return outfieldSecs / totalSecs;
+}
+
+// Apply GK normalisation to a raw MVP score.
+// strength 0 = off, strength 1 = full normalisation (÷ outfieldFraction).
+// Intermediate values blend between the raw score and the normalised score.
+function applyGkNorm(rawScore, playerName, matchId) {
+  if (!gkNormStrength || gkNormStrength <= 0) return rawScore;
+  const frac = getOutfieldFraction(playerName, matchId);
+  if (frac >= 0.99) return rawScore; // full outfield — no adjustment
+  const normalised = rawScore / Math.max(frac, 0.1); // cap so 10% outfield can't blow up to 10×
+  return rawScore + (normalised - rawScore) * gkNormStrength;
 }
 
 function setMatchFilter(f) {
@@ -7936,11 +7995,13 @@ function renderProfileHeatmap(name, hmapType) {
   const dbg = document.getElementById('profile-heatmap-debug');
   if (hmapType !== 'assist') {
     if (dbg) dbg.textContent = shotShots.length > 0 ? `${shotShots.length} goal location${shotShots.length!==1?'s':''} mapped` : 'No goal locations mapped yet';
+    if (dbg && shotShots.length > 0) dbg.innerHTML += ' <span style="opacity:.5">· hover pills for details</span>';
     return;
   }
 
   const shots = assistShots;
   if (dbg) dbg.textContent = shots.length > 0 ? `${shots.length} assist location${shots.length !== 1 ? 's' : ''} mapped` : 'No assist locations mapped yet';
+  if (dbg && shots.length > 0) dbg.innerHTML += ' <span style="opacity:.5">· hover pills for details</span>';
 
   // Always read width from the section card — force section visible first so clientWidth resolves
   section.style.display = '';
@@ -7997,7 +8058,44 @@ function renderProfileHeatmap(name, hmapType) {
 
     heatCanvas.addEventListener('mousemove', ev => {
       const hit = getHit(ev);
-      if (!hit?.shots?.length) { hmapTip.style.opacity = '0'; heatCanvas.style.cursor = 'crosshair'; return; }
+      if (!hit?.shots?.length) {
+        hmapTip.style.opacity = '0';
+        heatCanvas.style.cursor = 'crosshair';
+        // Clear any hover highlight
+        if (heatCanvas._hoveredCluster) {
+          heatCanvas._hoveredCluster = null;
+          hmapRender(heatCanvas, heatCanvas._currentShots || [], {
+            width: heatCanvas._hmapW || heatCanvas.offsetWidth,
+            markerType: heatCanvas._hmapType === 'assist' ? 'assist' : 'shot',
+            pillSize: window._hmapPillSize ?? 0.85,
+            showNumbers: window._hmapShowNumbers ?? true,
+          });
+        }
+        return;
+      }
+      // Draw hover highlight ring around hit cluster
+      if (heatCanvas._hoveredCluster !== hit) {
+        heatCanvas._hoveredCluster = hit;
+        hmapRender(heatCanvas, heatCanvas._currentShots || [], {
+          width: heatCanvas._hmapW || heatCanvas.offsetWidth,
+          markerType: heatCanvas._hmapType === 'assist' ? 'assist' : 'shot',
+          pillSize: window._hmapPillSize ?? 0.85,
+          showNumbers: window._hmapShowNumbers ?? true,
+        });
+        // Draw highlight ring on top
+        const ctx = heatCanvas.getContext('2d');
+        const dpr = window.devicePixelRatio || 1;
+        const W = heatCanvas._hmapW || heatCanvas.offsetWidth;
+        const H = heatCanvas._hmapH || heatCanvas.offsetHeight;
+        ctx.save();
+        ctx.scale(dpr, dpr);
+        ctx.beginPath();
+        ctx.arc(hit.px, hit.py, 18, 0, Math.PI * 2);
+        ctx.strokeStyle = heatCanvas._hmapType === 'assist' ? 'rgba(251,191,36,.6)' : 'rgba(168,224,80,.6)';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        ctx.restore();
+      }
       heatCanvas.style.cursor = 'pointer';
       const isAssist = heatCanvas._hmapType === 'assist';
       const lines = hit.shots.map(s => {
@@ -11316,10 +11414,11 @@ function computeAnalytics() {
     // Consistency score: 1 - (stddev of per-game MVP scores / mean), scaled 0-100
     const rowScores = p.matches.map(r => {
       const w = mvpWeights;
-      return w.goals*n(r.goals) + w.assists*n(r.assists) + w.key_passes*n(r.key_passes)
+      const raw = w.goals*n(r.goals) + w.assists*n(r.assists) + w.key_passes*n(r.key_passes)
            + w.tackles*n(r.tackles) + w.interceptions*n(r.interceptions) + w.blocks*n(r.blocks)
            + w.goalkeeper_saves*n(r.goalkeeper_saves) + w.shots_on_target*n(r.shots_on_target)
            + w.shots_off_target*n(r.shots_off_target) + w.nutmegs*n(r.nutmegs) + w.post*n(r.post);
+      return applyGkNorm(raw, r.player, r.match_id);
     });
     if (rowScores.length < 2) { p.consistency = 100; }
     else {
@@ -11333,10 +11432,11 @@ function computeAnalytics() {
     let bestScore=-1, bestRow=null, maxGoals=0;
     p.matches.forEach(r=>{
       const w = mvpWeights;
-      const sc = w.goals*n(r.goals) + w.assists*n(r.assists) + w.key_passes*n(r.key_passes)
+      const raw = w.goals*n(r.goals) + w.assists*n(r.assists) + w.key_passes*n(r.key_passes)
                + w.tackles*n(r.tackles) + w.interceptions*n(r.interceptions) + w.blocks*n(r.blocks)
                + w.goalkeeper_saves*n(r.goalkeeper_saves) + w.shots_on_target*n(r.shots_on_target)
                + w.shots_off_target*n(r.shots_off_target) + w.nutmegs*n(r.nutmegs) + w.post*n(r.post);
+      const sc = applyGkNorm(raw, r.player, r.match_id);
       if(sc>bestScore){bestScore=sc;bestRow=r;}
       if(n(r.goals)>maxGoals) maxGoals=n(r.goals);
     });
