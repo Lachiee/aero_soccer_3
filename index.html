@@ -8256,29 +8256,25 @@ function initShotMap(safeName, allGoalData, allAssistData) {
     if (viewNet) {
       // ── NET VIEW — Option C: app-themed, 3D depth, 8×4 grid ──
       const withNet = data.filter(g => g.netX != null);
-      // Goal mouth coords: x 34–166, y 32–104 inside a 200×130 viewBox
+      // Inset from posts (x 31-36 left, 164-169 right) and crossbar (y 29-34)
+      // Dot area: cx 40-160, cy 38-100 so r=4 dots never touch the frame
       const netDotsSvg = withNet.map((g, i) => {
         const col = g.foot ? (footColor[g.foot] || '#aaa') : '#aaa';
-        const cx = (34 + g.netX * 132).toFixed(1);
-        const cy = (32 + g.netY * 72).toFixed(1);
+        const cx = (40 + g.netX * 120).toFixed(1);
+        const cy = (38 + g.netY * 62).toFixed(1);
         return `<circle cx="${cx}" cy="${cy}" r="4" fill="${col}" fill-opacity="0.95" stroke="#0a110c" stroke-width="1.2" data-idx="${i}" style="cursor:pointer"/>`;
       }).join('');
       pitchEl.innerHTML = `<svg viewBox="0 0 200 130" style="width:100%;max-width:480px;display:block;border-radius:10px" xmlns="http://www.w3.org/2000/svg">
-        <!-- outer card -->
         <rect width="200" height="130" fill="#111a13" rx="10"/>
-        <!-- inset goal mouth -->
         <rect x="34" y="32" width="132" height="72" fill="#0a110c" rx="2"/>
-        <!-- 3D perspective depth lines from inner frame corners outward -->
         <line x1="34" y1="32" x2="10" y2="14" stroke="rgba(57,211,83,.18)" stroke-width=".8"/>
         <line x1="166" y1="32" x2="190" y2="14" stroke="rgba(57,211,83,.18)" stroke-width=".8"/>
         <line x1="34" y1="104" x2="10" y2="116" stroke="rgba(57,211,83,.18)" stroke-width=".8"/>
         <line x1="166" y1="104" x2="190" y2="116" stroke="rgba(57,211,83,.18)" stroke-width=".8"/>
-        <!-- depth panel fills -->
         <polygon points="10,14 34,32 34,104 10,116" fill="rgba(57,211,83,.04)" stroke="rgba(57,211,83,.12)" stroke-width=".5"/>
         <polygon points="190,14 166,32 166,104 190,116" fill="rgba(57,211,83,.04)" stroke="rgba(57,211,83,.12)" stroke-width=".5"/>
         <polygon points="10,14 190,14 166,32 34,32" fill="rgba(57,211,83,.06)" stroke="rgba(57,211,83,.12)" stroke-width=".5"/>
         <polygon points="10,116 190,116 166,104 34,104" fill="rgba(57,211,83,.03)" stroke="rgba(57,211,83,.1)" stroke-width=".5"/>
-        <!-- 8×4 grid inside goal mouth (7 vertical lines, 3 horizontal) -->
         <line x1="50.5" y1="32" x2="50.5" y2="104" stroke="rgba(57,211,83,.12)" stroke-width=".5"/>
         <line x1="67" y1="32" x2="67" y2="104" stroke="rgba(57,211,83,.12)" stroke-width=".5"/>
         <line x1="83.5" y1="32" x2="83.5" y2="104" stroke="rgba(57,211,83,.12)" stroke-width=".5"/>
@@ -8289,20 +8285,53 @@ function initShotMap(safeName, allGoalData, allAssistData) {
         <line x1="34" y1="50" x2="166" y2="50" stroke="rgba(57,211,83,.12)" stroke-width=".5"/>
         <line x1="34" y1="68" x2="166" y2="68" stroke="rgba(57,211,83,.12)" stroke-width=".5"/>
         <line x1="34" y1="86" x2="166" y2="86" stroke="rgba(57,211,83,.12)" stroke-width=".5"/>
-        <!-- posts as rounded rects -->
         <rect x="31" y="29" width="5" height="77" fill="rgba(255,255,255,.88)" rx="1.5"/>
         <rect x="164" y="29" width="5" height="77" fill="rgba(255,255,255,.88)" rx="1.5"/>
         <rect x="31" y="29" width="138" height="5" fill="rgba(255,255,255,.92)" rx="1.5"/>
-        <!-- ground line -->
         <line x1="8" y1="116" x2="192" y2="116" stroke="rgba(57,211,83,.25)" stroke-width="1"/>
-        <!-- dots -->
         ${netDotsSvg}
       </svg>`;
+
+      // Tooltip element (shared, reused)
+      let netTip = document.getElementById('net-dot-tip');
+      if (!netTip) {
+        netTip = document.createElement('div');
+        netTip.id = 'net-dot-tip';
+        netTip.style.cssText = 'position:fixed;z-index:9999;background:#0d1a0f;border:1px solid rgba(57,211,83,.25);border-radius:8px;padding:8px 12px;font-family:"Barlow Condensed",sans-serif;pointer-events:none;opacity:0;transition:opacity .12s;min-width:130px;box-shadow:0 4px 16px rgba(0,0,0,.7);font-size:.75rem';
+        document.body.appendChild(netTip);
+      }
+
       pitchEl.querySelectorAll('circle[data-idx]').forEach(el => {
-        el.addEventListener('click', () => { showDetail(withNet[+el.dataset.idx]); });
-      });
-      pitchEl.querySelectorAll('circle[data-idx]').forEach(el => {
-        el.addEventListener('click', () => { showDetail(withNet[+el.dataset.idx]); });
+        const g = withNet[+el.dataset.idx];
+        const col = g.foot ? (footColor[g.foot] || '#aaa') : '#aaa';
+        el.addEventListener('mouseenter', ev => {
+          el.setAttribute('r', '6');
+          el.setAttribute('stroke', col);
+          el.setAttribute('stroke-width', '2');
+          const m = matchList.find(mx => mx.id === g.mid);
+          const footLabel = g.foot ? g.foot.charAt(0).toUpperCase()+g.foot.slice(1)+' foot' : 'Unknown foot';
+          netTip.innerHTML = `<div style="color:${col};font-weight:700;margin-bottom:3px">${footLabel}</div>
+            ${g.time ? `<div style="color:rgba(255,255,255,.7)">${g.time} · ${g.half}</div>` : ''}
+            ${g.assister ? `<div style="color:rgba(168,224,80,.8);font-size:.68rem">&#8592; ${g.assister}</div>` : ''}
+            ${m ? `<div style="color:rgba(255,255,255,.4);font-size:.65rem;margin-top:2px">${m.date} · ${m.goalsA}&#x2013;${m.goalsB}</div>` : ''}
+            <div style="color:rgba(57,211,83,.45);font-size:.6rem;margin-top:5px;letter-spacing:.5px">CLICK FOR DETAILS</div>`;
+          netTip.style.opacity = '1';
+          const ow = netTip.offsetWidth || 140;
+          netTip.style.left = (ev.clientX + 14 + ow > window.innerWidth ? ev.clientX - ow - 8 : ev.clientX + 14) + 'px';
+          netTip.style.top = (ev.clientY - 10) + 'px';
+        });
+        el.addEventListener('mousemove', ev => {
+          const ow = netTip.offsetWidth || 140;
+          netTip.style.left = (ev.clientX + 14 + ow > window.innerWidth ? ev.clientX - ow - 8 : ev.clientX + 14) + 'px';
+          netTip.style.top = (ev.clientY - 10) + 'px';
+        });
+        el.addEventListener('mouseleave', () => {
+          el.setAttribute('r', '4');
+          el.setAttribute('stroke', '#0a110c');
+          el.setAttribute('stroke-width', '1.2');
+          netTip.style.opacity = '0';
+        });
+        el.addEventListener('click', () => { netTip.style.opacity = '0'; showDetail(g); });
       });
     } else {
       // ── PITCH VIEW — real indoor court via hmapDrawCourt ──
@@ -8353,8 +8382,8 @@ function initShotMap(safeName, allGoalData, allAssistData) {
     if (g.netX != null) {
       const col = g.foot ? (footColor[g.foot] || '#aaa') : '#aaa';
       // Scale into goal mouth coords: x 34–166, y 32–104 of 200×130 viewBox
-      const cx = (34 + g.netX * 132).toFixed(1);
-      const cy = (32 + g.netY * 72).toFixed(1);
+      const cx = (40 + g.netX * 120).toFixed(1);
+      const cy = (38 + g.netY * 62).toFixed(1);
       netMapHtml = `<svg viewBox="0 0 200 130" style="width:100px;height:65px;display:block;border-radius:6px" xmlns="http://www.w3.org/2000/svg">
         <rect width="200" height="130" fill="#111a13" rx="6"/>
         <rect x="34" y="32" width="132" height="72" fill="#0a110c" rx="2"/>
@@ -8876,6 +8905,7 @@ function renderProfile(name) {
               <div style="text-align:center"><div style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;color:#f87171;line-height:1">${s.goals}</div><div style="font-size:.57rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Goals</div></div>
               <div style="text-align:center"><div style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;color:var(--text);line-height:1">${onTargetPct}%</div><div style="font-size:.57rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">On Target</div></div>
               <div style="text-align:center"><div style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;color:var(--text);line-height:1">${shotConv}%</div><div style="font-size:.57rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Conv%</div></div>
+              <div style="margin-left:auto;display:flex;align-items:center;gap:4px;font-size:.6rem;color:var(--muted);opacity:.55"><span>●</span> Hover dots for details</div>
             </div>
           </div>
           <div id="shotmap-detail-${safeName}" style="min-height:160px">
