@@ -8254,54 +8254,14 @@ function initShotMap(safeName, allGoalData, allAssistData) {
     if (dbg) dbg.textContent = data.length + (mode==='assists'?' assist':' goal') + (data.length!==1?'s':'') + ' mapped';
 
     if (viewNet) {
-      // ── NET VIEW — Option C: app-themed, 3D depth, 8×4 grid ──
+      // ── NET VIEW — canvas-based (reliable events) ──
       const withNet = data.filter(g => g.netX != null);
-      // Dot area inset from posts: cx 40–160, cy 38–100 (posts at x31-36,164-169; crossbar y29-34)
-      const dotPositions = withNet.map(g => ({
-        cx: 40 + g.netX * 120,
-        cy: 38 + g.netY * 62,
-        col: g.foot ? (footColor[g.foot] || '#aaa') : '#aaa',
-      }));
-
-      // Build SVG string — no per-element events, we use coordinate hit-testing instead
-      const netDotsSvg = dotPositions.map((d, i) =>
-        `<circle cx="${d.cx.toFixed(1)}" cy="${d.cy.toFixed(1)}" r="4" fill="${d.col}" fill-opacity="0.95" stroke="#0a110c" stroke-width="1.2" id="ndot-${i}"/>`
-      ).join('');
-
-      // Parse SVG properly via DOMParser so elements are in the SVG namespace
-      const svgStr = `<svg viewBox="0 0 200 130" xmlns="http://www.w3.org/2000/svg">
-        <rect width="200" height="130" fill="#111a13" rx="10"/>
-        <rect x="34" y="32" width="132" height="72" fill="#0a110c" rx="2"/>
-        <line x1="34" y1="32" x2="10" y2="14" stroke="rgba(57,211,83,.18)" stroke-width=".8"/>
-        <line x1="166" y1="32" x2="190" y2="14" stroke="rgba(57,211,83,.18)" stroke-width=".8"/>
-        <line x1="34" y1="104" x2="10" y2="116" stroke="rgba(57,211,83,.18)" stroke-width=".8"/>
-        <line x1="166" y1="104" x2="190" y2="116" stroke="rgba(57,211,83,.18)" stroke-width=".8"/>
-        <polygon points="10,14 34,32 34,104 10,116" fill="rgba(57,211,83,.04)" stroke="rgba(57,211,83,.12)" stroke-width=".5"/>
-        <polygon points="190,14 166,32 166,104 190,116" fill="rgba(57,211,83,.04)" stroke="rgba(57,211,83,.12)" stroke-width=".5"/>
-        <polygon points="10,14 190,14 166,32 34,32" fill="rgba(57,211,83,.06)" stroke="rgba(57,211,83,.12)" stroke-width=".5"/>
-        <polygon points="10,116 190,116 166,104 34,104" fill="rgba(57,211,83,.03)" stroke="rgba(57,211,83,.1)" stroke-width=".5"/>
-        <line x1="50.5" y1="32" x2="50.5" y2="104" stroke="rgba(57,211,83,.12)" stroke-width=".5"/>
-        <line x1="67" y1="32" x2="67" y2="104" stroke="rgba(57,211,83,.12)" stroke-width=".5"/>
-        <line x1="83.5" y1="32" x2="83.5" y2="104" stroke="rgba(57,211,83,.12)" stroke-width=".5"/>
-        <line x1="100" y1="32" x2="100" y2="104" stroke="rgba(57,211,83,.12)" stroke-width=".5"/>
-        <line x1="116.5" y1="32" x2="116.5" y2="104" stroke="rgba(57,211,83,.12)" stroke-width=".5"/>
-        <line x1="133" y1="32" x2="133" y2="104" stroke="rgba(57,211,83,.12)" stroke-width=".5"/>
-        <line x1="149.5" y1="32" x2="149.5" y2="104" stroke="rgba(57,211,83,.12)" stroke-width=".5"/>
-        <line x1="34" y1="50" x2="166" y2="50" stroke="rgba(57,211,83,.12)" stroke-width=".5"/>
-        <line x1="34" y1="68" x2="166" y2="68" stroke="rgba(57,211,83,.12)" stroke-width=".5"/>
-        <line x1="34" y1="86" x2="166" y2="86" stroke="rgba(57,211,83,.12)" stroke-width=".5"/>
-        <rect x="31" y="29" width="5" height="77" fill="rgba(255,255,255,.88)" rx="1.5"/>
-        <rect x="164" y="29" width="5" height="77" fill="rgba(255,255,255,.88)" rx="1.5"/>
-        <rect x="31" y="29" width="138" height="5" fill="rgba(255,255,255,.92)" rx="1.5"/>
-        <line x1="8" y1="116" x2="192" y2="116" stroke="rgba(57,211,83,.25)" stroke-width="1"/>
-        ${netDotsSvg}
-      </svg>`;
-
       pitchEl.innerHTML = '';
-      pitchEl.style.cssText = 'max-width:480px;position:relative';
-      const svgEl = new DOMParser().parseFromString(svgStr, 'image/svg+xml').documentElement;
-      svgEl.style.cssText = 'width:100%;display:block;border-radius:10px;cursor:default';
-      pitchEl.appendChild(svgEl);
+      pitchEl.style.cssText = 'max-width:480px';
+
+      const cv = document.createElement('canvas');
+      cv.style.cssText = 'width:100%;display:block;border-radius:10px;cursor:default';
+      pitchEl.appendChild(cv);
 
       // Shared tooltip
       let netTip = document.getElementById('net-dot-tip');
@@ -8312,83 +8272,133 @@ function initShotMap(safeName, allGoalData, allAssistData) {
         document.body.appendChild(netTip);
       }
 
-      // Convert mouse coords to SVG viewBox coords
-      const toSvgCoords = (ev) => {
-        const rect = svgEl.getBoundingClientRect();
-        return {
-          x: (ev.clientX - rect.left) / rect.width * 200,
-          y: (ev.clientY - rect.top) / rect.height * 130,
-        };
+      const drawNet = (hoveredIdx) => {
+        const dpr = window.devicePixelRatio || 1;
+        const W = pitchEl.offsetWidth || 400;
+        const H = Math.round(W * 0.65);
+        cv.width = W * dpr; cv.height = H * dpr;
+        cv.style.height = H + 'px';
+        const ctx = cv.getContext('2d');
+        ctx.scale(dpr, dpr);
+
+        // Scale helpers: viewBox 200×130 → canvas W×H
+        const sx = W / 200, sy = H / 130;
+        const p = (x, y) => [x * sx, y * sy];
+
+        // Outer card
+        ctx.fillStyle = '#111a13';
+        const r = 10 * sx;
+        ctx.beginPath(); ctx.roundRect(0, 0, W, H, r); ctx.fill();
+
+        // Inset goal mouth
+        ctx.fillStyle = '#0a110c';
+        ctx.fillRect(...p(34, 32), 132 * sx, 72 * sy);
+
+        // 3D depth lines
+        ctx.strokeStyle = 'rgba(57,211,83,.18)'; ctx.lineWidth = 0.8 * sx;
+        [[34,32,10,14],[166,32,190,14],[34,104,10,116],[166,104,190,116]].forEach(([x1,y1,x2,y2]) => {
+          ctx.beginPath(); ctx.moveTo(...p(x1,y1)); ctx.lineTo(...p(x2,y2)); ctx.stroke();
+        });
+
+        // Depth panels
+        const panels = [
+          { pts:[[10,14],[34,32],[34,104],[10,116]], fill:'rgba(57,211,83,.04)', stroke:'rgba(57,211,83,.12)' },
+          { pts:[[190,14],[166,32],[166,104],[190,116]], fill:'rgba(57,211,83,.04)', stroke:'rgba(57,211,83,.12)' },
+          { pts:[[10,14],[190,14],[166,32],[34,32]], fill:'rgba(57,211,83,.06)', stroke:'rgba(57,211,83,.12)' },
+          { pts:[[10,116],[190,116],[166,104],[34,104]], fill:'rgba(57,211,83,.03)', stroke:'rgba(57,211,83,.1)' },
+        ];
+        panels.forEach(({ pts, fill, stroke }) => {
+          ctx.beginPath(); pts.forEach(([x,y], i) => { const [px,py] = p(x,y); i?ctx.lineTo(px,py):ctx.moveTo(px,py); }); ctx.closePath();
+          ctx.fillStyle = fill; ctx.fill(); ctx.strokeStyle = stroke; ctx.lineWidth = 0.5*sx; ctx.stroke();
+        });
+
+        // 8×4 grid
+        ctx.strokeStyle = 'rgba(57,211,83,.15)'; ctx.lineWidth = 0.5 * sx;
+        [50.5,67,83.5,100,116.5,133,149.5].forEach(x => { ctx.beginPath(); ctx.moveTo(...p(x,32)); ctx.lineTo(...p(x,104)); ctx.stroke(); });
+        [50,68,86].forEach(y => { ctx.beginPath(); ctx.moveTo(...p(34,y)); ctx.lineTo(...p(166,y)); ctx.stroke(); });
+
+        // Posts as rounded rects
+        ctx.fillStyle = 'rgba(255,255,255,.88)';
+        ctx.beginPath(); ctx.roundRect(...p(31,29), 5*sx, 77*sy, 1.5*sx); ctx.fill();
+        ctx.beginPath(); ctx.roundRect(...p(164,29), 5*sx, 77*sy, 1.5*sx); ctx.fill();
+        ctx.fillStyle = 'rgba(255,255,255,.92)';
+        ctx.beginPath(); ctx.roundRect(...p(31,29), 138*sx, 5*sy, 1.5*sx); ctx.fill();
+
+        // Ground line
+        ctx.strokeStyle = 'rgba(57,211,83,.25)'; ctx.lineWidth = 1 * sx;
+        ctx.beginPath(); ctx.moveTo(...p(8,116)); ctx.lineTo(...p(192,116)); ctx.stroke();
+
+        // Dots — inset from posts: cx 40–160, cy 38–100
+        const footColor = { left: '#60a5fa', right: '#4ade80', header: '#f59e0b' };
+        withNet.forEach((g, i) => {
+          const cx = (40 + g.netX * 120) * sx;
+          const cy = (38 + g.netY * 62) * sy;
+          const col = g.foot ? (footColor[g.foot] || '#aaa') : '#aaa';
+          const isHovered = i === hoveredIdx;
+          const dotR = isHovered ? 7 * sx : 4.5 * sx;
+          ctx.beginPath(); ctx.arc(cx, cy, dotR, 0, Math.PI * 2);
+          ctx.fillStyle = col; ctx.globalAlpha = 0.95; ctx.fill(); ctx.globalAlpha = 1;
+          ctx.strokeStyle = isHovered ? col : '#0a110c';
+          ctx.lineWidth = isHovered ? 2 * sx : 1.2 * sx;
+          ctx.stroke();
+        });
       };
 
-      // Find nearest dot within hit radius
-      const getHitDot = (ev) => {
-        const { x, y } = toSvgCoords(ev);
-        let best = null, bestD = 9; // hit radius of 9 SVG units (~18px visual)
-        dotPositions.forEach((d, i) => {
-          const dist = Math.hypot(d.cx - x, d.cy - y);
-          if (dist < bestD) { bestD = dist; best = i; }
+      const getHit = (ev) => {
+        const rect = cv.getBoundingClientRect();
+        const sx = 200 / rect.width, sy = 130 / rect.height;
+        const mx = (ev.clientX - rect.left) * sx;
+        const my = (ev.clientY - rect.top) * sy;
+        let best = -1, bestD = 12; // hit radius in viewBox units
+        withNet.forEach((g, i) => {
+          const cx = 40 + g.netX * 120;
+          const cy = 38 + g.netY * 62;
+          const d = Math.hypot(cx - mx, cy - my);
+          if (d < bestD) { bestD = d; best = i; }
         });
         return best;
       };
 
-      let lastHit = null;
-      svgEl.addEventListener('mousemove', ev => {
-        const hit = getHitDot(ev);
-        if (hit === lastHit) {
-          // Just update tooltip position
-          if (hit !== null) {
-            const ow = netTip.offsetWidth || 140;
-            netTip.style.left = (ev.clientX + 14 + ow > window.innerWidth ? ev.clientX - ow - 8 : ev.clientX + 14) + 'px';
-            netTip.style.top = (ev.clientY - 12) + 'px';
-          }
-          return;
+      let lastHit = -1;
+      cv.addEventListener('mousemove', ev => {
+        const hit = getHit(ev);
+        if (hit !== lastHit) {
+          lastHit = hit;
+          drawNet(hit);
+          cv.style.cursor = hit >= 0 ? 'pointer' : 'default';
+          if (hit < 0) { netTip.style.opacity = '0'; return; }
+          const g = withNet[hit];
+          const m = matchList.find(mx => mx.id === g.mid);
+          const footLabel = g.foot ? g.foot.charAt(0).toUpperCase() + g.foot.slice(1) + ' foot' : 'Unknown foot';
+          const footColor = { left: '#60a5fa', right: '#4ade80', header: '#f59e0b' };
+          const col = g.foot ? (footColor[g.foot] || '#aaa') : '#aaa';
+          netTip.innerHTML = `<div style="color:${col};font-weight:700;margin-bottom:2px">${footLabel}</div>
+            ${g.time ? `<div style="color:rgba(255,255,255,.75)">${g.time} &middot; ${g.half}</div>` : ''}
+            ${g.assister ? `<div style="color:rgba(168,224,80,.8);font-size:.7rem">&larr; ${g.assister}</div>` : ''}
+            ${m ? `<div style="color:rgba(255,255,255,.35);font-size:.65rem;margin-top:2px">${m.date} &middot; ${m.goalsA}&ndash;${m.goalsB}</div>` : ''}
+            <div style="color:rgba(57,211,83,.5);font-size:.6rem;margin-top:5px;letter-spacing:.5px">CLICK FOR DETAILS</div>`;
+          netTip.style.opacity = '1';
         }
-        // Restore previous dot
-        if (lastHit !== null) {
-          const prev = svgEl.getElementById('ndot-' + lastHit);
-          if (prev) { prev.setAttribute('r', '4'); prev.setAttribute('stroke', '#0a110c'); prev.setAttribute('stroke-width', '1.2'); }
+        // Update tooltip position
+        if (hit >= 0) {
+          const ow = netTip.offsetWidth || 140;
+          netTip.style.left = (ev.clientX + 14 + ow > window.innerWidth ? ev.clientX - ow - 8 : ev.clientX + 14) + 'px';
+          netTip.style.top = (ev.clientY - 12) + 'px';
         }
-        lastHit = hit;
-        if (hit === null) {
-          netTip.style.opacity = '0';
-          svgEl.style.cursor = 'default';
-          return;
-        }
-        // Enlarge hovered dot
-        const el = svgEl.getElementById('ndot-' + hit);
-        if (el) { el.setAttribute('r', '6.5'); el.setAttribute('stroke', dotPositions[hit].col); el.setAttribute('stroke-width', '2'); }
-        svgEl.style.cursor = 'pointer';
-
-        // Show tooltip
-        const g = withNet[hit];
-        const m = matchList.find(mx => mx.id === g.mid);
-        const footLabel = g.foot ? g.foot.charAt(0).toUpperCase() + g.foot.slice(1) + ' foot' : 'Unknown foot';
-        netTip.innerHTML = `<div style="color:${dotPositions[hit].col};font-weight:700;margin-bottom:2px">${footLabel}</div>
-          ${g.time ? `<div style="color:rgba(255,255,255,.75)">${g.time} &middot; ${g.half}</div>` : ''}
-          ${g.assister ? `<div style="color:rgba(168,224,80,.8);font-size:.7rem">&larr; ${g.assister}</div>` : ''}
-          ${m ? `<div style="color:rgba(255,255,255,.35);font-size:.65rem;margin-top:2px">${m.date} &middot; ${m.goalsA}&ndash;${m.goalsB}</div>` : ''}
-          <div style="color:rgba(57,211,83,.5);font-size:.6rem;margin-top:5px;letter-spacing:.5px">CLICK FOR DETAILS</div>`;
-        netTip.style.opacity = '1';
-        const ow = netTip.offsetWidth || 140;
-        netTip.style.left = (ev.clientX + 14 + ow > window.innerWidth ? ev.clientX - ow - 8 : ev.clientX + 14) + 'px';
-        netTip.style.top = (ev.clientY - 12) + 'px';
       });
 
-      svgEl.addEventListener('mouseleave', () => {
-        if (lastHit !== null) {
-          const prev = svgEl.getElementById('ndot-' + lastHit);
-          if (prev) { prev.setAttribute('r', '4'); prev.setAttribute('stroke', '#0a110c'); prev.setAttribute('stroke-width', '1.2'); }
-          lastHit = null;
-        }
+      cv.addEventListener('mouseleave', () => {
+        if (lastHit >= 0) { lastHit = -1; drawNet(-1); }
         netTip.style.opacity = '0';
-        svgEl.style.cursor = 'default';
+        cv.style.cursor = 'default';
       });
 
-      svgEl.addEventListener('click', ev => {
-        const hit = getHitDot(ev);
-        if (hit !== null) { netTip.style.opacity = '0'; showDetail(withNet[hit]); }
+      cv.addEventListener('click', ev => {
+        const hit = getHit(ev);
+        if (hit >= 0) { netTip.style.opacity = '0'; showDetail(withNet[hit]); }
       });
+
+      requestAnimationFrame(() => drawNet(-1));
     } else {
       // ── PITCH VIEW — real indoor court via hmapDrawCourt ──
       const pitchData = data.filter(g => g.sx != null);
