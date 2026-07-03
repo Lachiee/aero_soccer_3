@@ -8416,9 +8416,8 @@ function initShotMap(safeName, allGoalData, allAssistData) {
         document.body.appendChild(tip);
       }
 
-      const drawPitch = (hoveredIdx) => {
+      const drawPitch = (hoveredIdx, selectedIdx = -1) => {
         const dpr = window.devicePixelRatio || 1;
-        // Use section offsetWidth as fallback — more reliable than pitchEl which may be 0
         const W = pitchEl.offsetWidth || document.getElementById('profile-heatmap-section')?.offsetWidth || 400;
         const H = Math.round(W * 0.52);
         if (cv.width !== W * dpr) {
@@ -8429,16 +8428,58 @@ function initShotMap(safeName, allGoalData, allAssistData) {
         ctx.clearRect(0, 0, cv.width, cv.height);
         ctx.save(); ctx.scale(dpr, dpr);
         hmapDrawCourt(ctx, W, H);
+
         const footColor = { left: '#60a5fa', right: '#4ade80', header: '#f59e0b' };
+        // Goal dimensions from hmapDrawCourt
+        const goalH = H * 0.22, goalD = W * 0.02;
+        const goalFaceX = W - 3 - goalD;
+        const goalTopY  = H / 2 - goalH / 2;
+
+        // Draw shot-to-goal line for selected dot
+        if (selectedIdx >= 0 && selectedIdx < pitchData.length) {
+          const g = pitchData[selectedIdx];
+          const px = g.sx * W, py = g.sy * H;
+          // Goal endpoint: use netY if available, else centre
+          const gy = g.netY != null ? goalTopY + g.netY * goalH : H / 2;
+          const col = g.foot ? (footColor[g.foot] || 'rgba(255,255,255,.7)') : 'rgba(255,255,255,.7)';
+          // Dashed line
+          ctx.save();
+          ctx.setLineDash([4, 4]);
+          ctx.strokeStyle = col;
+          ctx.globalAlpha = 0.55;
+          ctx.lineWidth = 1.5;
+          ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(goalFaceX, gy); ctx.stroke();
+          ctx.restore();
+          // Small target marker at goal face
+          ctx.save();
+          ctx.globalAlpha = 0.85;
+          ctx.strokeStyle = col; ctx.lineWidth = 2;
+          ctx.beginPath(); ctx.arc(goalFaceX, gy, 5, 0, Math.PI * 2); ctx.stroke();
+          ctx.fillStyle = col; ctx.globalAlpha = 0.3;
+          ctx.beginPath(); ctx.arc(goalFaceX, gy, 5, 0, Math.PI * 2); ctx.fill();
+          ctx.restore();
+        }
+
+        // Draw all dots
         pitchData.forEach((g, i) => {
           const px = g.sx * W, py = g.sy * H;
-          const isHovered = i === hoveredIdx;
+          const isHovered  = i === hoveredIdx;
+          const isSelected = i === selectedIdx;
           const col = mode === 'assists' ? 'rgba(245,158,11,.88)' : 'rgba(248,113,113,.88)';
-          const r = isHovered ? 13 : 9;
+          const r = (isHovered || isSelected) ? 13 : 9;
           ctx.beginPath(); ctx.arc(px, py, r, 0, Math.PI * 2);
           ctx.fillStyle = col; ctx.globalAlpha = 0.9; ctx.fill(); ctx.globalAlpha = 1;
-          ctx.strokeStyle = isHovered ? 'white' : 'rgba(0,0,0,.5)';
-          ctx.lineWidth = isHovered ? 2.5 : 1.5; ctx.stroke();
+          if (isSelected) {
+            // Bold white selected ring
+            ctx.strokeStyle = 'white'; ctx.lineWidth = 3; ctx.stroke();
+            // Outer glow ring
+            ctx.beginPath(); ctx.arc(px, py, r + 4, 0, Math.PI * 2);
+            ctx.strokeStyle = 'rgba(255,255,255,.3)'; ctx.lineWidth = 1.5; ctx.stroke();
+          } else if (isHovered) {
+            ctx.strokeStyle = 'white'; ctx.lineWidth = 2.5; ctx.stroke();
+          } else {
+            ctx.strokeStyle = 'rgba(0,0,0,.5)'; ctx.lineWidth = 1.5; ctx.stroke();
+          }
         });
         ctx.restore();
       };
@@ -8456,12 +8497,12 @@ function initShotMap(safeName, allGoalData, allAssistData) {
         return best;
       };
 
-      let lastHitP = -1;
+      let lastHitP = -1, selectedP = -1;
       cv.addEventListener('mousemove', ev => {
         const hit = getHit(ev);
         if (hit !== lastHitP) {
           lastHitP = hit;
-          drawPitch(hit);
+          drawPitch(hit, selectedP);
           cv.style.cursor = hit >= 0 ? 'pointer' : 'crosshair';
           if (hit < 0) { tip.style.opacity = '0'; return; }
           const g = pitchData[hit];
@@ -8484,16 +8525,21 @@ function initShotMap(safeName, allGoalData, allAssistData) {
       });
 
       cv.addEventListener('mouseleave', () => {
-        lastHitP = -1; drawPitch(-1);
+        lastHitP = -1; drawPitch(-1, selectedP);
         tip.style.opacity = '0'; cv.style.cursor = 'crosshair';
       });
 
       cv.addEventListener('click', ev => {
         const hit = getHit(ev);
-        if (hit >= 0) { tip.style.opacity = '0'; showDetail(pitchData[hit]); }
+        if (hit >= 0) {
+          selectedP = hit;
+          tip.style.opacity = '0';
+          drawPitch(lastHitP, selectedP);
+          showDetail(pitchData[hit]);
+        }
       });
 
-      requestAnimationFrame(() => drawPitch(-1));
+      requestAnimationFrame(() => drawPitch(-1, -1));
     }
   }
 
@@ -15448,3 +15494,4 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 </script>
 </div></body></html>
+
