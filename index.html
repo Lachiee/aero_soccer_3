@@ -8406,32 +8406,94 @@ function initShotMap(safeName, allGoalData, allAssistData) {
       cv.style.cssText = 'width:100%;display:block;border-radius:10px;cursor:crosshair';
       pitchEl.innerHTML = '';
       pitchEl.appendChild(cv);
-      requestAnimationFrame(() => {
+
+      // Shared tooltip (reuse same one as net view)
+      let tip = document.getElementById('net-dot-tip');
+      if (!tip) {
+        tip = document.createElement('div');
+        tip.id = 'net-dot-tip';
+        tip.style.cssText = 'position:fixed;z-index:9999;background:#0d1a0f;border:1px solid rgba(57,211,83,.3);border-radius:8px;padding:8px 12px;font-family:"Barlow Condensed",sans-serif;pointer-events:none;opacity:0;transition:opacity .12s;min-width:130px;box-shadow:0 4px 20px rgba(0,0,0,.8);font-size:.78rem;line-height:1.5';
+        document.body.appendChild(tip);
+      }
+
+      const drawPitch = (hoveredIdx) => {
         const dpr = window.devicePixelRatio || 1;
-        const W = pitchEl.offsetWidth || 400;
+        // Use section offsetWidth as fallback — more reliable than pitchEl which may be 0
+        const W = pitchEl.offsetWidth || document.getElementById('profile-heatmap-section')?.offsetWidth || 400;
         const H = Math.round(W * 0.52);
-        cv.width = W * dpr; cv.height = H * dpr;
-        cv.style.height = H + 'px';
+        if (cv.width !== W * dpr) {
+          cv.width = W * dpr; cv.height = H * dpr;
+          cv.style.height = H + 'px';
+        }
         const ctx = cv.getContext('2d');
-        ctx.scale(dpr, dpr);
+        ctx.clearRect(0, 0, cv.width, cv.height);
+        ctx.save(); ctx.scale(dpr, dpr);
         hmapDrawCourt(ctx, W, H);
-        // Overlay goal dots
-        pitchData.forEach(g => {
+        const footColor = { left: '#60a5fa', right: '#4ade80', header: '#f59e0b' };
+        pitchData.forEach((g, i) => {
           const px = g.sx * W, py = g.sy * H;
-          ctx.beginPath(); ctx.arc(px, py, 9, 0, Math.PI * 2);
-          ctx.fillStyle = mode === 'assists' ? 'rgba(245,158,11,.88)' : 'rgba(248,113,113,.88)';
-          ctx.fill();
-          ctx.strokeStyle = 'rgba(0,0,0,.5)'; ctx.lineWidth = 1.5; ctx.stroke();
+          const isHovered = i === hoveredIdx;
+          const col = mode === 'assists' ? 'rgba(245,158,11,.88)' : 'rgba(248,113,113,.88)';
+          const r = isHovered ? 13 : 9;
+          ctx.beginPath(); ctx.arc(px, py, r, 0, Math.PI * 2);
+          ctx.fillStyle = col; ctx.globalAlpha = 0.9; ctx.fill(); ctx.globalAlpha = 1;
+          ctx.strokeStyle = isHovered ? 'white' : 'rgba(0,0,0,.5)';
+          ctx.lineWidth = isHovered ? 2.5 : 1.5; ctx.stroke();
         });
-        cv.addEventListener('click', ev => {
-          const r = cv.getBoundingClientRect();
-          const mx = (ev.clientX - r.left) / r.width * W;
-          const my = (ev.clientY - r.top) / r.height * H;
-          let hit = null, best = Infinity;
-          pitchData.forEach(g => { const d = Math.hypot(g.sx*W - mx, g.sy*H - my); if (d < best) { best = d; hit = g; } });
-          if (hit && best < 22) showDetail(hit);
+        ctx.restore();
+      };
+
+      const getHit = (ev) => {
+        const rect = cv.getBoundingClientRect();
+        if (!rect.width) return -1;
+        const W = rect.width, H = rect.height;
+        const mx = ev.clientX - rect.left, my = ev.clientY - rect.top;
+        let best = -1, bestD = 22;
+        pitchData.forEach((g, i) => {
+          const d = Math.hypot(g.sx * W - mx, g.sy * H - my);
+          if (d < bestD) { bestD = d; best = i; }
         });
+        return best;
+      };
+
+      let lastHitP = -1;
+      cv.addEventListener('mousemove', ev => {
+        const hit = getHit(ev);
+        if (hit !== lastHitP) {
+          lastHitP = hit;
+          drawPitch(hit);
+          cv.style.cursor = hit >= 0 ? 'pointer' : 'crosshair';
+          if (hit < 0) { tip.style.opacity = '0'; return; }
+          const g = pitchData[hit];
+          const m = matchList.find(mx => mx.id === g.mid);
+          const footColor = { left: '#60a5fa', right: '#4ade80', header: '#f59e0b' };
+          const footLabel = g.foot ? g.foot.charAt(0).toUpperCase() + g.foot.slice(1) + ' foot' : '—';
+          const col = g.foot ? (footColor[g.foot] || '#aaa') : 'white';
+          tip.innerHTML = `<div style="color:${col};font-weight:700;margin-bottom:2px">${footLabel}</div>
+            ${g.time ? `<div style="color:rgba(255,255,255,.75)">${g.time} &middot; ${g.half}</div>` : ''}
+            ${g.assister ? `<div style="color:rgba(168,224,80,.8);font-size:.7rem">&larr; ${g.assister}</div>` : ''}
+            ${m ? `<div style="color:rgba(255,255,255,.35);font-size:.65rem;margin-top:2px">${m.date} &middot; ${m.goalsA}&ndash;${m.goalsB}</div>` : ''}
+            <div style="color:rgba(57,211,83,.5);font-size:.6rem;margin-top:5px;letter-spacing:.5px">CLICK FOR DETAILS</div>`;
+          tip.style.opacity = '1';
+        }
+        if (hit >= 0) {
+          const ow = tip.offsetWidth || 140;
+          tip.style.left = (ev.clientX + 14 + ow > window.innerWidth ? ev.clientX - ow - 8 : ev.clientX + 14) + 'px';
+          tip.style.top = (ev.clientY - 12) + 'px';
+        }
       });
+
+      cv.addEventListener('mouseleave', () => {
+        lastHitP = -1; drawPitch(-1);
+        tip.style.opacity = '0'; cv.style.cursor = 'crosshair';
+      });
+
+      cv.addEventListener('click', ev => {
+        const hit = getHit(ev);
+        if (hit >= 0) { tip.style.opacity = '0'; showDetail(pitchData[hit]); }
+      });
+
+      requestAnimationFrame(() => drawPitch(-1));
     }
   }
 
