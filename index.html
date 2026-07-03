@@ -8256,15 +8256,20 @@ function initShotMap(safeName, allGoalData, allAssistData) {
     if (viewNet) {
       // ── NET VIEW — Option C: app-themed, 3D depth, 8×4 grid ──
       const withNet = data.filter(g => g.netX != null);
-      // Inset from posts (x 31-36 left, 164-169 right) and crossbar (y 29-34)
-      // Dot area: cx 40-160, cy 38-100 so r=4 dots never touch the frame
-      const netDotsSvg = withNet.map((g, i) => {
-        const col = g.foot ? (footColor[g.foot] || '#aaa') : '#aaa';
-        const cx = (40 + g.netX * 120).toFixed(1);
-        const cy = (38 + g.netY * 62).toFixed(1);
-        return `<circle cx="${cx}" cy="${cy}" r="4" fill="${col}" fill-opacity="0.95" stroke="#0a110c" stroke-width="1.2" data-idx="${i}" style="cursor:pointer"/>`;
-      }).join('');
-      pitchEl.innerHTML = `<svg viewBox="0 0 200 130" style="width:100%;max-width:480px;display:block;border-radius:10px" xmlns="http://www.w3.org/2000/svg">
+      // Dot area inset from posts: cx 40–160, cy 38–100 (posts at x31-36,164-169; crossbar y29-34)
+      const dotPositions = withNet.map(g => ({
+        cx: 40 + g.netX * 120,
+        cy: 38 + g.netY * 62,
+        col: g.foot ? (footColor[g.foot] || '#aaa') : '#aaa',
+      }));
+
+      // Build SVG string — no per-element events, we use coordinate hit-testing instead
+      const netDotsSvg = dotPositions.map((d, i) =>
+        `<circle cx="${d.cx.toFixed(1)}" cy="${d.cy.toFixed(1)}" r="4" fill="${d.col}" fill-opacity="0.95" stroke="#0a110c" stroke-width="1.2" id="ndot-${i}"/>`
+      ).join('');
+
+      // Parse SVG properly via DOMParser so elements are in the SVG namespace
+      const svgStr = `<svg viewBox="0 0 200 130" xmlns="http://www.w3.org/2000/svg">
         <rect width="200" height="130" fill="#111a13" rx="10"/>
         <rect x="34" y="32" width="132" height="72" fill="#0a110c" rx="2"/>
         <line x1="34" y1="32" x2="10" y2="14" stroke="rgba(57,211,83,.18)" stroke-width=".8"/>
@@ -8292,46 +8297,97 @@ function initShotMap(safeName, allGoalData, allAssistData) {
         ${netDotsSvg}
       </svg>`;
 
-      // Tooltip element (shared, reused)
+      pitchEl.innerHTML = '';
+      pitchEl.style.cssText = 'max-width:480px;position:relative';
+      const svgEl = new DOMParser().parseFromString(svgStr, 'image/svg+xml').documentElement;
+      svgEl.style.cssText = 'width:100%;display:block;border-radius:10px;cursor:default';
+      pitchEl.appendChild(svgEl);
+
+      // Shared tooltip
       let netTip = document.getElementById('net-dot-tip');
       if (!netTip) {
         netTip = document.createElement('div');
         netTip.id = 'net-dot-tip';
-        netTip.style.cssText = 'position:fixed;z-index:9999;background:#0d1a0f;border:1px solid rgba(57,211,83,.25);border-radius:8px;padding:8px 12px;font-family:"Barlow Condensed",sans-serif;pointer-events:none;opacity:0;transition:opacity .12s;min-width:130px;box-shadow:0 4px 16px rgba(0,0,0,.7);font-size:.75rem';
+        netTip.style.cssText = 'position:fixed;z-index:9999;background:#0d1a0f;border:1px solid rgba(57,211,83,.3);border-radius:8px;padding:8px 12px;font-family:"Barlow Condensed",sans-serif;pointer-events:none;opacity:0;transition:opacity .12s;min-width:130px;box-shadow:0 4px 20px rgba(0,0,0,.8);font-size:.78rem;line-height:1.5';
         document.body.appendChild(netTip);
       }
 
-      pitchEl.querySelectorAll('circle[data-idx]').forEach(el => {
-        const g = withNet[+el.dataset.idx];
-        const col = g.foot ? (footColor[g.foot] || '#aaa') : '#aaa';
-        el.addEventListener('mouseenter', ev => {
-          el.setAttribute('r', '6');
-          el.setAttribute('stroke', col);
-          el.setAttribute('stroke-width', '2');
-          const m = matchList.find(mx => mx.id === g.mid);
-          const footLabel = g.foot ? g.foot.charAt(0).toUpperCase()+g.foot.slice(1)+' foot' : 'Unknown foot';
-          netTip.innerHTML = `<div style="color:${col};font-weight:700;margin-bottom:3px">${footLabel}</div>
-            ${g.time ? `<div style="color:rgba(255,255,255,.7)">${g.time} · ${g.half}</div>` : ''}
-            ${g.assister ? `<div style="color:rgba(168,224,80,.8);font-size:.68rem">&#8592; ${g.assister}</div>` : ''}
-            ${m ? `<div style="color:rgba(255,255,255,.4);font-size:.65rem;margin-top:2px">${m.date} · ${m.goalsA}&#x2013;${m.goalsB}</div>` : ''}
-            <div style="color:rgba(57,211,83,.45);font-size:.6rem;margin-top:5px;letter-spacing:.5px">CLICK FOR DETAILS</div>`;
-          netTip.style.opacity = '1';
-          const ow = netTip.offsetWidth || 140;
-          netTip.style.left = (ev.clientX + 14 + ow > window.innerWidth ? ev.clientX - ow - 8 : ev.clientX + 14) + 'px';
-          netTip.style.top = (ev.clientY - 10) + 'px';
+      // Convert mouse coords to SVG viewBox coords
+      const toSvgCoords = (ev) => {
+        const rect = svgEl.getBoundingClientRect();
+        return {
+          x: (ev.clientX - rect.left) / rect.width * 200,
+          y: (ev.clientY - rect.top) / rect.height * 130,
+        };
+      };
+
+      // Find nearest dot within hit radius
+      const getHitDot = (ev) => {
+        const { x, y } = toSvgCoords(ev);
+        let best = null, bestD = 9; // hit radius of 9 SVG units (~18px visual)
+        dotPositions.forEach((d, i) => {
+          const dist = Math.hypot(d.cx - x, d.cy - y);
+          if (dist < bestD) { bestD = dist; best = i; }
         });
-        el.addEventListener('mousemove', ev => {
-          const ow = netTip.offsetWidth || 140;
-          netTip.style.left = (ev.clientX + 14 + ow > window.innerWidth ? ev.clientX - ow - 8 : ev.clientX + 14) + 'px';
-          netTip.style.top = (ev.clientY - 10) + 'px';
-        });
-        el.addEventListener('mouseleave', () => {
-          el.setAttribute('r', '4');
-          el.setAttribute('stroke', '#0a110c');
-          el.setAttribute('stroke-width', '1.2');
+        return best;
+      };
+
+      let lastHit = null;
+      svgEl.addEventListener('mousemove', ev => {
+        const hit = getHitDot(ev);
+        if (hit === lastHit) {
+          // Just update tooltip position
+          if (hit !== null) {
+            const ow = netTip.offsetWidth || 140;
+            netTip.style.left = (ev.clientX + 14 + ow > window.innerWidth ? ev.clientX - ow - 8 : ev.clientX + 14) + 'px';
+            netTip.style.top = (ev.clientY - 12) + 'px';
+          }
+          return;
+        }
+        // Restore previous dot
+        if (lastHit !== null) {
+          const prev = svgEl.getElementById('ndot-' + lastHit);
+          if (prev) { prev.setAttribute('r', '4'); prev.setAttribute('stroke', '#0a110c'); prev.setAttribute('stroke-width', '1.2'); }
+        }
+        lastHit = hit;
+        if (hit === null) {
           netTip.style.opacity = '0';
-        });
-        el.addEventListener('click', () => { netTip.style.opacity = '0'; showDetail(g); });
+          svgEl.style.cursor = 'default';
+          return;
+        }
+        // Enlarge hovered dot
+        const el = svgEl.getElementById('ndot-' + hit);
+        if (el) { el.setAttribute('r', '6.5'); el.setAttribute('stroke', dotPositions[hit].col); el.setAttribute('stroke-width', '2'); }
+        svgEl.style.cursor = 'pointer';
+
+        // Show tooltip
+        const g = withNet[hit];
+        const m = matchList.find(mx => mx.id === g.mid);
+        const footLabel = g.foot ? g.foot.charAt(0).toUpperCase() + g.foot.slice(1) + ' foot' : 'Unknown foot';
+        netTip.innerHTML = `<div style="color:${dotPositions[hit].col};font-weight:700;margin-bottom:2px">${footLabel}</div>
+          ${g.time ? `<div style="color:rgba(255,255,255,.75)">${g.time} &middot; ${g.half}</div>` : ''}
+          ${g.assister ? `<div style="color:rgba(168,224,80,.8);font-size:.7rem">&larr; ${g.assister}</div>` : ''}
+          ${m ? `<div style="color:rgba(255,255,255,.35);font-size:.65rem;margin-top:2px">${m.date} &middot; ${m.goalsA}&ndash;${m.goalsB}</div>` : ''}
+          <div style="color:rgba(57,211,83,.5);font-size:.6rem;margin-top:5px;letter-spacing:.5px">CLICK FOR DETAILS</div>`;
+        netTip.style.opacity = '1';
+        const ow = netTip.offsetWidth || 140;
+        netTip.style.left = (ev.clientX + 14 + ow > window.innerWidth ? ev.clientX - ow - 8 : ev.clientX + 14) + 'px';
+        netTip.style.top = (ev.clientY - 12) + 'px';
+      });
+
+      svgEl.addEventListener('mouseleave', () => {
+        if (lastHit !== null) {
+          const prev = svgEl.getElementById('ndot-' + lastHit);
+          if (prev) { prev.setAttribute('r', '4'); prev.setAttribute('stroke', '#0a110c'); prev.setAttribute('stroke-width', '1.2'); }
+          lastHit = null;
+        }
+        netTip.style.opacity = '0';
+        svgEl.style.cursor = 'default';
+      });
+
+      svgEl.addEventListener('click', ev => {
+        const hit = getHitDot(ev);
+        if (hit !== null) { netTip.style.opacity = '0'; showDetail(withNet[hit]); }
       });
     } else {
       // ── PITCH VIEW — real indoor court via hmapDrawCourt ──
