@@ -8430,33 +8430,47 @@ function initShotMap(safeName, allGoalData, allAssistData) {
         hmapDrawCourt(ctx, W, H);
 
         const footColor = { left: '#60a5fa', right: '#4ade80', header: '#f59e0b' };
-        // Goal dimensions from hmapDrawCourt
-        const goalH = H * 0.22, goalD = W * 0.02;
-        const goalFaceX = W - 3 - goalD;
-        const goalTopY  = H / 2 - goalH / 2;
+        // Goal dimensions — match exactly what hmapDrawCourt draws
+        const goalH  = H * 0.22;
+        const goalD  = W * 0.02;
+        const goalFaceX   = W - 3 - goalD;   // left edge of right goal rect
+        const goalBackX   = W - 3;            // right edge (back of net)
+        const goalTopY    = H / 2 - goalH / 2;
+        const goalBottomY = H / 2 + goalH / 2;
 
         // Draw shot-to-goal line for selected dot
         if (selectedIdx >= 0 && selectedIdx < pitchData.length) {
           const g = pitchData[selectedIdx];
           const px = g.sx * W, py = g.sy * H;
-          // Goal endpoint: use netY if available, else centre
-          const gy = g.netY != null ? goalTopY + g.netY * goalH : H / 2;
-          const col = g.foot ? (footColor[g.foot] || 'rgba(255,255,255,.7)') : 'rgba(255,255,255,.7)';
-          // Dashed line
+          // netY: 0=crossbar (top of goal), 1=ground (bottom of goal)
+          const netYc = g.netY != null ? Math.max(0, Math.min(1, g.netY)) : 0.5;
+          const gy = goalTopY + netYc * goalH;
+          const col = g.foot ? (footColor[g.foot] || 'rgba(255,255,255,.8)') : 'rgba(255,255,255,.8)';
+
+          // Dashed line from shot to goal face
           ctx.save();
-          ctx.setLineDash([4, 4]);
+          ctx.setLineDash([5, 4]);
           ctx.strokeStyle = col;
-          ctx.globalAlpha = 0.55;
+          ctx.globalAlpha = 0.6;
           ctx.lineWidth = 1.5;
           ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(goalFaceX, gy); ctx.stroke();
           ctx.restore();
-          // Small target marker at goal face
+
+          // Target: draw a small crosshair inside the goal rect at gy
           ctx.save();
-          ctx.globalAlpha = 0.85;
-          ctx.strokeStyle = col; ctx.lineWidth = 2;
-          ctx.beginPath(); ctx.arc(goalFaceX, gy, 5, 0, Math.PI * 2); ctx.stroke();
-          ctx.fillStyle = col; ctx.globalAlpha = 0.3;
-          ctx.beginPath(); ctx.arc(goalFaceX, gy, 5, 0, Math.PI * 2); ctx.fill();
+          ctx.globalAlpha = 0.9;
+          // Horizontal line across goal depth at the netY height
+          ctx.strokeStyle = col; ctx.lineWidth = 1.5;
+          ctx.beginPath(); ctx.moveTo(goalFaceX, gy); ctx.lineTo(goalBackX + 2, gy); ctx.stroke();
+          // Outer ring
+          ctx.beginPath(); ctx.arc(goalFaceX, gy, 5.5, 0, Math.PI * 2);
+          ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.stroke();
+          ctx.fillStyle = col; ctx.globalAlpha = 0.35;
+          ctx.beginPath(); ctx.arc(goalFaceX, gy, 5.5, 0, Math.PI * 2); ctx.fill();
+          // Inner dot
+          ctx.globalAlpha = 0.9;
+          ctx.fillStyle = col;
+          ctx.beginPath(); ctx.arc(goalFaceX, gy, 2, 0, Math.PI * 2); ctx.fill();
           ctx.restore();
         }
 
@@ -15494,4 +15508,3 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 </script>
 </div></body></html>
-
