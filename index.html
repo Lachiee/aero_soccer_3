@@ -4784,6 +4784,203 @@ function setMomStyle(ev, style) {
   });
 }
 
+function drawMomentumGraph(canvasId, matchId) {
+  const cv = document.getElementById(canvasId);
+  const data = window._wormData?.[matchId];
+  if (!cv || !data) return;
+  const { rows, matchDur, htSecs, fA, fB, ytId } = data;
+  if (!rows || rows.length < 1) return;
+
+  // Try event log for shot-pressure momentum
+  let evLog = null;
+  try {
+    const logs = JSON.parse(localStorage.getItem('aero_event_logs') || '{}');
+    const log = logs[matchId];
+    evLog = log?.events?.length ? log.events : null;
+  } catch(e) {}
+
+  const dpr = window.devicePixelRatio || 1;
+  let W = cv.offsetWidth;
+  if (!W || W < 100) {
+    let el = cv.parentElement;
+    while (el && (!el.offsetWidth || el.offsetWidth < 100)) el = el.parentElement;
+    W = Math.max((el?.offsetWidth || 900) - 220, 400);
+  }
+  const H = 140;
+  cv.width = W * dpr; cv.height = H * dpr;
+  cv.style.width = W + 'px'; cv.style.height = H + 'px';
+  const ctx = cv.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  const pad = { l: 8, r: 8, t: 28, b: 28 };
+  const cW = W - pad.l - pad.r;
+  const cH = H - pad.t - pad.b;
+  const midY = pad.t + cH / 2;
+  const toX = s => pad.l + (s / matchDur) * cW;
+  const toY = v => midY - v * (cH / 2) * 0.82;
+
+  // Background
+  ctx.fillStyle = 'rgba(0,0,0,.3)';
+  if (ctx.roundRect) ctx.roundRect(0, 0, W, H, 8); else ctx.rect(0, 0, W, H);
+  ctx.fill();
+
+  // Build momentum points
+  let momPts = [];
+  const PW = { 'Goals': 4, 'On Target': 3, 'Key Passes': 2, 'Off Target': 1, 'Tackles': 0.5, 'Interceptions': 0.5, 'Blocks': 0.5 };
+
+  if (evLog) {
+    const pev = evLog.filter(e => PW[e.event] != null && e.tsSecsRaw != null);
+    for (let t = 0; t <= matchDur; t += 15) {
+      const win = pev.filter(e => e.tsSecsRaw >= t - 90 && e.tsSecsRaw <= t);
+      let pA = 0, pB = 0;
+      win.forEach(e => { const w = PW[e.event] || 0; if (e.team === 'A') pA += w; else pB += w; });
+      const tot = pA + pB;
+      momPts.push({ s: t, v: tot > 0 ? (pA - pB) / tot : 0 });
+    }
+  } else {
+    momPts = [{ s: 0, v: 0 }];
+    const maxD = Math.max(...rows.map(r => Math.abs(r.scoreA - r.scoreB)), 1);
+    rows.forEach(r => {
+      const abs = r.halfAbsSecs != null ? r.halfAbsSecs : (r.half === '2H' && htSecs ? htSecs + r.secs : r.secs);
+      momPts.push({ s: abs, v: (r.scoreA - r.scoreB) / maxD });
+    });
+    momPts.sort((a, b) => a.s - b.s);
+    momPts.push({ s: matchDur, v: momPts[momPts.length - 1].v });
+  }
+
+  // Smooth
+  const sm = momPts.map((p, i) => {
+    const sl = momPts.slice(Math.max(0, i - 3), i + 4);
+    return { s: p.s, v: sl.reduce((a, x) => a + x.v, 0) / sl.length };
+  });
+
+  const coords = sm.map(p => ({ x: toX(p.s), y: toY(p.v) }));
+
+  const buildPath = pts => {
+    ctx.moveTo(pts[0].x, pts[0].y);
+    for (let i = 0; i < pts.length - 1; i++) {
+      const dx = (pts[i + 1].x - pts[i].x) / 3;
+      ctx.bezierCurveTo(pts[i].x + dx, pts[i].y, pts[i + 1].x - dx, pts[i + 1].y, pts[i + 1].x, pts[i + 1].y);
+    }
+  };
+
+  // Green fill above
+  ctx.save(); ctx.beginPath(); ctx.rect(pad.l, pad.t, cW, midY - pad.t); ctx.clip();
+  ctx.beginPath(); ctx.moveTo(coords[0].x, midY); buildPath(coords);
+  ctx.lineTo(coords[coords.length - 1].x, midY); ctx.closePath();
+  const gA = ctx.createLinearGradient(0, pad.t, 0, midY);
+  gA.addColorStop(0, 'rgba(57,211,83,0.45)'); gA.addColorStop(1, 'rgba(57,211,83,0.05)');
+  ctx.fillStyle = gA; ctx.fill(); ctx.restore();
+
+  // Blue fill below
+  ctx.save(); ctx.beginPath(); ctx.rect(pad.l, midY, cW, cH / 2 + 2); ctx.clip();
+  ctx.beginPath(); ctx.moveTo(coords[0].x, midY); buildPath(coords);
+  ctx.lineTo(coords[coords.length - 1].x, midY); ctx.closePath();
+  const gB = ctx.createLinearGradient(0, midY, 0, pad.t + cH);
+  gB.addColorStop(0, 'rgba(96,165,250,0.05)'); gB.addColorStop(1, 'rgba(96,165,250,0.45)');
+  ctx.fillStyle = gB; ctx.fill(); ctx.restore();
+
+  // Line
+  ctx.beginPath(); buildPath(coords);
+  ctx.strokeStyle = 'rgba(255,255,255,0.75)'; ctx.lineWidth = 2; ctx.stroke();
+
+  // Centreline
+  ctx.strokeStyle = 'rgba(255,255,255,0.15)'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(pad.l, midY); ctx.lineTo(W - pad.r, midY); ctx.stroke();
+
+  // Halftime
+  if (htSecs) {
+    const hx = toX(htSecs);
+    ctx.strokeStyle = 'rgba(255,255,255,0.2)'; ctx.lineWidth = 1; ctx.setLineDash([3, 3]);
+    ctx.beginPath(); ctx.moveTo(hx, pad.t); ctx.lineTo(hx, H - pad.b); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // C1 goal annotations — name above (A) / below (B) with dotted tick
+  const hitTargets = [];
+  rows.forEach(r => {
+    const abs = r.halfAbsSecs != null ? r.halfAbsSecs : (r.half === '2H' && htSecs ? htSecs + r.secs : r.secs);
+    const x = toX(abs);
+    const col = r.team === 'A' ? '#39d353' : '#60a5fa';
+    const nearest = sm.reduce((b, p) => Math.abs(p.s - abs) < Math.abs(b.s - abs) ? p : b, sm[0]);
+    const dotY = toY(nearest.v);
+    const isAbove = r.team === 'A';
+    const labelY = isAbove ? pad.t - 7 : H - pad.b + 16;
+    const tickEndY = isAbove ? pad.t + 2 : H - pad.b - 2;
+
+    // Dot on line
+    ctx.beginPath(); ctx.arc(x, dotY, 4, 0, Math.PI * 2);
+    ctx.fillStyle = col; ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,.5)'; ctx.lineWidth = 1.2; ctx.stroke();
+
+    // Dotted tick
+    ctx.strokeStyle = col; ctx.globalAlpha = 0.4; ctx.lineWidth = 1; ctx.setLineDash([2, 3]);
+    ctx.beginPath(); ctx.moveTo(x, isAbove ? dotY - 4 : dotY + 4); ctx.lineTo(x, tickEndY);
+    ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1;
+
+    // Scorer name
+    const fontSize = Math.min(10, Math.round(W * 0.014));
+    ctx.font = `bold ${fontSize}px Barlow Condensed, sans-serif`;
+    ctx.fillStyle = col; ctx.textAlign = 'center';
+    ctx.fillText(r.scorer || '', x, labelY);
+
+    // Assister in brackets
+    const assister = r.assister && !r.isOG ? r.assister : null;
+    if (assister) {
+      ctx.font = `${Math.max(8, fontSize - 1)}px Barlow Condensed, sans-serif`;
+      ctx.fillStyle = col; ctx.globalAlpha = 0.6;
+      ctx.fillText(`(${assister})`, x, isAbove ? labelY - 10 : labelY + 11);
+      ctx.globalAlpha = 1;
+    }
+
+    // Underline if YT clickable
+    const hasYt = !!(ytId && r.ytTime != null);
+    if (hasYt) {
+      const tw = ctx.measureText(r.scorer || '').width;
+      ctx.strokeStyle = col; ctx.globalAlpha = 0.5; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(x - tw / 2, labelY + 1); ctx.lineTo(x + tw / 2, labelY + 1); ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+    hitTargets.push({ x, y: labelY, ytTime: r.ytTime, hasYt });
+  });
+
+  // Team labels
+  ctx.font = '9px Barlow Condensed, sans-serif'; ctx.textAlign = 'left';
+  ctx.fillStyle = 'rgba(57,211,83,0.55)'; ctx.fillText(fA || 'Team A', pad.l + 4, pad.t + 11);
+  ctx.fillStyle = 'rgba(96,165,250,0.55)'; ctx.fillText(fB || 'Team B', pad.l + 4, H - pad.b - 5);
+
+  // Time labels
+  const durMins = Math.ceil(matchDur / 60);
+  const step = durMins <= 55 ? 10 : 15;
+  ctx.fillStyle = 'rgba(255,255,255,0.28)'; ctx.textAlign = 'center'; ctx.font = '10px sans-serif';
+  for (let t = 0; t <= durMins; t += step) ctx.fillText(t + "'", toX(t * 60), H - 4);
+
+  // Title
+  ctx.fillStyle = 'rgba(255,255,255,0.18)'; ctx.textAlign = 'left';
+  ctx.font = '9px Barlow Condensed, sans-serif';
+  ctx.fillText(evLog ? 'SHOT PRESSURE MOMENTUM' : 'SCORE MOMENTUM', pad.l + 4, pad.t - 16);
+
+  // Store click targets
+  const matchKey = matchId.replace(/[#,]/g, '_');
+  cv._momHitTargets = hitTargets; cv._momYtId = ytId; cv._momMatchKey = matchKey;
+  if (!cv._momBound) {
+    cv._momBound = true;
+    cv.addEventListener('mousemove', ev => {
+      const r = cv.getBoundingClientRect();
+      const mx = (ev.clientX - r.left) * (W / r.width);
+      const my = (ev.clientY - r.top) * (H / r.height);
+      cv.style.cursor = (cv._momHitTargets || []).some(t => t.hasYt && Math.abs(mx - t.x) < 40 && Math.abs(my - t.y) < 12) ? 'pointer' : 'default';
+    });
+    cv.addEventListener('click', ev => {
+      const r = cv.getBoundingClientRect();
+      const mx = (ev.clientX - r.left) * (W / r.width);
+      const my = (ev.clientY - r.top) * (H / r.height);
+      const hit = (cv._momHitTargets || []).find(t => t.hasYt && Math.abs(mx - t.x) < 40 && Math.abs(my - t.y) < 12);
+      if (hit) seekYtVideo(cv._momMatchKey, cv._momYtId, hit.ytTime);
+    });
+  }
+}
+
 function drawWormChips(canvasId, matchId, ytId) {
   const canvas = document.getElementById(canvasId);
   const overlay = document.getElementById('chips-' + canvasId);
