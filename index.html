@@ -8332,7 +8332,7 @@ function initShotMap(safeName, allGoalData, allAssistData) {
         const footColor = { left: '#60a5fa', right: '#4ade80', header: '#f59e0b' };
         withNet.forEach((g, i) => {
           const cx = (40 + g.netX * 120) * sx;
-          const cy = (38 + (1 - g.netY) * 62) * sy;
+          const cy = (38 + g.netY * 62) * sy;
           const col = g.foot ? (footColor[g.foot] || '#aaa') : '#aaa';
           const isHovered = i === hoveredIdx;
           const dotR = isHovered ? 7 * sx : 4.5 * sx;
@@ -8352,7 +8352,7 @@ function initShotMap(safeName, allGoalData, allAssistData) {
         let best = -1, bestD = 12; // hit radius in viewBox units
         withNet.forEach((g, i) => {
           const cx = 40 + g.netX * 120;
-          const cy = 38 + (1 - g.netY) * 62;
+          const cy = 38 + g.netY * 62;
           const d = Math.hypot(cx - mx, cy - my);
           if (d < bestD) { bestD = d; best = i; }
         });
@@ -8450,9 +8450,9 @@ function initShotMap(safeName, allGoalData, allAssistData) {
           // Remap netY from that frame range onto the court goal rect.
           let gy;
           if (g.netY != null) {
-            const frameTop = 32 / 130; // 0.246 — where crossbar sits in the net frame
-            const frameBot = 104 / 130; // 0.800 — where ground sits in the net frame
-            const t = (Math.max(0, Math.min(1, 1 - g.netY)) - frameTop) / (frameBot - frameTop);
+            const frameTop = 1 / 58;  // 0.0172 — crossbar in original placement tool SVG
+            const frameBot = 51 / 58; // 0.8793 — ground in original placement tool SVG
+            const t = (Math.max(0, Math.min(1, g.netY)) - frameTop) / (frameBot - frameTop);
             gy = goalTopY + Math.max(0, Math.min(1, t)) * goalH;
           } else {
             gy = H / 2;
@@ -8603,7 +8603,7 @@ function initShotMap(safeName, allGoalData, allAssistData) {
       const col = g.foot ? (footColor[g.foot] || '#aaa') : '#aaa';
       // Scale into goal mouth coords: x 34–166, y 32–104 of 200×130 viewBox
       const cx = (40 + g.netX * 120).toFixed(1);
-      const cy = (38 + (1 - g.netY) * 62).toFixed(1);
+      const cy = (38 + g.netY * 62).toFixed(1);
       netMapHtml = `<svg viewBox="0 0 200 130" style="width:100px;height:65px;display:block;border-radius:6px" xmlns="http://www.w3.org/2000/svg">
         <rect width="200" height="130" fill="#111a13" rx="6"/>
         <rect x="34" y="32" width="132" height="72" fill="#0a110c" rx="2"/>
