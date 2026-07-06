@@ -4841,7 +4841,7 @@ function drawMomentumGraph(canvasId, matchId) {
     momPts = [{ s: 0, v: 0 }];
     const maxD = Math.max(...rows.map(r => Math.abs(r.scoreA - r.scoreB)), 1);
     rows.forEach(r => {
-      const abs = r.halfAbsSecs != null ? r.halfAbsSecs : (r.half === '2H' && htSecs ? htSecs + r.secs : r.secs);
+      const abs = r.absSecs != null ? r.absSecs : r.secs;
       momPts.push({ s: abs, v: (r.scoreA - r.scoreB) / maxD });
     });
     momPts.sort((a, b) => a.s - b.s);
@@ -4899,7 +4899,7 @@ function drawMomentumGraph(canvasId, matchId) {
   // C1 goal annotations — name above (A) / below (B) with dotted tick
   const hitTargets = [];
   rows.forEach(r => {
-    const abs = r.absSecs != null ? r.absSecs : (r.halfAbsSecs != null ? r.halfAbsSecs : (r.half === '2H' && htSecs ? htSecs + r.secs : r.secs));
+    const abs = r.absSecs != null ? r.absSecs : r.secs;
     const x = toX(abs);
     const col = r.team === 'A' ? '#39d353' : '#60a5fa';
     const nearest = sm.reduce((b, p) => Math.abs(p.s - abs) < Math.abs(b.s - abs) ? p : b, sm[0]);
@@ -7411,15 +7411,14 @@ function renderMatches() {
           } catch(e) {}
 
           const matchDurFinal = totalDurSecs || Math.max(...all.map(p=>toSecs(p.time)), 50*60) + 60;
-          // Patch rows with absolute match time and YouTube seek time
+          // Timestamps are already absolute match time (2H continues from 1H end)
+          // Just use secs directly — no half offset needed
           const ytIdForRows = ytId;
           rows.forEach(r => {
-            // Absolute seconds: 2H goals need htSecs offset
-            r.absSecs = r.half === '2H' && htSecs ? htSecs + r.secs : r.secs;
-            // YouTube seek time
+            r.absSecs = r.secs;
             r.ytTime = ytIdForRows && r.time ? timeToYtSeconds(r.time, r.half) : null;
           });
-          // Re-sort by absolute time so 2H goals don't appear before late 1H goals
+          // Sort by absolute time (already sorted by secs, but ensure correct order)
           rows.sort((a, b) => a.absSecs - b.absSecs);
           window._wormData[mid] = { rows, fA, fB, matchDur: matchDurFinal, htSecs, ytId };
 
