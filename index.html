@@ -2386,7 +2386,7 @@ const RAW_CSV = `match_id,match_date,team,player,half,goals,assists,shots_on_tar
 let allRows = [];
 let playerStats = {};
 let matchList = [];
-let customStats = {};
+let customStats = window.customStats || {};
 let playerNotes = {};
 let playerBuffs = {}; // name → flat rating bonus (can be negative)
 let playerGifs = {};
@@ -5028,129 +5028,6 @@ function drawMomentumGraph(canvasId, matchId) {
   // Title
   ctx.fillStyle = 'rgba(255,255,255,0.2)'; ctx.textAlign = 'left'; ctx.font = '9px Barlow Condensed, sans-serif';
   ctx.fillText(events ? 'SHOT PRESSURE MOMENTUM' : 'SCORE MOMENTUM', pad.l + 4, pad.t - 6);
-}
-
-  const dpr = window.devicePixelRatio || 1;
-  let W = cv.offsetWidth;
-  if (!W || W < 100) { let el = cv.parentElement; while (el && (!el.offsetWidth || el.offsetWidth < 100)) el = el.parentElement; W = (el?.offsetWidth || 700) - 20; }
-  const H = 130;
-  cv.width = W * dpr; cv.height = H * dpr;
-  cv.style.width = W + 'px'; cv.style.height = H + 'px';
-  const ctx = cv.getContext('2d');
-  ctx.scale(dpr, dpr);
-
-  const pad = { l: 8, r: 8, t: 12, b: 22 };
-  const cW = W - pad.l - pad.r;
-  const cH = H - pad.t - pad.b;
-  const midY = pad.t + cH / 2;
-
-  // Background
-  ctx.fillStyle = 'rgba(0,0,0,.3)';
-  if (ctx.roundRect) ctx.roundRect(0, 0, W, H, 8); else ctx.rect(0, 0, W, H);
-  ctx.fill();
-
-  // Build smooth momentum curve from goal events
-  // Score difference (A - B) at each moment, interpolated smoothly
-  const toX = s => pad.l + (s / matchDur) * cW;
-  const maxDiff = Math.max(...rows.map(r => Math.abs(r.scoreA - r.scoreB)), 2);
-  const toY = d => midY - (d / (maxDiff + 1)) * (cH / 2);
-
-  // Build data points using ABSOLUTE match time to avoid backwards jumps
-  // rows.secs is per-half time; add htSecs for 2H events to get absolute time
-  const pts = [{ s: 0, d: 0 }];
-  rows.forEach(r => {
-    // halfAbsSecs is the absolute time if available, otherwise reconstruct it
-    const absSecs = r.halfAbsSecs != null
-      ? r.halfAbsSecs
-      : (r.half === '2H' && htSecs ? htSecs + r.secs : r.secs);
-    pts.push({ s: absSecs, d: r.scoreA - r.scoreB });
-  });
-  // Sort by absolute time to guarantee left-to-right ordering
-  pts.sort((a, b) => a.s - b.s);
-  pts.push({ s: matchDur, d: rows[rows.length - 1].scoreA - rows[rows.length - 1].scoreB });
-
-  // Convert to screen coords
-  const coords = pts.map(p => ({ x: toX(p.s), y: toY(p.d) }));
-
-  // Stepped path: hold flat until next goal, then step vertically
-  // This matches how momentum charts actually work — no overshooting beziers
-  const buildPath = () => {
-    ctx.moveTo(coords[0].x, coords[0].y);
-    for (let i = 1; i < coords.length; i++) {
-      // Step: go horizontal to next x, then vertical to new y
-      ctx.lineTo(coords[i].x, coords[i - 1].y);
-      ctx.lineTo(coords[i].x, coords[i].y);
-    }
-  };
-
-  // Fill above midY (Team A leading) — green
-  ctx.beginPath();
-  ctx.moveTo(coords[0].x, midY);
-  buildPath();
-  ctx.lineTo(coords[coords.length - 1].x, midY);
-  ctx.closePath();
-  ctx.save();
-  ctx.clip();
-  ctx.fillStyle = 'rgba(57,211,83,0.35)';
-  ctx.fillRect(pad.l, pad.t, cW, midY - pad.t);
-  ctx.restore();
-
-  // Fill below midY (Team B leading) — blue
-  ctx.beginPath();
-  ctx.moveTo(coords[0].x, midY);
-  buildPath();
-  ctx.lineTo(coords[coords.length - 1].x, midY);
-  ctx.closePath();
-  ctx.save();
-  ctx.clip();
-  ctx.fillStyle = 'rgba(96,165,250,0.35)';
-  ctx.fillRect(pad.l, midY, cW, pad.t + cH - midY);
-  ctx.restore();
-
-  // Draw the line
-  ctx.beginPath();
-  buildPath();
-  ctx.strokeStyle = 'rgba(255,255,255,0.7)';
-  ctx.lineWidth = 2;
-  ctx.lineJoin = 'round';
-  ctx.stroke();
-
-  // Centre baseline
-  ctx.strokeStyle = 'rgba(255,255,255,0.2)';
-  ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.moveTo(pad.l, midY); ctx.lineTo(W - pad.r, midY); ctx.stroke();
-
-  // Halftime line
-  if (htSecs) {
-    const hx = toX(htSecs);
-    ctx.strokeStyle = 'rgba(255,255,255,0.2)'; ctx.lineWidth = 1; ctx.setLineDash([3, 3]);
-    ctx.beginPath(); ctx.moveTo(hx, pad.t); ctx.lineTo(hx, H - pad.b); ctx.stroke();
-    ctx.setLineDash([]);
-  }
-
-  // Goal event markers on midY
-  rows.forEach(r => {
-    const x = toX(r.secs);
-    const col = r.team === 'A' ? '#39d353' : '#60a5fa';
-    ctx.beginPath(); ctx.arc(x, midY, 3.5, 0, Math.PI * 2);
-    ctx.fillStyle = col; ctx.fill();
-  });
-
-  // Team labels
-  ctx.font = '10px Barlow Condensed, sans-serif';
-  ctx.fillStyle = 'rgba(57,211,83,0.7)'; ctx.textAlign = 'left';
-  ctx.fillText('Team A', pad.l + 4, pad.t + 11);
-  ctx.fillStyle = 'rgba(96,165,250,0.7)';
-  ctx.fillText('Team B', pad.l + 4, H - pad.b - 4);
-
-  // Time axis labels
-  const dur = matchDur / 60;
-  const step = dur <= 50 ? 10 : dur <= 70 ? 15 : 15;
-  ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.textAlign = 'center';
-  for (let t = 0; t <= Math.ceil(dur); t += step) {
-    const x = toX(t * 60);
-    ctx.fillText(t + "'", x, H - 4);
-  }
 }
 
 function drawWormCanvas(canvasId, matchId) {
