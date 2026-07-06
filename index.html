@@ -8332,7 +8332,7 @@ function initShotMap(safeName, allGoalData, allAssistData) {
         const footColor = { left: '#60a5fa', right: '#4ade80', header: '#f59e0b' };
         withNet.forEach((g, i) => {
           const cx = (40 + g.netX * 120) * sx;
-          const cy = (38 + g.netY * 62) * sy;
+          const cy = (38 + (1 - g.netY) * 62) * sy;
           const col = g.foot ? (footColor[g.foot] || '#aaa') : '#aaa';
           const isHovered = i === hoveredIdx;
           const dotR = isHovered ? 7 * sx : 4.5 * sx;
@@ -8352,7 +8352,7 @@ function initShotMap(safeName, allGoalData, allAssistData) {
         let best = -1, bestD = 12; // hit radius in viewBox units
         withNet.forEach((g, i) => {
           const cx = 40 + g.netX * 120;
-          const cy = 38 + g.netY * 62;
+          const cy = 38 + (1 - g.netY) * 62;
           const d = Math.hypot(cx - mx, cy - my);
           if (d < bestD) { bestD = d; best = i; }
         });
@@ -8452,7 +8452,7 @@ function initShotMap(safeName, allGoalData, allAssistData) {
           if (g.netY != null) {
             const frameTop = 32 / 130; // 0.246 — where crossbar sits in the net frame
             const frameBot = 104 / 130; // 0.800 — where ground sits in the net frame
-            const t = (Math.max(0, Math.min(1, g.netY)) - frameTop) / (frameBot - frameTop);
+            const t = (Math.max(0, Math.min(1, 1 - g.netY)) - frameTop) / (frameBot - frameTop);
             gy = goalTopY + Math.max(0, Math.min(1, t)) * goalH;
           } else {
             gy = H / 2;
@@ -8460,22 +8460,43 @@ function initShotMap(safeName, allGoalData, allAssistData) {
 
           const col = g.foot ? (footColor[g.foot] || 'rgba(255,255,255,.8)') : 'rgba(255,255,255,.8)';
 
-          // Dashed line
+          // Highlight the goal opening so it's clearly visible against the black band
+          ctx.save();
+          ctx.strokeStyle = 'rgba(255,255,255,.5)';
+          ctx.lineWidth = 1.5;
+          // Draw goal mouth opening (front face of goal)
+          ctx.beginPath();
+          ctx.moveTo(goalFaceX, goalTopY);
+          ctx.lineTo(goalFaceX, goalBottomY);
+          ctx.stroke();
+          // Small ticks at top and bottom of goal
+          ctx.beginPath();
+          ctx.moveTo(goalFaceX - 3, goalTopY); ctx.lineTo(goalFaceX + goalD + 3, goalTopY);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(goalFaceX - 3, goalBottomY); ctx.lineTo(goalFaceX + goalD + 3, goalBottomY);
+          ctx.stroke();
+          ctx.restore();
+
+          // Dashed line from shot to target
           ctx.save();
           ctx.setLineDash([5, 4]);
-          ctx.strokeStyle = col; ctx.globalAlpha = 0.6; ctx.lineWidth = 1.5;
+          ctx.strokeStyle = col; ctx.globalAlpha = 0.65; ctx.lineWidth = 1.5;
           ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(goalFaceX, gy); ctx.stroke();
           ctx.restore();
 
-          // Target marker: horizontal tick through goal depth + ring + dot
+          // Target marker — large enough to see inside the black band
           ctx.save();
-          ctx.globalAlpha = 0.9; ctx.strokeStyle = col; ctx.lineWidth = 1.5;
-          ctx.beginPath(); ctx.moveTo(goalFaceX, gy); ctx.lineTo(goalBackX + 2, gy); ctx.stroke();
-          ctx.beginPath(); ctx.arc(goalFaceX, gy, 5.5, 0, Math.PI * 2);
-          ctx.lineWidth = 2; ctx.stroke();
-          ctx.fillStyle = col; ctx.globalAlpha = 0.35;
+          // White halo so it pops against any background
+          ctx.globalAlpha = 0.6;
+          ctx.fillStyle = 'white';
+          ctx.beginPath(); ctx.arc(goalFaceX, gy, 7, 0, Math.PI * 2); ctx.fill();
+          // Coloured fill
+          ctx.globalAlpha = 0.95;
+          ctx.fillStyle = col;
           ctx.beginPath(); ctx.arc(goalFaceX, gy, 5.5, 0, Math.PI * 2); ctx.fill();
-          ctx.globalAlpha = 0.9; ctx.fillStyle = col;
+          // Dark centre dot
+          ctx.fillStyle = 'rgba(0,0,0,.6)';
           ctx.beginPath(); ctx.arc(goalFaceX, gy, 2, 0, Math.PI * 2); ctx.fill();
           ctx.restore();
         }
@@ -8582,7 +8603,7 @@ function initShotMap(safeName, allGoalData, allAssistData) {
       const col = g.foot ? (footColor[g.foot] || '#aaa') : '#aaa';
       // Scale into goal mouth coords: x 34–166, y 32–104 of 200×130 viewBox
       const cx = (40 + g.netX * 120).toFixed(1);
-      const cy = (38 + g.netY * 62).toFixed(1);
+      const cy = (38 + (1 - g.netY) * 62).toFixed(1);
       netMapHtml = `<svg viewBox="0 0 200 130" style="width:100px;height:65px;display:block;border-radius:6px" xmlns="http://www.w3.org/2000/svg">
         <rect width="200" height="130" fill="#111a13" rx="6"/>
         <rect x="34" y="32" width="132" height="72" fill="#0a110c" rx="2"/>
