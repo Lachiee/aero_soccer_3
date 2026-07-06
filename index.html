@@ -4908,28 +4908,21 @@ function drawMomentumGraph(canvasId, matchId) {
   // Convert to screen coords
   const coords = pts.map(p => ({ x: toX(p.s), y: toY(p.d) }));
 
-  // Draw smooth bezier curve using catmull-rom → bezier conversion
-  const smooth = (points) => {
-    if (points.length < 2) return;
-    ctx.moveTo(points[0].x, points[0].y);
-    for (let i = 0; i < points.length - 1; i++) {
-      const p0 = points[Math.max(0, i - 1)];
-      const p1 = points[i];
-      const p2 = points[i + 1];
-      const p3 = points[Math.min(points.length - 1, i + 2)];
-      const tension = 0.3;
-      const cp1x = p1.x + (p2.x - p0.x) * tension;
-      const cp1y = p1.y + (p2.y - p0.y) * tension;
-      const cp2x = p2.x - (p3.x - p1.x) * tension;
-      const cp2y = p2.y - (p3.y - p1.y) * tension;
-      ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y);
+  // Stepped path: hold flat until next goal, then step vertically
+  // This matches how momentum charts actually work — no overshooting beziers
+  const buildPath = () => {
+    ctx.moveTo(coords[0].x, coords[0].y);
+    for (let i = 1; i < coords.length; i++) {
+      // Step: go horizontal to next x, then vertical to new y
+      ctx.lineTo(coords[i].x, coords[i - 1].y);
+      ctx.lineTo(coords[i].x, coords[i].y);
     }
   };
 
   // Fill above midY (Team A leading) — green
   ctx.beginPath();
   ctx.moveTo(coords[0].x, midY);
-  smooth(coords);
+  buildPath();
   ctx.lineTo(coords[coords.length - 1].x, midY);
   ctx.closePath();
   ctx.save();
@@ -4941,7 +4934,7 @@ function drawMomentumGraph(canvasId, matchId) {
   // Fill below midY (Team B leading) — blue
   ctx.beginPath();
   ctx.moveTo(coords[0].x, midY);
-  smooth(coords);
+  buildPath();
   ctx.lineTo(coords[coords.length - 1].x, midY);
   ctx.closePath();
   ctx.save();
@@ -4950,9 +4943,9 @@ function drawMomentumGraph(canvasId, matchId) {
   ctx.fillRect(pad.l, midY, cW, pad.t + cH - midY);
   ctx.restore();
 
-  // Draw the smooth line
+  // Draw the line
   ctx.beginPath();
-  smooth(coords);
+  buildPath();
   ctx.strokeStyle = 'rgba(255,255,255,0.7)';
   ctx.lineWidth = 2;
   ctx.lineJoin = 'round';
