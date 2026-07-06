@@ -8889,6 +8889,182 @@ function renderGoalNetMap(name) {
   </div>`;
 }
 
+// ── Famous Player Comparison ─────────────────────────────────────────────────
+// Pre-computed assignment cache: map of playerName → {name, club, role, ...}
+let _famousAssignments = null;
+
+const FAMOUS_PLAYERS = [
+    { name:'Erling Haaland',       club:'Man City',       role:'Clinical Striker',        emoji:'⚡', bg:'#1a2a4a', tags:['Clinical finisher','Shot machine','Box predator'], desc:'A relentless goal machine who lives in the box. If it moves near goal, he scores.', s:{goals:9.5,assists:1.5,shots:9.0,keyPass:1.5,tackles:0.8,intercept:0.8,blocks:0.4,saves:0,nutmegs:0.3,gkFrac:0,defChain:0.1,clutch:0.5,stronger:1,pressure:0.7,saveRate:0,headerRatio:0.25,footBalance:0.3,conv:0.35}},
+    { name:'Robert Lewandowski',    club:'Barcelona',      role:'Complete Centre-Forward',  emoji:'🎯', bg:'#a50044', tags:['Elite finisher','Hold-up play','Aerial threat'], desc:'A complete striker — scores from anywhere, links play brilliantly, and leads the line.', s:{goals:9.0,assists:3.5,shots:7.5,keyPass:3.0,tackles:1.5,intercept:1.0,blocks:0.8,saves:0,nutmegs:0.5,gkFrac:0,defChain:0.1,clutch:0.5,stronger:0,pressure:0.8,saveRate:0,headerRatio:0.3,footBalance:0.6,conv:0.32}},
+    { name:'Romelu Lukaku',         club:'Roma',           role:'Physical Target Man',      emoji:'💪', bg:'#1a1a0a', tags:['Hold-up play','Power','Aerial dominance'], desc:'A battering ram — holds the ball up brilliantly and punishes defenders physically.', s:{goals:7.5,assists:2.5,shots:7.0,keyPass:2.5,tackles:1.0,intercept:0.8,blocks:0.5,saves:0,nutmegs:0.2,gkFrac:0,defChain:0.1,clutch:0.4,stronger:0,pressure:0.6,saveRate:0,headerRatio:0.4,footBalance:0.3,conv:0.28}},
+    { name:'Harry Kane',            club:'Bayern',         role:'Scoring Playmaker',        emoji:'🎪', bg:'#001c58', tags:['Goals & assists','Drops deep','Long-range shooting'], desc:'Rare striker who creates as much as he scores — a nightmare to mark anywhere.', s:{goals:8.0,assists:5.0,shots:7.0,keyPass:5.0,tackles:1.5,intercept:1.2,blocks:0.8,saves:0,nutmegs:0.3,gkFrac:0,defChain:0.1,clutch:0.6,stronger:0,pressure:0.8,saveRate:0,headerRatio:0.25,footBalance:0.7,conv:0.3}},
+    { name:'Olivier Giroud',        club:'LA Galaxy',      role:'Classic Target Man',       emoji:'🏋️', bg:'#1a001a', tags:['Aerial dominance','Hold-up','Big game player'], desc:'Old school but effective — exceptional in the air and a huge presence for his team.', s:{goals:6.0,assists:2.5,shots:5.5,keyPass:2.0,tackles:1.0,intercept:0.8,blocks:0.5,saves:0,nutmegs:0.1,gkFrac:0,defChain:0.1,clutch:0.7,stronger:0,pressure:0.8,saveRate:0,headerRatio:0.5,footBalance:0.4,conv:0.28}},
+    { name:'Darwin Núñez',          club:'Liverpool',      role:'Raw Athletic Striker',     emoji:'💥', bg:'#1a0000', tags:['Raw pace','High shots','Unpredictable'], desc:'An explosive runner with a voracious shot appetite — thrilling and unpredictable.', s:{goals:7.0,assists:2.5,shots:8.5,keyPass:2.0,tackles:1.5,intercept:1.5,blocks:0.5,saves:0,nutmegs:0.8,gkFrac:0,defChain:0.2,clutch:0.4,stronger:1,pressure:0.5,saveRate:0,headerRatio:0.25,footBalance:0.4,conv:0.2}},
+    { name:'Kylian Mbappé',         club:'Real Madrid',    role:'Speed Striker',            emoji:'💨', bg:'#1a3020', tags:['Pace monster','Counter-attack king','Clinical'], desc:'Devastating at pace — turns half-chances into goals in the blink of an eye.', s:{goals:8.5,assists:4.5,shots:7.5,keyPass:3.5,tackles:2.0,intercept:1.5,blocks:0.5,saves:0,nutmegs:1.5,gkFrac:0,defChain:0.2,clutch:0.6,stronger:1,pressure:0.8,saveRate:0,headerRatio:0.05,footBalance:0.4,conv:0.28}},
+    { name:'Mohamed Salah',         club:'Liverpool',      role:'Electric Winger',          emoji:'⚽', bg:'#1a1500', tags:['Goals & assists','Inside forward','Consistency king'], desc:'Relentlessly productive on the right — cuts inside and scores with lethal precision.', s:{goals:7.5,assists:5.0,shots:7.5,keyPass:4.5,tackles:2.0,intercept:1.8,blocks:0.5,saves:0,nutmegs:1.5,gkFrac:0,defChain:0.2,clutch:0.5,stronger:0,pressure:0.85,saveRate:0,headerRatio:0.05,footBalance:0.2,conv:0.25}},
+    { name:'Vinícius Jr',           club:'Real Madrid',    role:'Explosive Winger',         emoji:'🌪️', bg:'#1a0a0a', tags:['Dribbling','Pace','Unpredictable'], desc:'Creates chaos on the wing — unpredictable, fast, and clinical when it counts.', s:{goals:7.0,assists:5.5,shots:7.0,keyPass:4.5,tackles:2.5,intercept:2.0,blocks:0.5,saves:0,nutmegs:2.5,gkFrac:0,defChain:0.2,clutch:0.4,stronger:1,pressure:0.7,saveRate:0,headerRatio:0.03,footBalance:0.15,conv:0.22}},
+    { name:'Leroy Sané',            club:'Bayern',         role:'Direct Winger',            emoji:'🚀', bg:'#001a2a', tags:['Dribbling','Long shots','Crosses'], desc:'Devastates defenders with pace and direct running, equally dangerous from open play.', s:{goals:5.5,assists:5.0,shots:6.0,keyPass:5.5,tackles:2.0,intercept:1.5,blocks:0.5,saves:0,nutmegs:2.0,gkFrac:0,defChain:0.2,clutch:0.4,stronger:0,pressure:0.65,saveRate:0,headerRatio:0.05,footBalance:0.3,conv:0.2}},
+    { name:'Bukayo Saka',           club:'Arsenal',        role:'Creative Winger',          emoji:'🎯', bg:'#1a0500', tags:['Key passes','Dribbling','Goals & assists'], desc:'Bright and technically excellent — constantly makes things happen on the right.', s:{goals:5.5,assists:6.5,shots:5.5,keyPass:7.0,tackles:3.0,intercept:2.5,blocks:1.0,saves:0,nutmegs:1.5,gkFrac:0,defChain:0.3,clutch:0.6,stronger:0,pressure:0.9,saveRate:0,headerRatio:0.05,footBalance:0.4,conv:0.22}},
+    { name:'Antoine Griezmann',     club:'Atletico',       role:'Box-to-Box Forward',       emoji:'🎭', bg:'#1a0a1a', tags:['Work rate','Pressing','Goals & assists'], desc:'A complete forward who presses from the front and contributes in every phase.', s:{goals:6.0,assists:4.5,shots:5.5,keyPass:5.0,tackles:4.0,intercept:3.5,blocks:1.5,saves:0,nutmegs:0.8,gkFrac:0,defChain:0.4,clutch:0.6,stronger:0,pressure:0.85,saveRate:0,headerRatio:0.15,footBalance:0.6,conv:0.22}},
+    { name:'Bernardo Silva',        club:'Man City',       role:'Versatile Forward',        emoji:'🔮', bg:'#001a4a', tags:['Technical','Press resistance','Work rate'], desc:'Technically superb and incredibly hard-working — pops up everywhere and creates chances.', s:{goals:4.5,assists:5.5,shots:4.5,keyPass:7.0,tackles:4.5,intercept:3.5,blocks:1.5,saves:0,nutmegs:1.5,gkFrac:0,defChain:0.4,clutch:0.7,stronger:0,pressure:0.9,saveRate:0,headerRatio:0.05,footBalance:0.8,conv:0.2}},
+    { name:'Rafael Leão',           club:'AC Milan',       role:'Pacy Wide Forward',        emoji:'⚡', bg:'#1a0000', tags:['Pace','Dribbling','Direct running'], desc:'Frightening in transition — accelerates past defenders and provides end product.', s:{goals:6.5,assists:4.0,shots:7.0,keyPass:4.0,tackles:1.5,intercept:1.2,blocks:0.4,saves:0,nutmegs:2.0,gkFrac:0,defChain:0.1,clutch:0.4,stronger:1,pressure:0.6,saveRate:0,headerRatio:0.05,footBalance:0.2,conv:0.22}},
+    { name:'Ousmane Dembélé',       club:'PSG',            role:'Trickster Winger',         emoji:'🌀', bg:'#001a2a', tags:['Dribbling','Assists','Two-footed'], desc:'Magical on the ball — creates chances with an unpredictable arsenal of tricks.', s:{goals:4.5,assists:7.5,shots:5.5,keyPass:7.5,tackles:1.5,intercept:1.2,blocks:0.4,saves:0,nutmegs:2.5,gkFrac:0,defChain:0.1,clutch:0.4,stronger:0,pressure:0.65,saveRate:0,headerRatio:0.02,footBalance:0.95,conv:0.18}},
+    { name:'Kevin De Bruyne',       club:'Man City',       role:'Creative Midfielder',      emoji:'🎨', bg:'#001a4a', tags:['Vision','Key passes','Goals from deep'], desc:'The architect — sees passes nobody else does and executes them at pace.', s:{goals:4.0,assists:9.0,shots:4.5,keyPass:9.5,tackles:3.0,intercept:2.5,blocks:1.0,saves:0,nutmegs:0.5,gkFrac:0,defChain:0.3,clutch:0.6,stronger:0,pressure:0.9,saveRate:0,headerRatio:0.1,footBalance:0.7,conv:0.2}},
+    { name:'Luka Modrić',           club:'Real Madrid',    role:'Complete Midfielder',      emoji:'🧙', bg:'#0a001a', tags:['All-round','Tempo control','Clutch'], desc:'Elegant and complete — dictates tempo and does everything at the highest level.', s:{goals:3.0,assists:7.0,shots:3.5,keyPass:8.0,tackles:5.0,intercept:4.5,blocks:1.5,saves:0,nutmegs:1.0,gkFrac:0,defChain:0.4,clutch:0.8,stronger:0,pressure:0.95,saveRate:0,headerRatio:0.05,footBalance:0.8,conv:0.18}},
+    { name:'Bruno Fernandes',       club:'Man United',     role:'Attacking Midfielder',     emoji:'🎯', bg:'#1a0000', tags:['Key passes','Goals','Set pieces'], desc:'Constantly involved and influential — drives his team forward with creativity and goals.', s:{goals:5.5,assists:7.0,shots:6.0,keyPass:8.0,tackles:3.0,intercept:2.5,blocks:1.0,saves:0,nutmegs:0.8,gkFrac:0,defChain:0.3,clutch:0.7,stronger:0,pressure:0.8,saveRate:0,headerRatio:0.1,footBalance:0.3,conv:0.22}},
+    { name:'Pedri',                 club:'Barcelona',      role:'Dynamic Playmaker',        emoji:'💫', bg:'#001a4a', tags:['Dribbling','Press resistance','Vision'], desc:"Extraordinary technical ability at pace — skips through pressure like it isn't there.", s:{goals:3.5,assists:6.0,shots:4.0,keyPass:7.5,tackles:5.0,intercept:4.0,blocks:1.5,saves:0,nutmegs:1.5,gkFrac:0,defChain:0.4,clutch:0.6,stronger:0,pressure:0.9,saveRate:0,headerRatio:0.03,footBalance:0.7,conv:0.18}},
+    { name:'Jude Bellingham',       club:'Real Madrid',    role:'Box-to-Box Powerhouse',    emoji:'👑', bg:'#001a4a', tags:['Goals from midfield','Box to box','Leader'], desc:"Drives into the box and scores goals that midfielders shouldn't — a complete modern player.", s:{goals:6.0,assists:5.5,shots:5.5,keyPass:6.0,tackles:5.0,intercept:4.5,blocks:2.0,saves:0,nutmegs:1.0,gkFrac:0,defChain:0.5,clutch:0.8,stronger:1,pressure:0.9,saveRate:0,headerRatio:0.2,footBalance:0.7,conv:0.25}},
+    { name:'İlkay Gündoğan',        club:'Barcelona',      role:'Intelligent Midfielder',   emoji:'🧠', bg:'#001a4a', tags:['Positioning','Key passes','Late runs'], desc:'Never wasted — finds pockets of space and executes with calm technical brilliance.', s:{goals:4.0,assists:6.0,shots:4.5,keyPass:7.5,tackles:4.0,intercept:3.5,blocks:1.5,saves:0,nutmegs:0.5,gkFrac:0,defChain:0.3,clutch:0.7,stronger:0,pressure:0.9,saveRate:0,headerRatio:0.1,footBalance:0.7,conv:0.2}},
+    { name:'Toni Kroos',            club:'Retired',        role:'Passing Maestro',          emoji:'🎻', bg:'#001a4a', tags:['Long passes','Set pieces','Range'], desc:"The metronome — dictates the game's rhythm with effortless precision passing.", s:{goals:2.5,assists:7.5,shots:3.0,keyPass:9.0,tackles:3.5,intercept:3.0,blocks:1.2,saves:0,nutmegs:0.3,gkFrac:0,defChain:0.3,clutch:0.6,stronger:-1,pressure:0.85,saveRate:0,headerRatio:0.05,footBalance:0.5,conv:0.16}},
+    { name:"N'Golo Kanté",          club:'Al-Ittihad',     role:'Box-to-Box Enforcer',      emoji:'🛡️', bg:'#001a00', tags:['Interceptions','Tackles','Pressing'], desc:'Everywhere at once — wins the ball with relentless energy and keeps things ticking.', s:{goals:1.5,assists:2.5,shots:2.0,keyPass:3.0,tackles:8.5,intercept:9.0,blocks:3.0,saves:0,nutmegs:0.3,gkFrac:0,defChain:0.8,clutch:0.7,stronger:1,pressure:0.9,saveRate:0,headerRatio:0.05,footBalance:0.8,conv:0.12}},
+    { name:'Rodri',                 club:'Man City',       role:'Defensive Anchor',         emoji:'⚓', bg:'#001a4a', tags:['Positioning','Tackles','Composure'], desc:'The engine room — controls games from deep with supreme reading and tactical discipline.', s:{goals:2.0,assists:3.0,shots:2.5,keyPass:5.0,tackles:7.0,intercept:7.5,blocks:3.5,saves:0,nutmegs:0.3,gkFrac:0,defChain:0.7,clutch:0.6,stronger:0,pressure:0.9,saveRate:0,headerRatio:0.2,footBalance:0.7,conv:0.14}},
+    { name:'Casemiro',              club:'Man United',     role:'Destroyer',                emoji:'💣', bg:'#1a0000', tags:['Tackles','Interceptions','Aerial duels'], desc:'Shields the defence brilliantly — wins the ball in the air and ground with equal authority.', s:{goals:2.5,assists:2.0,shots:2.5,keyPass:3.0,tackles:8.0,intercept:7.0,blocks:4.0,saves:0,nutmegs:0.2,gkFrac:0,defChain:0.6,clutch:0.5,stronger:0,pressure:0.7,saveRate:0,headerRatio:0.35,footBalance:0.4,conv:0.14}},
+    { name:'Fabinho',               club:'Al-Ittihad',    role:'Defensive Midfielder',     emoji:'🔒', bg:'#1a0000', tags:['Tackles','Interceptions','Positioning'], desc:'Elegantly disruptive — anticipates danger and snuffs it out before it becomes a threat.', s:{goals:1.0,assists:1.5,shots:1.5,keyPass:3.5,tackles:7.5,intercept:8.0,blocks:3.0,saves:0,nutmegs:0.2,gkFrac:0,defChain:0.6,clutch:0.4,stronger:0,pressure:0.7,saveRate:0,headerRatio:0.2,footBalance:0.5,conv:0.1}},
+    { name:'Declan Rice',           club:'Arsenal',        role:'Modern Defensive Mid',     emoji:'🏗️', bg:'#1a0500', tags:['Tackles','Key passes','Box to box'], desc:'Transformed from pure destroyer to box-to-box force — dominant physically and technically.', s:{goals:3.0,assists:4.0,shots:3.5,keyPass:5.5,tackles:7.5,intercept:7.0,blocks:3.5,saves:0,nutmegs:0.5,gkFrac:0,defChain:0.7,clutch:0.6,stronger:1,pressure:0.85,saveRate:0,headerRatio:0.15,footBalance:0.6,conv:0.18}},
+    { name:'Gavi',                  club:'Barcelona',      role:'High-Press Midfielder',    emoji:'🔋', bg:'#001a4a', tags:['Work rate','Pressing','Key passes'], desc:'An incredible engine — presses relentlessly, wins the ball, then uses it with intelligence.', s:{goals:3.0,assists:5.5,shots:3.5,keyPass:7.0,tackles:6.5,intercept:6.0,blocks:2.0,saves:0,nutmegs:1.5,gkFrac:0,defChain:0.6,clutch:0.7,stronger:1,pressure:0.9,saveRate:0,headerRatio:0.05,footBalance:0.5,conv:0.18}},
+    { name:'Virgil van Dijk',       club:'Liverpool',      role:'Ball-Playing Defender',    emoji:'🗿', bg:'#0a1a00', tags:['Interceptions','Blocks','Leadership'], desc:'Dominant and composed — reads the game brilliantly and rarely gives attackers a sniff.', s:{goals:1.5,assists:1.0,shots:1.5,keyPass:2.5,tackles:4.5,intercept:6.5,blocks:7.0,saves:0,nutmegs:0.1,gkFrac:0,defChain:0.5,clutch:0.4,stronger:0,pressure:0.85,saveRate:0,headerRatio:0.4,footBalance:0.5,conv:0.2}},
+    { name:'Rúben Dias',            club:'Man City',       role:'Modern Centre-Back',       emoji:'🏰', bg:'#001a4a', tags:['Blocks','Tackles','Organising'], desc:'Commanding and aggressive — marshals his defence with authority and reads play superbly.', s:{goals:1.0,assists:0.8,shots:1.0,keyPass:2.0,tackles:6.0,intercept:6.0,blocks:8.0,saves:0,nutmegs:0.1,gkFrac:0,defChain:0.6,clutch:0.5,stronger:0,pressure:0.85,saveRate:0,headerRatio:0.35,footBalance:0.5,conv:0.15}},
+    { name:'Trent Alexander-Arnold', club:'Real Madrid',   role:'Attacking Fullback',       emoji:'📐', bg:'#1a0000', tags:['Key passes','Assists','Set pieces'], desc:"Redefines the fullback role — his delivery from deep is as good as any midfielder's.", s:{goals:2.5,assists:8.0,shots:3.0,keyPass:8.5,tackles:3.5,intercept:3.0,blocks:2.0,saves:0,nutmegs:0.5,gkFrac:0,defChain:0.3,clutch:0.5,stronger:0,pressure:0.8,saveRate:0,headerRatio:0.1,footBalance:0.4,conv:0.18}},
+    { name:'Andrew Robertson',      club:'Liverpool',      role:'Marauding Fullback',       emoji:'⚡', bg:'#001a2a', tags:['Crosses','Tackles','Work rate'], desc:'End-to-end and relentless — attacks the flank with pace and delivers quality balls.', s:{goals:1.5,assists:6.5,shots:2.0,keyPass:5.5,tackles:5.5,intercept:4.5,blocks:2.5,saves:0,nutmegs:0.5,gkFrac:0,defChain:0.4,clutch:0.6,stronger:1,pressure:0.85,saveRate:0,headerRatio:0.1,footBalance:0.4,conv:0.15}},
+    { name:'Achraf Hakimi',         club:'PSG',            role:'Wing-Back',                emoji:'🏎️', bg:'#001a2a', tags:['Pace','Overlapping runs','Assists'], desc:'The fastest fullback in the world — tears down the flank and delivers dangerous balls.', s:{goals:3.0,assists:6.0,shots:4.0,keyPass:4.5,tackles:5.0,intercept:4.5,blocks:2.0,saves:0,nutmegs:1.0,gkFrac:0,defChain:0.4,clutch:0.5,stronger:1,pressure:0.75,saveRate:0,headerRatio:0.05,footBalance:0.5,conv:0.18}},
+    { name:'Theo Hernández',        club:'AC Milan',       role:'Attacking Left-Back',      emoji:'🔥', bg:'#1a0000', tags:['Goals from deep','Pace','Direct running'], desc:'A left-back who thinks like a forward — charges upfield and scores remarkable goals.', s:{goals:3.5,assists:4.5,shots:4.0,keyPass:3.5,tackles:4.5,intercept:4.0,blocks:2.5,saves:0,nutmegs:0.8,gkFrac:0,defChain:0.4,clutch:0.4,stronger:1,pressure:0.7,saveRate:0,headerRatio:0.1,footBalance:0.3,conv:0.2}},
+    { name:'João Cancelo',          club:'Barcelona',      role:'Inverted Fullback',        emoji:'🔄', bg:'#001a4a', tags:['Dribbling','Key passes','Versatile'], desc:'Inverts into midfield and picks passes — equally comfortable anywhere across the backline.', s:{goals:2.0,assists:6.0,shots:3.0,keyPass:6.5,tackles:4.0,intercept:4.0,blocks:2.5,saves:0,nutmegs:1.0,gkFrac:0,defChain:0.3,clutch:0.5,stronger:0,pressure:0.8,saveRate:0,headerRatio:0.03,footBalance:0.9,conv:0.15}},
+    { name:'Manuel Neuer',          club:'Bayern',         role:'Sweeper Keeper',           emoji:'🧤', bg:'#1a1a00', tags:['Sweeping','Commanding','Feet like a midfielder'], desc:'Redefines what a keeper can be — as comfortable with his feet as with his hands.', s:{goals:0,assists:0,shots:0,keyPass:0.5,tackles:0.5,intercept:0.5,blocks:1.5,saves:9.5,nutmegs:0,gkFrac:1,defChain:0.1,clutch:0.5,stronger:0,pressure:0.9,saveRate:0.75,headerRatio:0,footBalance:0.8,conv:0}},
+    { name:'Marc-André ter Stegen', club:'Barcelona',      role:'Commanding Keeper',        emoji:'🏆', bg:'#001a4a', tags:['Shot-stopping','Distribution','Reflex saves'], desc:'An elite keeper who commands his box and is equally impressive off his line.', s:{goals:0,assists:0,shots:0,keyPass:0.5,tackles:0.3,intercept:0.5,blocks:2.0,saves:9.0,nutmegs:0,gkFrac:1,defChain:0.1,clutch:0.6,stronger:0,pressure:0.9,saveRate:0.78,headerRatio:0,footBalance:0.5,conv:0}},
+    { name:'Alisson Becker',        club:'Liverpool',      role:'Reliable Keeper',          emoji:'🧱', bg:'#1a0000', tags:['Composure','Distribution','Commanding'], desc:'Supremely composed — rarely makes mistakes and kicks off attacks with pinpoint passing.', s:{goals:0,assists:0.5,shots:0,keyPass:0.5,tackles:0.3,intercept:0.5,blocks:1.5,saves:8.5,nutmegs:0,gkFrac:1,defChain:0.1,clutch:0.5,stronger:0,pressure:0.95,saveRate:0.8,headerRatio:0,footBalance:0.6,conv:0}},
+    { name:'Ederson',               club:'Man City',       role:'Passing Keeper',           emoji:'🦶', bg:'#001a4a', tags:['Distribution','Long kicks','Sweeping'], desc:'A keeper who launches attacks — his long passing accuracy is extraordinary.', s:{goals:0,assists:0.5,shots:0,keyPass:0.8,tackles:0.3,intercept:0.5,blocks:1.5,saves:8.0,nutmegs:0,gkFrac:1,defChain:0.1,clutch:0.4,stronger:0,pressure:0.85,saveRate:0.75,headerRatio:0,footBalance:0.7,conv:0}},
+    { name:'Neymar Jr',             club:'Al-Hilal',       role:'Showman Playmaker',        emoji:'🎪', bg:'#001a2a', tags:['Dribbling','Flair','Assists'], desc:'The most naturally gifted player of his generation — sheer joy to watch.', s:{goals:5.5,assists:7.5,shots:6.0,keyPass:8.0,tackles:1.5,intercept:1.2,blocks:0.3,saves:0,nutmegs:4.0,gkFrac:0,defChain:0.1,clutch:0.6,stronger:0,pressure:0.7,saveRate:0,headerRatio:0.05,footBalance:0.9,conv:0.2}},
+    { name:'Riyad Mahrez',          club:'Al-Ahli',        role:'Silky Winger',             emoji:'✨', bg:'#1a1500', tags:['Dribbling','Long shots','Two-footed'], desc:"Elegant and unpredictable — drifts inside and delivers moments of brilliance.", s:{goals:5.0,assists:6.0,shots:5.5,keyPass:6.5,tackles:2.0,intercept:1.8,blocks:0.5,saves:0,nutmegs:2.0,gkFrac:0,defChain:0.2,clutch:0.5,stronger:0,pressure:0.75,saveRate:0,headerRatio:0.05,footBalance:0.9,conv:0.22}},
+    { name:'Jack Grealish',         club:'Man City',       role:'Creative Dribbler',        emoji:'🌀', bg:'#001a4a', tags:['Dribbling','Key passes','Drawing fouls'], desc:'Impossible to knock off the ball — wriggles into space and finds the killer pass.', s:{goals:3.0,assists:6.5,shots:3.5,keyPass:7.0,tackles:2.5,intercept:2.0,blocks:0.8,saves:0,nutmegs:2.5,gkFrac:0,defChain:0.2,clutch:0.5,stronger:0,pressure:0.7,saveRate:0,headerRatio:0.03,footBalance:0.3,conv:0.18}},
+    { name:'Lautaro Martínez',      club:'Internazionale', role:'Intelligent Striker',      emoji:'🧠', bg:'#1a0a3a', tags:['Movement','Finishing','Press trigger'], desc:'Smart and mobile — finds pockets nobody else sees and finishes with calm confidence.', s:{goals:7.5,assists:3.0,shots:6.5,keyPass:3.5,tackles:3.5,intercept:3.0,blocks:1.0,saves:0,nutmegs:0.5,gkFrac:0,defChain:0.4,clutch:0.7,stronger:0,pressure:0.85,saveRate:0,headerRatio:0.15,footBalance:0.7,conv:0.28}},
+    { name:'Phil Foden',            club:'Man City',       role:'Pocket Playmaker',         emoji:'🎭', bg:'#001a4a', tags:['Technical','Dribbling','Goals & assists'], desc:'Impossibly gifted in tight spaces — creates goals out of nothing with technical wizardry.', s:{goals:6.0,assists:6.0,shots:6.5,keyPass:6.5,tackles:2.5,intercept:2.0,blocks:0.8,saves:0,nutmegs:2.0,gkFrac:0,defChain:0.2,clutch:0.6,stronger:0,pressure:0.85,saveRate:0,headerRatio:0.1,footBalance:0.3,conv:0.22}},
+    { name:'Federico Valverde',     club:'Real Madrid',    role:'Tireless All-Rounder',     emoji:'⚙️', bg:'#001a4a', tags:['Work rate','Goals from far','Box to box'], desc:'Covers every blade of grass and adds goals from outside the box — the complete midfielder.', s:{goals:4.0,assists:3.5,shots:4.5,keyPass:4.5,tackles:6.0,intercept:5.5,blocks:2.5,saves:0,nutmegs:0.5,gkFrac:0,defChain:0.6,clutch:0.7,stronger:1,pressure:0.85,saveRate:0,headerRatio:0.1,footBalance:0.7,conv:0.2}},
+    { name:'Marcus Rashford',       club:'Man United',     role:'Explosive Forward',        emoji:'⚡', bg:'#1a0000', tags:['Pace','Goals','Direct running'], desc:"Electrifying in behind — his burst of pace and directness makes him almost unplayable on his day.", s:{goals:7.0,assists:4.0,shots:7.5,keyPass:3.5,tackles:2.0,intercept:1.5,blocks:0.5,saves:0,nutmegs:1.5,gkFrac:0,defChain:0.2,clutch:0.5,stronger:0,pressure:0.65,saveRate:0,headerRatio:0.08,footBalance:0.5,conv:0.2}},
+    { name:'Son Heung-min',         club:'Spurs',          role:'Versatile Forward',        emoji:'🌟', bg:'#1a1500', tags:['Goals','Work rate','Two-footed'], desc:'Selfless, fast and clinical — scores from everywhere and never stops running.', s:{goals:7.0,assists:4.5,shots:6.5,keyPass:4.0,tackles:3.0,intercept:2.5,blocks:1.0,saves:0,nutmegs:1.0,gkFrac:0,defChain:0.3,clutch:0.6,stronger:0,pressure:0.85,saveRate:0,headerRatio:0.1,footBalance:0.85,conv:0.25}},
+    { name:'Paulo Dybala',          club:'Roma',           role:'Fantasista',               emoji:'🌺', bg:'#1a0a3a', tags:['Dribbling','Goals','Flair'], desc:'A pure joy to watch — technical brilliance, nutmegs and goals from impossible angles.', s:{goals:6.5,assists:5.5,shots:6.5,keyPass:6.5,tackles:2.0,intercept:1.8,blocks:0.5,saves:0,nutmegs:2.5,gkFrac:0,defChain:0.2,clutch:0.7,stronger:0,pressure:0.75,saveRate:0,headerRatio:0.05,footBalance:0.3,conv:0.25}},
+    { name:'Alexia Putellas',       club:'Barcelona',      role:'Total Midfielder',         emoji:'👑', bg:'#001a4a', tags:['Vision','Goals','Dribbling'], desc:'The greatest footballer of her generation — scores, creates, and dominates every game.', s:{goals:5.5,assists:7.0,shots:5.5,keyPass:8.5,tackles:4.5,intercept:4.0,blocks:1.5,saves:0,nutmegs:1.5,gkFrac:0,defChain:0.4,clutch:0.8,stronger:0,pressure:0.95,saveRate:0,headerRatio:0.05,footBalance:0.4,conv:0.22}},
+    { name:'Sam Kerr',              club:'Chelsea',        role:'Elite Striker',            emoji:'🦘', bg:'#001a2a', tags:['Aerial ability','Goals','Movement'], desc:'One of the cleanest strikers on the planet — acrobatic, technical, and relentlessly dangerous.', s:{goals:8.5,assists:3.0,shots:7.5,keyPass:3.0,tackles:1.5,intercept:1.2,blocks:0.5,saves:0,nutmegs:0.5,gkFrac:0,defChain:0.1,clutch:0.6,stronger:0,pressure:0.8,saveRate:0,headerRatio:0.4,footBalance:0.5,conv:0.3}},
+    { name:'Aitana Bonmatí',        club:'Barcelona',      role:'Dynamic Midfielder',       emoji:'⭐', bg:'#001a4a', tags:['Dribbling','Assists','Everywhere'], desc:"Seemingly everywhere at once — her dribbling and vision make her almost impossible to stop.", s:{goals:4.5,assists:8.0,shots:5.0,keyPass:8.5,tackles:4.0,intercept:3.5,blocks:1.5,saves:0,nutmegs:1.5,gkFrac:0,defChain:0.4,clutch:0.7,stronger:0,pressure:0.9,saveRate:0,headerRatio:0.03,footBalance:0.7,conv:0.2}},
+    { name:'Christopher Nkunku',    club:'Chelsea',        role:'Versatile Forward',        emoji:'🦊', bg:'#001a2a', tags:['Goals','Assists','Positional variety'], desc:"Can play anywhere across the front — a nightmare to track with his movement and technique.", s:{goals:6.5,assists:5.0,shots:6.5,keyPass:5.5,tackles:2.5,intercept:2.0,blocks:0.8,saves:0,nutmegs:1.0,gkFrac:0,defChain:0.3,clutch:0.5,stronger:0,pressure:0.75,saveRate:0,headerRatio:0.15,footBalance:0.7,conv:0.22}},
+  ];
+
+const FAMOUS_DIMS = ['goals','assists','shots','keyPass','tackles','intercept','blocks','saves','nutmegs','gkFrac','defChain','clutch','pressure','saveRate','headerRatio','footBalance','conv'];
+const FAMOUS_W = {goals:3.0,assists:2.5,shots:2.0,keyPass:2.0,tackles:2.0,intercept:2.0,blocks:1.5,saves:4.0,nutmegs:1.2,gkFrac:3.5,defChain:1.5,clutch:1.5,pressure:1.0,saveRate:3.0,headerRatio:1.2,footBalance:1.0,conv:2.0};
+
+function _getPlayerFeatures(playerName) {
+  const ps = getDisplayStats()[playerName];
+  if (!ps || ps.games < 3) return null;
+  const SCALE = 90 / 52;
+  const g = Math.max(ps.games, 1);
+  const p90 = {
+    goals:    ps.goals / g * SCALE,
+    assists:  ps.assists / g * SCALE,
+    shots:    ps.total_shots / g * SCALE,
+    keyPass:  ps.key_passes / g * SCALE,
+    tackles:  ps.tackles / g * SCALE,
+    intercept:ps.interceptions / g * SCALE,
+    blocks:   ps.blocks / g * SCALE,
+    saves:    ps.goalkeeper_saves / g * SCALE,
+    nutmegs:  ps.nutmegs / g * SCALE,
+  };
+  const conv = ps.total_shots > 0 ? ps.goals / ps.total_shots : 0;
+  const ts = getPlayerEventStats(playerName);
+  const gkFrac   = ts ? Math.max(0, 1 - (ts.outfieldPct ?? 1)) : 0;
+  const defChain = ts ? (ts.defChainsPerMatch ?? 0) : 0;
+  const clutch   = ts ? (ts.clutchPerMatch ?? 0) : 0;
+  const pressure = ts ? (ts.pressureAvg ?? 0) : 0;
+  const saveRate = ts ? (ts.gkSaveRate ?? 0) : 0;
+  const { counts: fc } = getPlayerGoalFootData(playerName);
+  const totalFoot = (fc.left||0) + (fc.right||0) + (fc.header||0);
+  const headerRatio = totalFoot > 0 ? (fc.header||0) / totalFoot : 0;
+  const footBalance = totalFoot > 0 ? Math.min(fc.left||0, fc.right||0) / Math.max(fc.left||0, fc.right||0, 1) : 0.5;
+  return { ...p90, gkFrac, defChain, clutch, pressure, saveRate, headerRatio, footBalance, conv };
+}
+
+function _cosineSim(featA, featB, fMax) {
+  let dot=0, mA=0, mB=0;
+  FAMOUS_DIMS.forEach(d => {
+    const w = FAMOUS_W[d];
+    const a = Math.min(Math.abs(featA[d]||0) / fMax[d], 1.5) * w;
+    const b = Math.abs(featB[d]||0) / fMax[d] * w;
+    dot += a*b; mA += a*a; mB += b*b;
+  });
+  return mA > 0 && mB > 0 ? dot / (Math.sqrt(mA) * Math.sqrt(mB)) : 0;
+}
+
+function _computeFamousAssignments() {
+  // Build normalisation maxes across famous players
+  const fMax = {};
+  FAMOUS_DIMS.forEach(d => { fMax[d] = Math.max(...FAMOUS_PLAYERS.map(p => Math.abs(p.s[d]||0)), 0.01); });
+
+  // Get all eligible squad players
+  const squadNames = Object.keys(getDisplayStats()).filter(n => {
+    const ps = getDisplayStats()[n];
+    return ps && ps.games >= 3;
+  });
+
+  // Compute full similarity matrix
+  const features = {};
+  squadNames.forEach(n => { features[n] = _getPlayerFeatures(n); });
+
+  // Build all (squadPlayer, famousPlayer, similarity) triples
+  const triples = [];
+  squadNames.forEach(sq => {
+    if (!features[sq]) return;
+    FAMOUS_PLAYERS.forEach((fp, fi) => {
+      const sim = _cosineSim(features[sq], fp.s, fMax);
+      triples.push({ sq, fi, sim });
+    });
+  });
+
+  // Sort by similarity descending — greedy assignment
+  triples.sort((a, b) => b.sim - a.sim);
+
+  const assignedSquad = new Set();
+  const assignedFamous = new Set();
+  const result = {}; // playerName → famous player entry + pct
+
+  for (const { sq, fi, sim } of triples) {
+    if (assignedSquad.has(sq) || assignedFamous.has(fi)) continue;
+    assignedSquad.add(sq);
+    assignedFamous.add(fi);
+    const fp = FAMOUS_PLAYERS[fi];
+    const pct = Math.max(62, Math.min(96, Math.round(sim * 100)));
+    result[sq] = { ...fp, pct, tags: fp.tags.slice(0, 3) };
+    if (assignedSquad.size === squadNames.length) break;
+  }
+
+  // Any squad player not yet assigned (shouldn't happen with 50 famous players)
+  // gets their best unassigned match
+  squadNames.forEach(sq => {
+    if (result[sq] || !features[sq]) return;
+    let best = null, bestSim = -1;
+    FAMOUS_PLAYERS.forEach((fp, fi) => {
+      if (assignedFamous.has(fi)) return;
+      const sim = _cosineSim(features[sq], fp.s, fMax);
+      if (sim > bestSim) { bestSim = sim; best = { fp, fi }; }
+    });
+    if (best) {
+      assignedFamous.add(best.fi);
+      const pct = Math.max(62, Math.min(96, Math.round(bestSim * 100)));
+      result[sq] = { ...best.fp, pct, tags: best.fp.tags.slice(0, 3) };
+    }
+  });
+
+  return result;
+}
+
+function getFamousPlayerComparison(playerName) {
+  // Recompute assignments if squad data has changed
+  // Use a simple hash: number of players with 3+ games
+  const sqHash = Object.keys(getDisplayStats()).filter(n => (getDisplayStats()[n]?.games||0) >= 3).length;
+  if (!_famousAssignments || _famousAssignments._hash !== sqHash) {
+    _famousAssignments = _computeFamousAssignments();
+    _famousAssignments._hash = sqHash;
+  }
+  return _famousAssignments[playerName] || null;
+}
+
 function renderProfile(name) {
   if (name !== currentProfileName) window._hmapType = 'shot'; // reset tab on new profile
   currentProfileName = name;
@@ -9136,6 +9312,28 @@ function renderProfile(name) {
         <div style="width:${dPct}%;background:var(--amber)"></div>
         <div style="width:${lPct}%;background:var(--red)"></div>
       </div>
+      ${(() => {
+        const comp = getFamousPlayerComparison(name);
+        if (!comp) return '';
+        return `<div style="margin-top:14px;background:rgba(0,0,0,.2);border:1px solid var(--border);border-radius:10px;padding:12px 14px">
+          <div style="font-size:.55rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:9px">If you played in real football...</div>
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+            <div style="width:38px;height:38px;border-radius:50%;background:${comp.bg};display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">${comp.emoji}</div>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:.92rem;font-weight:600;color:var(--text)">${comp.name}</div>
+              <div style="font-size:.65rem;color:var(--muted);margin-top:1px">${comp.role} · ${comp.club}</div>
+            </div>
+            <div style="text-align:right;flex-shrink:0">
+              <div style="font-family:'Bebas Neue',sans-serif;font-size:1.4rem;color:var(--green);line-height:1">${comp.pct}%</div>
+              <div style="font-size:.55rem;color:var(--muted);text-transform:uppercase;letter-spacing:1px">match</div>
+            </div>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px">
+            ${comp.tags.map(t => `<span style="font-size:.62rem;padding:2px 8px;border-radius:20px;border:1px solid var(--border);color:var(--muted);font-family:'Barlow Condensed',sans-serif">${t}</span>`).join('')}
+          </div>
+          <div style="font-size:.68rem;color:var(--muted);font-style:italic;line-height:1.5">"${comp.desc}"</div>
+        </div>`;
+      })()}
     </div>
 
     <!-- ═══ STATS (compact 2-col) ═══ -->
