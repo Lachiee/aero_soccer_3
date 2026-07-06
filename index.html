@@ -4863,8 +4863,172 @@ function drawMomentumGraph(canvasId, matchId) {
   const cv = document.getElementById(canvasId);
   const data = window._wormData[matchId];
   if (!cv || !data) return;
-  const { rows, matchDur, htSecs } = data;
-  if (!rows || rows.length < 2) return;
+  const { rows, matchDur, htSecs, fA, fB } = data;
+  if (!rows || rows.length < 1) return;
+
+  // Try to get event log for shot-pressure momentum
+  let events = null;
+  try {
+    const logs = JSON.parse(localStorage.getItem('aero_event_logs') || '{}');
+    const log = logs[matchId];
+    events = log?.events?.length ? log.events : null;
+  } catch(e) {}
+
+  const dpr = window.devicePixelRatio || 1;
+  let W = cv.offsetWidth;
+  if (!W || W < 100) { let el = cv.parentElement; while (el && (!el.offsetWidth || el.offsetWidth < 100)) el = el.parentElement; W = (el?.offsetWidth || 700) - 20; }
+  const H = 130;
+  cv.width = W * dpr; cv.height = H * dpr;
+  cv.style.width = W + 'px'; cv.style.height = H + 'px';
+  const ctx = cv.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  const pad = { l: 8, r: 8, t: 20, b: 22 };
+  const cW = W - pad.l - pad.r;
+  const cH = H - pad.t - pad.b;
+  const midY = pad.t + cH / 2;
+  const toX = s => pad.l + (s / matchDur) * cW;
+
+  // Background
+  ctx.fillStyle = 'rgba(0,0,0,.3)';
+  if (ctx.roundRect) ctx.roundRect(0, 0, W, H, 8); else ctx.rect(0, 0, W, H);
+  ctx.fill();
+
+  // ── Build momentum data ──
+  let momentumPts = []; // [{s, v}] where v is -1 (B dominant) to +1 (A dominant)
+
+  const PRESSURE_WEIGHT = { 'Goals': 4, 'On Target': 3, 'Key Passes': 2, 'Off Target': 1, 'Tackles': 0.5, 'Interceptions': 0.5, 'Blocks': 0.5 };
+  const WINDOW_SECS = 90; // rolling 90-second window
+  const STEP_SECS = 15;   // sample every 15 seconds
+
+  if (events) {
+    // Shot-pressure momentum: weighted rolling window per team
+    const pressureEvents = events.filter(e => PRESSURE_WEIGHT[e.event] != null && e.tsSecsRaw != null);
+    
+    for (let t = 0; t <= matchDur; t += STEP_SECS) {
+      const windowEvents = pressureEvents.filter(e => e.tsSecsRaw >= t - WINDOW_SECS && e.tsSecsRaw <= t);
+      let pA = 0, pB = 0;
+      windowEvents.forEach(e => {
+        const w = PRESSURE_WEIGHT[e.event] || 0;
+        if (e.team === 'A') pA += w; else pB += w;
+      });
+      const total = pA + pB;
+      const v = total > 0 ? (pA - pB) / total : 0; // -1 to +1
+      momentumPts.push({ s: t, v });
+    }
+  } else {
+    // Fallback: derive from goal events — step at each goal
+    momentumPts = [{ s: 0, v: 0 }];
+    rows.forEach(r => {
+      const absSecs = r.halfAbsSecs != null ? r.halfAbsSecs
+        : (r.half === '2H' && htSecs ? htSecs + r.secs : r.secs);
+      const diff = r.scoreA - r.scoreB;
+      const maxD = Math.max(...rows.map(x => Math.abs(x.scoreA - x.scoreB)), 1);
+      momentumPts.push({ s: absSecs, v: diff / maxD });
+    });
+    momentumPts.sort((a, b) => a.s - b.s);
+    momentumPts.push({ s: matchDur, v: momentumPts[momentumPts.length - 1].v });
+  }
+
+  // Smooth the momentum with a simple moving average over 3 points
+  const smoothed = momentumPts.map((pt, i) => {
+    const slice = momentumPts.slice(Math.max(0, i - 2), i + 3);
+    const avg = slice.reduce((s, p) => s + p.v, 0) / slice.length;
+    return { s: pt.s, v: avg };
+  });
+
+  // Convert to canvas coords
+  const toY = v => midY - v * (cH / 2) * 0.85; // 85% of half-height so line has breathing room
+  const coords = smoothed.map(p => ({ x: toX(p.s), y: toY(p.v) }));
+
+  // Build smooth path using monotone interpolation
+  const buildSmoothPath = (pts) => {
+    if (pts.length < 2) return;
+    ctx.moveTo(pts[0].x, pts[0].y);
+    for (let i = 0; i < pts.length - 1; i++) {
+      const x0 = pts[i].x, y0 = pts[i].y;
+      const x1 = pts[i+1].x, y1 = pts[i+1].y;
+      const dx = (x1 - x0) / 3;
+      ctx.bezierCurveTo(x0 + dx, y0, x1 - dx, y1, x1, y1);
+    }
+  };
+
+  // Team A fill (above midline) — green
+  ctx.save();
+  ctx.beginPath(); ctx.rect(pad.l, pad.t, cW, midY - pad.t); ctx.clip();
+  ctx.beginPath();
+  ctx.moveTo(coords[0].x, midY);
+  buildSmoothPath(coords);
+  ctx.lineTo(coords[coords.length-1].x, midY);
+  ctx.closePath();
+  const gradA = ctx.createLinearGradient(0, pad.t, 0, midY);
+  gradA.addColorStop(0, 'rgba(57,211,83,0.5)');
+  gradA.addColorStop(1, 'rgba(57,211,83,0.1)');
+  ctx.fillStyle = gradA; ctx.fill();
+  ctx.restore();
+
+  // Team B fill (below midline) — blue
+  ctx.save();
+  ctx.beginPath(); ctx.rect(pad.l, midY, cW, cH - (midY - pad.t)); ctx.clip();
+  ctx.beginPath();
+  ctx.moveTo(coords[0].x, midY);
+  buildSmoothPath(coords);
+  ctx.lineTo(coords[coords.length-1].x, midY);
+  ctx.closePath();
+  const gradB = ctx.createLinearGradient(0, midY, 0, pad.t + cH);
+  gradB.addColorStop(0, 'rgba(96,165,250,0.1)');
+  gradB.addColorStop(1, 'rgba(96,165,250,0.5)');
+  ctx.fillStyle = gradB; ctx.fill();
+  ctx.restore();
+
+  // Main line
+  ctx.beginPath();
+  buildSmoothPath(coords);
+  ctx.strokeStyle = 'rgba(255,255,255,0.75)';
+  ctx.lineWidth = 2; ctx.lineJoin = 'round'; ctx.stroke();
+
+  // Centre baseline
+  ctx.strokeStyle = 'rgba(255,255,255,0.18)'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(pad.l, midY); ctx.lineTo(W - pad.r, midY); ctx.stroke();
+
+  // Halftime dashed line
+  if (htSecs) {
+    const hx = toX(htSecs);
+    ctx.strokeStyle = 'rgba(255,255,255,0.2)'; ctx.lineWidth = 1; ctx.setLineDash([3,3]);
+    ctx.beginPath(); ctx.moveTo(hx, pad.t); ctx.lineTo(hx, H - pad.b); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // Goal event markers on the baseline
+  rows.forEach(r => {
+    const absSecs = r.halfAbsSecs != null ? r.halfAbsSecs
+      : (r.half === '2H' && htSecs ? htSecs + r.secs : r.secs);
+    const x = toX(absSecs);
+    const col = r.team === 'A' ? '#4ade80' : '#60a5fa';
+    ctx.beginPath(); ctx.arc(x, midY, 3.5, 0, Math.PI*2);
+    ctx.fillStyle = col; ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,.4)'; ctx.lineWidth = 1; ctx.stroke();
+  });
+
+  // Labels
+  ctx.font = '10px Barlow Condensed, sans-serif';
+  ctx.fillStyle = 'rgba(57,211,83,0.65)'; ctx.textAlign = 'left';
+  ctx.fillText(fA || 'Team A', pad.l + 4, pad.t + 11);
+  ctx.fillStyle = 'rgba(96,165,250,0.65)';
+  ctx.fillText(fB || 'Team B', pad.l + 4, H - pad.b - 5);
+
+  // Time labels
+  const durMins = Math.ceil(matchDur / 60);
+  const step = durMins <= 55 ? 10 : 15;
+  ctx.fillStyle = 'rgba(255,255,255,0.3)'; ctx.textAlign = 'center'; ctx.font = '10px sans-serif';
+  for (let t = 0; t <= durMins; t += step) {
+    ctx.fillText(t + "'", toX(t * 60), H - 4);
+  }
+
+  // Title
+  ctx.fillStyle = 'rgba(255,255,255,0.2)'; ctx.textAlign = 'left'; ctx.font = '9px Barlow Condensed, sans-serif';
+  ctx.fillText(events ? 'SHOT PRESSURE MOMENTUM' : 'SCORE MOMENTUM', pad.l + 4, pad.t - 6);
+}
 
   const dpr = window.devicePixelRatio || 1;
   let W = cv.offsetWidth;
@@ -9023,32 +9187,40 @@ function _computeFamousAssignments() {
   // Sort by similarity descending — greedy assignment
   triples.sort((a, b) => b.sim - a.sim);
 
-  const assignedSquad = new Set();
+  const assignedSquad  = new Set();
   const assignedFamous = new Set();
   const result = {}; // playerName → famous player entry + pct
+  let gkAssigned = false; // once one keeper is matched, no more keepers available
+
+  // Identify which famous player indices are goalkeepers
+  const gkIndices = new Set(FAMOUS_PLAYERS.map((fp, i) => fp.s.gkFrac >= 0.8 ? i : -1).filter(i => i >= 0));
 
   for (const { sq, fi, sim } of triples) {
     if (assignedSquad.has(sq) || assignedFamous.has(fi)) continue;
+    // If this famous player is a keeper and one has already been assigned, skip
+    if (gkIndices.has(fi) && gkAssigned) continue;
     assignedSquad.add(sq);
     assignedFamous.add(fi);
+    if (gkIndices.has(fi)) gkAssigned = true;
     const fp = FAMOUS_PLAYERS[fi];
     const pct = Math.max(62, Math.min(96, Math.round(sim * 100)));
     result[sq] = { ...fp, pct, tags: fp.tags.slice(0, 3) };
     if (assignedSquad.size === squadNames.length) break;
   }
 
-  // Any squad player not yet assigned (shouldn't happen with 50 famous players)
-  // gets their best unassigned match
+  // Any squad player not yet assigned gets their best unassigned non-blocked match
   squadNames.forEach(sq => {
     if (result[sq] || !features[sq]) return;
     let best = null, bestSim = -1;
     FAMOUS_PLAYERS.forEach((fp, fi) => {
       if (assignedFamous.has(fi)) return;
+      if (gkIndices.has(fi) && gkAssigned) return; // block extra keepers
       const sim = _cosineSim(features[sq], fp.s, fMax);
       if (sim > bestSim) { bestSim = sim; best = { fp, fi }; }
     });
     if (best) {
       assignedFamous.add(best.fi);
+      if (gkIndices.has(best.fi)) gkAssigned = true;
       const pct = Math.max(62, Math.min(96, Math.round(bestSim * 100)));
       result[sq] = { ...best.fp, pct, tags: best.fp.tags.slice(0, 3) };
     }
