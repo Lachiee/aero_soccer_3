@@ -8445,55 +8445,37 @@ function initShotMap(safeName, allGoalData, allAssistData) {
 
           const col = g.foot ? (footColor[g.foot] || 'rgba(255,255,255,.8)') : 'rgba(255,255,255,.8)';
 
-          // Draw a proper front-facing goal opening to the right of the pitch
-          // This gives real 2D space so netX/netY show left/right AND top/bottom correctly
-          const gfW = W * 0.055;   // goal face display width (wider than goalD)
-          const gfH = goalH;        // same height as the real goal
-          const gfX = W - 2;        // right edge of canvas
-          const gfLeft  = gfX - gfW;
-          const gfTop   = H / 2 - gfH / 2;
-          const gfBot   = H / 2 + gfH / 2;
+          // Top-down view: netX = left-to-right across goal = vertical position in the goal rect
+          const netX = g.netX != null ? Math.max(0, Math.min(1, g.netX)) : 0.5;
+          const targetY = goalTopY + netX * goalH;
 
-          // Goal face background
+          const goalFaceX   = W - 3 - goalD;
+          const goalCentreX = W - 3 - goalD / 2;
+
+          // Highlight goal rect
           ctx.save();
-          ctx.fillStyle = 'rgba(0,0,0,.35)';
-          ctx.fillRect(gfLeft, gfTop, gfW, gfH);
-
-          // Goal face grid (3×2 zones)
-          ctx.strokeStyle = 'rgba(255,255,255,.12)'; ctx.lineWidth = 0.5;
-          ctx.beginPath(); ctx.moveTo(gfLeft + gfW/3, gfTop); ctx.lineTo(gfLeft + gfW/3, gfBot); ctx.stroke();
-          ctx.beginPath(); ctx.moveTo(gfLeft + gfW*2/3, gfTop); ctx.lineTo(gfLeft + gfW*2/3, gfBot); ctx.stroke();
-          ctx.beginPath(); ctx.moveTo(gfLeft, gfTop + gfH/2); ctx.lineTo(gfX, gfTop + gfH/2); ctx.stroke();
-
-          // Goal face border — posts and crossbar
-          ctx.strokeStyle = 'rgba(255,255,255,.7)'; ctx.lineWidth = 1.5;
-          ctx.strokeRect(gfLeft, gfTop, gfW, gfH);
-
+          ctx.strokeStyle = 'rgba(255,255,255,.5)';
+          ctx.lineWidth = 1;
+          ctx.strokeRect(goalFaceX, goalTopY, goalD, goalH);
           ctx.restore();
 
-          // Target position using netX (left/right) and netY (top/bottom)
-          const netX = g.netX != null ? Math.max(0, Math.min(1, g.netX)) : 0.5;
-          const netY = g.netY != null ? Math.max(0, Math.min(1, g.netY)) : 0.5;
-          const targetX = gfLeft + netX * gfW;
-          const targetY = gfTop  + netY * gfH;
-
-          // Dashed line from shot dot to target on goal face
+          // Dashed line from shot to centre of goal at the right position
           ctx.save();
           ctx.setLineDash([5, 4]);
           ctx.strokeStyle = col; ctx.globalAlpha = 0.65; ctx.lineWidth = 1.5;
-          ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(targetX, targetY); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(goalCentreX, targetY); ctx.stroke();
           ctx.restore();
 
           // Target marker
           ctx.save();
           ctx.globalAlpha = 0.5;
           ctx.fillStyle = 'white';
-          ctx.beginPath(); ctx.arc(targetX, targetY, 6, 0, Math.PI * 2); ctx.fill();
+          ctx.beginPath(); ctx.arc(goalCentreX, targetY, 6, 0, Math.PI * 2); ctx.fill();
           ctx.globalAlpha = 0.95;
           ctx.fillStyle = col;
-          ctx.beginPath(); ctx.arc(targetX, targetY, 4.5, 0, Math.PI * 2); ctx.fill();
+          ctx.beginPath(); ctx.arc(goalCentreX, targetY, 4.5, 0, Math.PI * 2); ctx.fill();
           ctx.fillStyle = 'rgba(0,0,0,.6)';
-          ctx.beginPath(); ctx.arc(targetX, targetY, 1.8, 0, Math.PI * 2); ctx.fill();
+          ctx.beginPath(); ctx.arc(goalCentreX, targetY, 1.8, 0, Math.PI * 2); ctx.fill();
           ctx.restore();
         }
 
