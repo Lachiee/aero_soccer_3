@@ -7957,7 +7957,7 @@ function renderProfileHeatmap(name, hmapType) {
           shotShots.push({ sx: g.sx, sy: g.sy, mid, half: hk==='h1'?'1H':'2H', idx, scorer: g.scorer, assister: g.assister, time: g.time });
         }
         if (g.assister === name && g.ax != null && g.ay != null) {
-          assistShots.push({ sx: g.ax, sy: g.ay, mid, half: hk==='h1'?'1H':'2H', idx, scorer: g.scorer, assister: g.assister, time: g.time });
+          assistShots.push({ sx: g.ax, sy: g.ay, scorerSx: g.sx ?? null, scorerSy: g.sy ?? null, mid, half: hk==='h1'?'1H':'2H', idx, scorer: g.scorer, assister: g.assister, time: g.time });
         }
       });
     });
@@ -8120,6 +8120,45 @@ function renderProfileHeatmap(name, hmapType) {
       document.getElementById('hmap-goal-card')?.remove();
       hmapTip.style.opacity = '0';
       const isAssist = heatCanvas._hmapType === 'assist';
+
+      // For assists: draw scorer dot + dashed line on the canvas
+      if (isAssist && hit.shots.length > 0) {
+        // Redraw base heatmap first
+        hmapRender(heatCanvas, heatCanvas._currentShots || [], {
+          width: heatCanvas._hmapW || heatCanvas.offsetWidth,
+          markerType: 'assist',
+          pillSize: window._hmapPillSize ?? 0.85,
+          showNumbers: window._hmapShowNumbers ?? true,
+        });
+        const ctx = heatCanvas.getContext('2d');
+        const dpr = window.devicePixelRatio || 1;
+        const W = heatCanvas._hmapW || heatCanvas.offsetWidth;
+        const H = heatCanvas._hmapH || heatCanvas.offsetHeight || Math.round(W * 0.52);
+        ctx.save();
+        ctx.scale(dpr, dpr);
+        hit.shots.forEach(s => {
+          // Draw scorer dot if shot coords exist
+          if (s.scorerSx != null && s.scorerSy != null) {
+            const ex = s.scorerSx * W, ey = s.scorerSy * H;
+            // Dashed line from assist (pill) to scorer
+            ctx.save();
+            ctx.setLineDash([4, 3]);
+            ctx.strokeStyle = 'rgba(74,222,128,.6)'; ctx.lineWidth = 1.5;
+            ctx.beginPath(); ctx.moveTo(hit.px, hit.py); ctx.lineTo(ex, ey); ctx.stroke();
+            ctx.restore();
+            // Scorer dot — green
+            ctx.beginPath(); ctx.arc(ex, ey, 7, 0, Math.PI * 2);
+            ctx.fillStyle = '#4ade80'; ctx.globalAlpha = 0.85; ctx.fill(); ctx.globalAlpha = 1;
+            ctx.strokeStyle = 'rgba(0,0,0,.5)'; ctx.lineWidth = 1.5; ctx.stroke();
+            // Small "G" label
+            ctx.fillStyle = 'white'; ctx.font = `bold ${Math.round(W*0.02)}px Barlow Condensed,sans-serif`;
+            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.fillText('G', ex, ey);
+          }
+        });
+        ctx.restore();
+      }
+
       const card = document.createElement('div');
       card.id = 'hmap-goal-card';
       card.style.cssText = 'position:fixed;z-index:9998;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px 16px;font-family:"Barlow Condensed",sans-serif;box-shadow:0 8px 32px rgba(0,0,0,.7);min-width:200px;max-width:280px';
@@ -8257,7 +8296,7 @@ function initShotMap(safeName, allGoalData, allAssistData) {
       // ── NET VIEW — canvas-based (reliable events) ──
       const withNet = data.filter(g => g.netX != null);
       pitchEl.innerHTML = '';
-      pitchEl.style.cssText = 'max-width:480px';
+      pitchEl.style.cssText = 'max-width:480px';  // net view is narrower
 
       const cv = document.createElement('canvas');
       cv.style.cssText = 'width:100%;display:block;border-radius:10px;cursor:default';
@@ -8401,6 +8440,7 @@ function initShotMap(safeName, allGoalData, allAssistData) {
       requestAnimationFrame(() => drawNet(-1));
     } else {
       // ── PITCH VIEW — real indoor court via hmapDrawCourt ──
+      pitchEl.style.cssText = '';  // reset any max-width from net view
       const pitchData = data.filter(g => g.sx != null);
       const cv = document.createElement('canvas');
       cv.style.cssText = 'width:100%;display:block;border-radius:10px;cursor:crosshair';
