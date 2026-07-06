@@ -4899,7 +4899,7 @@ function drawMomentumGraph(canvasId, matchId) {
   // C1 goal annotations — name above (A) / below (B) with dotted tick
   const hitTargets = [];
   rows.forEach(r => {
-    const abs = r.halfAbsSecs != null ? r.halfAbsSecs : (r.half === '2H' && htSecs ? htSecs + r.secs : r.secs);
+    const abs = r.absSecs != null ? r.absSecs : (r.halfAbsSecs != null ? r.halfAbsSecs : (r.half === '2H' && htSecs ? htSecs + r.secs : r.secs));
     const x = toX(abs);
     const col = r.team === 'A' ? '#39d353' : '#60a5fa';
     const nearest = sm.reduce((b, p) => Math.abs(p.s - abs) < Math.abs(b.s - abs) ? p : b, sm[0]);
@@ -4941,7 +4941,7 @@ function drawMomentumGraph(canvasId, matchId) {
       ctx.beginPath(); ctx.moveTo(x - tw / 2, labelY + 1); ctx.lineTo(x + tw / 2, labelY + 1); ctx.stroke();
       ctx.globalAlpha = 1;
     }
-    hitTargets.push({ x, y: labelY, ytTime: r.ytTime, hasYt });
+    hitTargets.push({ x, y: labelY, dotY, ytTime: r.ytTime, hasYt, scoreA: r.scoreA, scoreB: r.scoreB, scorer: r.scorer || '', time: r.time || '', team: r.team });
   });
 
   // Team labels
@@ -4960,21 +4960,69 @@ function drawMomentumGraph(canvasId, matchId) {
   ctx.font = '9px Barlow Condensed, sans-serif';
   ctx.fillText(evLog ? 'SHOT PRESSURE MOMENTUM' : 'SCORE MOMENTUM', pad.l + 4, pad.t - 16);
 
-  // Store click targets
+  // Store click targets and hover data
   const matchKey = matchId.replace(/[#,]/g, '_');
   cv._momHitTargets = hitTargets; cv._momYtId = ytId; cv._momMatchKey = matchKey;
+  cv._momSm = sm; cv._momRows = rows; cv._momPad = pad; cv._momW = W; cv._momH = H;
+  cv._momToX = toX; cv._momToY = toY; cv._momMidY = midY; cv._momMatchDur = matchDur;
+
   if (!cv._momBound) {
     cv._momBound = true;
+
+    // Shared tooltip element
+    let momTip = document.getElementById('mom-score-tip');
+    if (!momTip) {
+      momTip = document.createElement('div');
+      momTip.id = 'mom-score-tip';
+      momTip.style.cssText = 'position:fixed;z-index:9999;background:#0d1a0f;border:1px solid rgba(57,211,83,.3);border-radius:7px;padding:5px 10px;font-family:"Barlow Condensed",sans-serif;pointer-events:none;opacity:0;transition:opacity .1s;font-size:.75rem;line-height:1.5;box-shadow:0 4px 16px rgba(0,0,0,.7)';
+      document.body.appendChild(momTip);
+    }
+
     cv.addEventListener('mousemove', ev => {
-      const r = cv.getBoundingClientRect();
-      const mx = (ev.clientX - r.left) * (W / r.width);
-      const my = (ev.clientY - r.top) * (H / r.height);
-      cv.style.cursor = (cv._momHitTargets || []).some(t => t.hasYt && Math.abs(mx - t.x) < 40 && Math.abs(my - t.y) < 12) ? 'pointer' : 'default';
+      const rect = cv.getBoundingClientRect();
+      const scaleX = cv._momW / rect.width;
+      const scaleY = cv._momH / rect.height;
+      const mx = (ev.clientX - rect.left) * scaleX;
+      const my = (ev.clientY - rect.top) * scaleY;
+
+      // Check if hovering a name label (clickable)
+      const nameHit = (cv._momHitTargets || []).find(t => Math.abs(mx - t.x) < 40 && Math.abs(my - t.y) < 12);
+      cv.style.cursor = nameHit?.hasYt ? 'pointer' : 'default';
+
+      // Show score tooltip based on X position
+      const pad = cv._momPad;
+      const W = cv._momW;
+      if (mx >= pad.l && mx <= W - pad.r) {
+        const matchDur = cv._momMatchDur;
+        const t = (mx - pad.l) / (W - pad.l - pad.r) * matchDur;
+        // Find score at time t
+        const rws = cv._momRows || [];
+        let sA = 0, sB = 0;
+        rws.forEach(r => {
+          const abs = r.absSecs != null ? r.absSecs : r.secs;
+          if (abs <= t) { sA = r.scoreA; sB = r.scoreB; }
+        });
+        const mins = Math.floor(t / 60);
+        const tip = document.getElementById('mom-score-tip');
+        if (tip) {
+          tip.innerHTML = `<span style="color:rgba(255,255,255,.5);font-size:.65rem">${mins}'</span> <span style="color:#39d353;font-weight:700">${sA}</span><span style="color:rgba(255,255,255,.4)"> – </span><span style="color:#60a5fa;font-weight:700">${sB}</span>`;
+          tip.style.opacity = '1';
+          tip.style.left = (ev.clientX + 12) + 'px';
+          tip.style.top = (ev.clientY - 16) + 'px';
+        }
+      }
     });
+
+    cv.addEventListener('mouseleave', () => {
+      const tip = document.getElementById('mom-score-tip');
+      if (tip) tip.style.opacity = '0';
+      cv.style.cursor = 'default';
+    });
+
     cv.addEventListener('click', ev => {
-      const r = cv.getBoundingClientRect();
-      const mx = (ev.clientX - r.left) * (W / r.width);
-      const my = (ev.clientY - r.top) * (H / r.height);
+      const rect = cv.getBoundingClientRect();
+      const mx = (ev.clientX - rect.left) * (cv._momW / rect.width);
+      const my = (ev.clientY - rect.top) * (cv._momH / rect.height);
       const hit = (cv._momHitTargets || []).find(t => t.hasYt && Math.abs(mx - t.x) < 40 && Math.abs(my - t.y) < 12);
       if (hit) seekYtVideo(cv._momMatchKey, cv._momYtId, hit.ytTime);
     });
@@ -7363,6 +7411,16 @@ function renderMatches() {
           } catch(e) {}
 
           const matchDurFinal = totalDurSecs || Math.max(...all.map(p=>toSecs(p.time)), 50*60) + 60;
+          // Patch rows with absolute match time and YouTube seek time
+          const ytIdForRows = ytId;
+          rows.forEach(r => {
+            // Absolute seconds: 2H goals need htSecs offset
+            r.absSecs = r.half === '2H' && htSecs ? htSecs + r.secs : r.secs;
+            // YouTube seek time
+            r.ytTime = ytIdForRows && r.time ? timeToYtSeconds(r.time, r.half) : null;
+          });
+          // Re-sort by absolute time so 2H goals don't appear before late 1H goals
+          rows.sort((a, b) => a.absSecs - b.absSecs);
           window._wormData[mid] = { rows, fA, fB, matchDur: matchDurFinal, htSecs, ytId };
 
           const insights=[];
