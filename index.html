@@ -8419,9 +8419,9 @@ function initShotMap(safeName, allGoalData, allAssistData) {
       const drawPitch = (hoveredIdx, selectedIdx = -1) => {
         const dpr = window.devicePixelRatio || 1;
         const rect = pitchEl.getBoundingClientRect();
-        const W = Math.round(rect.width) || pitchEl.offsetWidth || document.getElementById('profile-heatmap-section')?.offsetWidth || 400;
+        const W = Math.round(rect.width) || pitchEl.offsetWidth || 400;
         const H = Math.round(W * 0.52);
-        // Only resize canvas if dimensions actually changed
+        cv._logW = W; cv._logH = H; // store for getHit
         if (cv.width !== W * dpr || cv.height !== H * dpr) {
           cv.width = W * dpr; cv.height = H * dpr;
           cv.style.width = W + 'px'; cv.style.height = H + 'px';
@@ -8432,12 +8432,10 @@ function initShotMap(safeName, allGoalData, allAssistData) {
         hmapDrawCourt(ctx, W, H);
 
         const footColor = { left: '#60a5fa', right: '#4ade80', header: '#f59e0b' };
-        // Goal rect — must match hmapDrawCourt exactly
-        const goalH      = H * 0.22;
-        const goalD      = W * 0.02;
-        const goalFaceX  = W - 3 - goalD;
-        const goalBackX  = W - 3;
-        const goalTopY   = H / 2 - goalH / 2;
+        // Goal rect dimensions for reference
+        const goalH  = H * 0.22;
+        const goalD  = W * 0.02;
+        const goalTopY    = H / 2 - goalH / 2;
         const goalBottomY = H / 2 + goalH / 2;
 
         // Draw shot-to-goal line for selected dot
@@ -8445,44 +8443,57 @@ function initShotMap(safeName, allGoalData, allAssistData) {
           const g = pitchData[selectedIdx];
           const px = g.sx * W, py = g.sy * H;
 
-          // netX/netY are direct fractions of the goal frame image:
-          // netX: 0=left post, 1=right post
-          // netY: 0=crossbar (top), 1=ground (bottom)
-          // Map directly onto the court goal rect with no frame offsets.
-          const gy = g.netY != null
-            ? goalTopY + Math.max(0, Math.min(1, g.netY)) * goalH
-            : H / 2;
-
           const col = g.foot ? (footColor[g.foot] || 'rgba(255,255,255,.8)') : 'rgba(255,255,255,.8)';
 
-          // Highlight goal mouth rectangle so it's visible against the black band
+          // Draw a proper front-facing goal opening to the right of the pitch
+          // This gives real 2D space so netX/netY show left/right AND top/bottom correctly
+          const gfW = W * 0.055;   // goal face display width (wider than goalD)
+          const gfH = goalH;        // same height as the real goal
+          const gfX = W - 2;        // right edge of canvas
+          const gfLeft  = gfX - gfW;
+          const gfTop   = H / 2 - gfH / 2;
+          const gfBot   = H / 2 + gfH / 2;
+
+          // Goal face background
           ctx.save();
-          ctx.strokeStyle = 'rgba(255,255,255,.45)';
-          ctx.lineWidth = 1;
-          ctx.strokeRect(goalFaceX, goalTopY, goalD, goalH);
+          ctx.fillStyle = 'rgba(0,0,0,.35)';
+          ctx.fillRect(gfLeft, gfTop, gfW, gfH);
+
+          // Goal face grid (3×2 zones)
+          ctx.strokeStyle = 'rgba(255,255,255,.12)'; ctx.lineWidth = 0.5;
+          ctx.beginPath(); ctx.moveTo(gfLeft + gfW/3, gfTop); ctx.lineTo(gfLeft + gfW/3, gfBot); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(gfLeft + gfW*2/3, gfTop); ctx.lineTo(gfLeft + gfW*2/3, gfBot); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(gfLeft, gfTop + gfH/2); ctx.lineTo(gfX, gfTop + gfH/2); ctx.stroke();
+
+          // Goal face border — posts and crossbar
+          ctx.strokeStyle = 'rgba(255,255,255,.7)'; ctx.lineWidth = 1.5;
+          ctx.strokeRect(gfLeft, gfTop, gfW, gfH);
+
           ctx.restore();
 
-          // Target point: always at the front face of the goal, height driven by netY only
-          const targetX = goalFaceX;
-          const targetY = gy;
+          // Target position using netX (left/right) and netY (top/bottom)
+          const netX = g.netX != null ? Math.max(0, Math.min(1, g.netX)) : 0.5;
+          const netY = g.netY != null ? Math.max(0, Math.min(1, g.netY)) : 0.5;
+          const targetX = gfLeft + netX * gfW;
+          const targetY = gfTop  + netY * gfH;
 
-          // Dashed line from shot to target
+          // Dashed line from shot dot to target on goal face
           ctx.save();
           ctx.setLineDash([5, 4]);
           ctx.strokeStyle = col; ctx.globalAlpha = 0.65; ctx.lineWidth = 1.5;
           ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(targetX, targetY); ctx.stroke();
           ctx.restore();
 
-          // Target marker — white halo + coloured fill + dark centre
+          // Target marker
           ctx.save();
-          ctx.globalAlpha = 0.6;
+          ctx.globalAlpha = 0.5;
           ctx.fillStyle = 'white';
-          ctx.beginPath(); ctx.arc(targetX, targetY, 7, 0, Math.PI * 2); ctx.fill();
+          ctx.beginPath(); ctx.arc(targetX, targetY, 6, 0, Math.PI * 2); ctx.fill();
           ctx.globalAlpha = 0.95;
           ctx.fillStyle = col;
-          ctx.beginPath(); ctx.arc(targetX, targetY, 5.5, 0, Math.PI * 2); ctx.fill();
+          ctx.beginPath(); ctx.arc(targetX, targetY, 4.5, 0, Math.PI * 2); ctx.fill();
           ctx.fillStyle = 'rgba(0,0,0,.6)';
-          ctx.beginPath(); ctx.arc(targetX, targetY, 2, 0, Math.PI * 2); ctx.fill();
+          ctx.beginPath(); ctx.arc(targetX, targetY, 1.8, 0, Math.PI * 2); ctx.fill();
           ctx.restore();
         }
 
@@ -8513,16 +8524,13 @@ function initShotMap(safeName, allGoalData, allAssistData) {
       const getHit = (ev) => {
         const rect = cv.getBoundingClientRect();
         if (!rect.width) return -1;
-        const W = rect.width, H = rect.height;
-        const mx = ev.clientX - rect.left, my = ev.clientY - rect.top;
-        // Convert to logical canvas coords (same W×H used in drawPitch)
-        const logW = Math.round(rect.width);
-        const logH = Math.round(logW * 0.52);
-        const lx = mx * logW / rect.width;
-        const ly = my * logH / rect.height;
+        const logW = cv._logW || Math.round(rect.width);
+        const logH = cv._logH || Math.round(logW * 0.52);
+        const mx = (ev.clientX - rect.left) * logW / rect.width;
+        const my = (ev.clientY - rect.top) * logH / rect.height;
         let best = -1, bestD = 22;
         pitchData.forEach((g, i) => {
-          const d = Math.hypot(g.sx * logW - lx, g.sy * logH - ly);
+          const d = Math.hypot(g.sx * logW - mx, g.sy * logH - my);
           if (d < bestD) { bestD = d; best = i; }
         });
         return best;
