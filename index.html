@@ -8418,11 +8418,13 @@ function initShotMap(safeName, allGoalData, allAssistData) {
 
       const drawPitch = (hoveredIdx, selectedIdx = -1) => {
         const dpr = window.devicePixelRatio || 1;
-        const W = pitchEl.offsetWidth || document.getElementById('profile-heatmap-section')?.offsetWidth || 400;
+        const rect = pitchEl.getBoundingClientRect();
+        const W = Math.round(rect.width) || pitchEl.offsetWidth || document.getElementById('profile-heatmap-section')?.offsetWidth || 400;
         const H = Math.round(W * 0.52);
-        if (cv.width !== W * dpr) {
+        // Only resize canvas if dimensions actually changed
+        if (cv.width !== W * dpr || cv.height !== H * dpr) {
           cv.width = W * dpr; cv.height = H * dpr;
-          cv.style.height = H + 'px';
+          cv.style.width = W + 'px'; cv.style.height = H + 'px';
         }
         const ctx = cv.getContext('2d');
         ctx.clearRect(0, 0, cv.width, cv.height);
@@ -8430,46 +8432,50 @@ function initShotMap(safeName, allGoalData, allAssistData) {
         hmapDrawCourt(ctx, W, H);
 
         const footColor = { left: '#60a5fa', right: '#4ade80', header: '#f59e0b' };
-        // Goal dimensions — match exactly what hmapDrawCourt draws
-        const goalH  = H * 0.22;
-        const goalD  = W * 0.02;
-        const goalFaceX   = W - 3 - goalD;   // left edge of right goal rect
-        const goalBackX   = W - 3;            // right edge (back of net)
-        const goalTopY    = H / 2 - goalH / 2;
+        // Goal rect — must match hmapDrawCourt exactly
+        const goalH      = H * 0.22;
+        const goalD      = W * 0.02;
+        const goalFaceX  = W - 3 - goalD;
+        const goalBackX  = W - 3;
+        const goalTopY   = H / 2 - goalH / 2;
         const goalBottomY = H / 2 + goalH / 2;
 
         // Draw shot-to-goal line for selected dot
         if (selectedIdx >= 0 && selectedIdx < pitchData.length) {
           const g = pitchData[selectedIdx];
           const px = g.sx * W, py = g.sy * H;
-          // netY: 0=crossbar (top of goal), 1=ground (bottom of goal)
-          const netYc = g.netY != null ? Math.max(0, Math.min(1, g.netY)) : 0.5;
-          const gy = goalTopY + netYc * goalH;
+
+          // netY is a fraction of the net placement UI canvas (full frame incl. padding).
+          // The net SVG frame has goal interior at y: 32/130 to 104/130 of the full height.
+          // Remap netY from that frame range onto the court goal rect.
+          let gy;
+          if (g.netY != null) {
+            const frameTop = 32 / 130; // 0.246 — where crossbar sits in the net frame
+            const frameBot = 104 / 130; // 0.800 — where ground sits in the net frame
+            const t = (Math.max(0, Math.min(1, g.netY)) - frameTop) / (frameBot - frameTop);
+            gy = goalTopY + Math.max(0, Math.min(1, t)) * goalH;
+          } else {
+            gy = H / 2;
+          }
+
           const col = g.foot ? (footColor[g.foot] || 'rgba(255,255,255,.8)') : 'rgba(255,255,255,.8)';
 
-          // Dashed line from shot to goal face
+          // Dashed line
           ctx.save();
           ctx.setLineDash([5, 4]);
-          ctx.strokeStyle = col;
-          ctx.globalAlpha = 0.6;
-          ctx.lineWidth = 1.5;
+          ctx.strokeStyle = col; ctx.globalAlpha = 0.6; ctx.lineWidth = 1.5;
           ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(goalFaceX, gy); ctx.stroke();
           ctx.restore();
 
-          // Target: draw a small crosshair inside the goal rect at gy
+          // Target marker: horizontal tick through goal depth + ring + dot
           ctx.save();
-          ctx.globalAlpha = 0.9;
-          // Horizontal line across goal depth at the netY height
-          ctx.strokeStyle = col; ctx.lineWidth = 1.5;
+          ctx.globalAlpha = 0.9; ctx.strokeStyle = col; ctx.lineWidth = 1.5;
           ctx.beginPath(); ctx.moveTo(goalFaceX, gy); ctx.lineTo(goalBackX + 2, gy); ctx.stroke();
-          // Outer ring
           ctx.beginPath(); ctx.arc(goalFaceX, gy, 5.5, 0, Math.PI * 2);
-          ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.stroke();
+          ctx.lineWidth = 2; ctx.stroke();
           ctx.fillStyle = col; ctx.globalAlpha = 0.35;
           ctx.beginPath(); ctx.arc(goalFaceX, gy, 5.5, 0, Math.PI * 2); ctx.fill();
-          // Inner dot
-          ctx.globalAlpha = 0.9;
-          ctx.fillStyle = col;
+          ctx.globalAlpha = 0.9; ctx.fillStyle = col;
           ctx.beginPath(); ctx.arc(goalFaceX, gy, 2, 0, Math.PI * 2); ctx.fill();
           ctx.restore();
         }
@@ -8503,9 +8509,14 @@ function initShotMap(safeName, allGoalData, allAssistData) {
         if (!rect.width) return -1;
         const W = rect.width, H = rect.height;
         const mx = ev.clientX - rect.left, my = ev.clientY - rect.top;
+        // Convert to logical canvas coords (same W×H used in drawPitch)
+        const logW = Math.round(rect.width);
+        const logH = Math.round(logW * 0.52);
+        const lx = mx * logW / rect.width;
+        const ly = my * logH / rect.height;
         let best = -1, bestD = 22;
         pitchData.forEach((g, i) => {
-          const d = Math.hypot(g.sx * W - mx, g.sy * H - my);
+          const d = Math.hypot(g.sx * logW - lx, g.sy * logH - ly);
           if (d < bestD) { bestD = d; best = i; }
         });
         return best;
