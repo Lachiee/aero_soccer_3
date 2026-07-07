@@ -7616,8 +7616,8 @@ function renderMatches() {
             +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">'
             +'<div style="font-size:.62rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);font-family:\'Barlow Condensed\',sans-serif">Momentum'+(ytId?' · click scorer to seek video':'')+'</div>'
             +'<div style="display:flex;gap:6px">'
-            +'<button onclick="event.stopPropagation();var cvs=this.closest(\'.match-detail-panel\').querySelectorAll(\'canvas[id^=\\"timeline-\\"]\')\ ;cvs.forEach(function(c){c._showMom=c._showMom===false;var k=c.id.replace(\'timeline-\',\'\');var m=Object.keys(window._wormData||{}).find(function(x){return x.replace(/[#,]/g,\'_\')===k;});if(m)drawMomentumGraph(c.id,m);});" style="font-size:.7rem;padding:4px 14px;border-radius:6px;border:1.5px solid rgba(57,211,83,.6);background:rgba(57,211,83,.2);color:var(--green);cursor:pointer;font-family:\'Barlow Condensed\',sans-serif;user-select:none" id="mom-btn-'+canvasId+'">▲ Momentum</button>'
-            +'<button onclick="event.stopPropagation();var cvs=this.closest(\'.match-detail-panel\').querySelectorAll(\'canvas[id^=\\"timeline-\\"]\')\ ;cvs.forEach(function(c){c._showWorm=c._showWorm===false;var k=c.id.replace(\'timeline-\',\'\');var m=Object.keys(window._wormData||{}).find(function(x){return x.replace(/[#,]/g,\'_\')===k;});if(m)drawMomentumGraph(c.id,m);});" style="font-size:.7rem;padding:4px 14px;border-radius:6px;border:1.5px solid rgba(255,255,255,.35);background:rgba(255,255,255,.1);color:rgba(255,255,255,.8);cursor:pointer;font-family:\'Barlow Condensed\',sans-serif;user-select:none" id="worm-btn-'+canvasId+'">〜 Score worm</button>'
+            +'<button onclick="event.stopPropagation();var cvs=this.closest(\'.match-detail-panel\').querySelectorAll(\'canvas[id^=\\"timeline-\\"]\')\ ;cvs.forEach(function(c){c._showMom=c._showMom!==false?false:true;var k=c.id.replace(\'timeline-\',\'\');var m=Object.keys(window._wormData||{}).find(function(x){return x.replace(/[#,]/g,\'_\')===k;});if(m)drawMomentumGraph(c.id,m);});var ov=this.closest(\'.match-detail-panel\').querySelector(\'canvas[id^=\\"timeline-\\"]\')\ ;this.style.opacity=ov&&ov._showMom===false?\'0.4\':\'1\';" style="font-size:.7rem;padding:4px 14px;border-radius:6px;border:1.5px solid rgba(57,211,83,.6);background:rgba(57,211,83,.2);color:var(--green);cursor:pointer;font-family:\'Barlow Condensed\',sans-serif;user-select:none" id="mom-btn-'+canvasId+'">▲ Momentum</button>'
+            +'<button onclick="event.stopPropagation();var cvs=this.closest(\'.match-detail-panel\').querySelectorAll(\'canvas[id^=\\"timeline-\\"]\')\ ;cvs.forEach(function(c){c._showWorm=c._showWorm!==false?false:true;var k=c.id.replace(\'timeline-\',\'\');var m=Object.keys(window._wormData||{}).find(function(x){return x.replace(/[#,]/g,\'_\')===k;});if(m)drawMomentumGraph(c.id,m);});var ov=this.closest(\'.match-detail-panel\').querySelector(\'canvas[id^=\\"timeline-\\"]\')\ ;this.style.opacity=ov&&ov._showWorm===false?\'0.4\':\'1\';" style="font-size:.7rem;padding:4px 14px;border-radius:6px;border:1.5px solid rgba(255,255,255,.35);background:rgba(255,255,255,.1);color:rgba(255,255,255,.8);cursor:pointer;font-family:\'Barlow Condensed\',sans-serif;user-select:none" id="worm-btn-'+canvasId+'">〜 Score worm</button>'
             +'</div>'
             +'</div>'
             +'<div style="display:grid;grid-template-columns:1fr 200px;gap:10px;align-items:start">'
@@ -8509,55 +8509,29 @@ function renderProfileHeatmap(name, hmapType) {
       hmapTip.style.opacity = '0';
       const isAssist = heatCanvas._hmapType === 'assist';
 
-      // For assists: overlay canvas — positioned over the heatmap using body-level absolute
+      // For assists: draw directly on heatCanvas after hmapRender resets it
       if (isAssist && hit.shots.length > 0) {
-        // Remove any existing overlay
-        document.getElementById('assist-ov-global')?.remove();
-        const overlay = document.createElement('canvas');
-        overlay.id = 'assist-ov-global';
-        overlay.style.cssText = 'position:fixed;pointer-events:none;z-index:9990';
-        document.body.appendChild(overlay);
+        // Re-render the heatmap first so we have a clean canvas
+        hmapRender(heatCanvas, heatCanvas._currentShots || [], {
+          width: heatCanvas._hmapW || heatCanvas.offsetWidth,
+          markerType: 'assist',
+          pillSize: window._hmapPillSize ?? 0.85,
+          showNumbers: window._hmapShowNumbers ?? true,
+        });
 
-        const rect = heatCanvas.getBoundingClientRect();
-        const dpr = window.devicePixelRatio || 1;
-        // Use the actual rendered CSS size for overlay positioning and sizing
-        const cssW = rect.width;
-        const cssH = rect.height;
-        // Use logical draw dimensions for coordinate math
-        const W = heatCanvas._hmapW || Math.round(cssW);
-        const H = heatCanvas._hmapH || Math.round(cssH);
-        // Scale factor from logical to CSS pixels
-        const scaleX = cssW / W;
-        const scaleY = cssH / H;
-
-        overlay.width = Math.round(cssW * dpr);
-        overlay.height = Math.round(cssH * dpr);
-        overlay.style.width = cssW + 'px';
-        overlay.style.height = cssH + 'px';
-        overlay.style.left = rect.left + 'px';
-        overlay.style.top = rect.top + 'px';
-
-        // Auto-remove on next click
-        const removeOv = () => { overlay.remove(); document.removeEventListener('click', removeOv); };
-        setTimeout(() => document.addEventListener('click', removeOv), 100);
-
-        const ctx = overlay.getContext('2d');
-        // Scale: dpr for retina, plus scaleX/Y to map logical coords to CSS size
-        ctx.scale(dpr * scaleX, dpr * scaleY);
-
+        // hmapRender already called ctx.scale(dpr,dpr) — draw directly on top
+        const ctx = heatCanvas.getContext('2d');
+        const W = heatCanvas._hmapW || heatCanvas.offsetWidth;
+        const H = heatCanvas._hmapH || Math.round(W * 0.52);
         const goalH = H * 0.22, goalD = W * 0.02;
         const goalFaceX = W - 3 - goalD;
-        const goalTopY = H / 2 - goalH / 2;
+        const goalTopY  = H / 2 - goalH / 2;
         const pillR = Math.max(10, W * 0.030) * (window._hmapPillSize ?? 0.85);
 
         hit.shots.forEach(s => {
           const ax = hit.px, ay = hit.py;
-          console.log('[ASSIST DEBUG] shot entry:', JSON.stringify({
-            scorer: s.scorer, mid: s.mid, time: s.time,
-            scorerSx: s.scorerSx, scorerSy: s.scorerSy,
-            sx: s.sx, sy: s.sy
-          }));
 
+          // Get scorer position
           let scorerSx = s.scorerSx, scorerSy = s.scorerSy;
           if (scorerSx == null || scorerSy == null) {
             const gs = (heatCanvas._shotShots || []).find(g => g.scorer === s.scorer && g.mid === s.mid);
@@ -8580,37 +8554,36 @@ function renderProfileHeatmap(name, hmapType) {
           const netX = s.netX ?? 0.5;
           const targetY = goalTopY + Math.max(0, Math.min(1, netX)) * goalH;
 
-          console.log('[ASSIST DEBUG] after lookup:', {scorerSx, scorerSy, ax, ay, W, H, cssW, cssH});
-          console.log('[ASSIST DEBUG] overlay:', overlay.width, overlay.height, overlay.style.left, overlay.style.top);
-
           if (scorerSx != null && scorerSy != null) {
             const gx = scorerSx * W, gy = scorerSy * H;
-            // 1. Amber line: assist pill → scorer pill
-            ctx.strokeStyle = 'rgba(251,191,36,0.8)'; ctx.lineWidth = 2.5;
+            // 1. Amber line assist → scorer
+            ctx.strokeStyle = 'rgba(251,191,36,0.85)'; ctx.lineWidth = 2.5;
             ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(gx, gy); ctx.stroke();
             // Arrow tip
             const ang = Math.atan2(gy-ay, gx-ax);
-            ctx.fillStyle = 'rgba(251,191,36,0.8)';
-            ctx.beginPath(); ctx.moveTo(gx,gy);
-            ctx.lineTo(gx-10*Math.cos(ang-0.38),gy-10*Math.sin(ang-0.38));
-            ctx.lineTo(gx-10*Math.cos(ang+0.38),gy-10*Math.sin(ang+0.38));
+            ctx.fillStyle = 'rgba(251,191,36,0.85)';
+            ctx.beginPath();
+            ctx.moveTo(gx, gy);
+            ctx.lineTo(gx-10*Math.cos(ang-0.38), gy-10*Math.sin(ang-0.38));
+            ctx.lineTo(gx-10*Math.cos(ang+0.38), gy-10*Math.sin(ang+0.38));
             ctx.closePath(); ctx.fill();
-            // 2. Scorer pill (green)
+            // 2. Scorer pill glow
             ctx.beginPath(); ctx.arc(gx, gy, pillR+5, 0, Math.PI*2);
             ctx.fillStyle='rgba(57,211,83,.15)'; ctx.fill();
             ctx.strokeStyle='rgba(57,211,83,.8)'; ctx.lineWidth=1.5; ctx.stroke();
+            // Scorer pill fill
             ctx.beginPath(); ctx.arc(gx, gy, pillR, 0, Math.PI*2);
             ctx.fillStyle='#4ade80'; ctx.globalAlpha=0.92; ctx.fill(); ctx.globalAlpha=1;
             ctx.strokeStyle='rgba(0,0,0,.4)'; ctx.lineWidth=1.2; ctx.stroke();
             ctx.fillStyle='#071009'; ctx.textAlign='center'; ctx.textBaseline='middle';
             ctx.font=`bold ${Math.round(pillR*0.9)}px Barlow Condensed,sans-serif`;
             ctx.fillText('G', gx, gy);
-            // 3. Dashed line: scorer → goal
+            // 3. Dashed line scorer → goal
             ctx.setLineDash([5,4]); ctx.strokeStyle='rgba(57,211,83,0.6)'; ctx.globalAlpha=0.7; ctx.lineWidth=1.5;
             ctx.beginPath(); ctx.moveTo(gx,gy); ctx.lineTo(goalFaceX,targetY); ctx.stroke();
             ctx.setLineDash([]); ctx.globalAlpha=1;
           } else {
-            // Fallback: dashed amber line assist → goal
+            // Fallback: dashed amber line to goal
             ctx.setLineDash([5,4]); ctx.strokeStyle='rgba(251,191,36,0.6)'; ctx.lineWidth=1.5;
             ctx.beginPath(); ctx.moveTo(ax,ay); ctx.lineTo(goalFaceX,targetY); ctx.stroke();
             ctx.setLineDash([]);
@@ -8619,6 +8592,7 @@ function renderProfileHeatmap(name, hmapType) {
           ctx.beginPath(); ctx.arc(goalFaceX, targetY, 5, 0, Math.PI*2);
           ctx.fillStyle='#4ade80'; ctx.globalAlpha=0.9; ctx.fill(); ctx.globalAlpha=1;
         });
+
       } else {
         document.getElementById('assist-ov-global')?.remove();
       }
