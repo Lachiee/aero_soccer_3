@@ -4853,9 +4853,10 @@ function drawMomentumGraph(canvasId, matchId) {
     momPts.push({ s: matchDur, v: momPts[momPts.length - 1].v });
   }
 
-  // Smooth
+  // Smooth — but pin first point to 0 so curve starts at centreline
   const sm = momPts.map((p, i) => {
-    const sl = momPts.slice(Math.max(0, i - 3), i + 4);
+    if (i === 0) return { s: p.s, v: 0 }; // always start at centre
+    const sl = momPts.slice(Math.max(0, i - 2), i + 3);
     return { s: p.s, v: sl.reduce((a, x) => a + x.v, 0) / sl.length };
   });
 
