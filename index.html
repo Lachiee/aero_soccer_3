@@ -4953,8 +4953,8 @@ function drawMomentumGraph(canvasId, matchId) {
     ctx.restore();
   }
 
-  // Goal dots — always on the worm line (score position)
-  rows.forEach(r => {
+  // Goal dots — always on the worm line (score position), hidden with worm
+  if (showWorm) rows.forEach(r => {
     const abs = r.absSecs != null ? r.absSecs : r.secs;
     const x = toX(abs);
     const col = r.isOG ? '#f87171' : (r.team === 'A' ? '#39d353' : '#60a5fa');
@@ -4964,6 +4964,8 @@ function drawMomentumGraph(canvasId, matchId) {
     ctx.strokeStyle = 'rgba(0,0,0,.4)'; ctx.lineWidth = 1.2; ctx.stroke();
     r._dotY = dotY; // anchor for annotations
   });
+  // If worm hidden, still store dotY on rows so annotations know where to anchor
+  if (!showWorm) rows.forEach(r => { r._dotY = wToY(r.scoreA - r.scoreB); });
   // C1 goal annotations — name above (A) / below (B) with dotted tick
   // Stagger overlapping labels to avoid collision
   const fontSize = Math.max(8, Math.min(10, Math.round(W * 0.013)));
@@ -8725,6 +8727,7 @@ function initShotMap(safeName, allGoalData, allAssistData) {
 
   function render() {
     const mode = window['_smMode_' + safeName] || 'goals';
+    window._hmapType = mode === 'assists' ? 'assist' : 'shot'; // keep _hmapType in sync
     const viewNet = window['_smNet_' + safeName] || false;
     const pitchEl = document.getElementById('shotmap-pitch-' + safeName);
     const detailEl = document.getElementById('shotmap-detail-' + safeName);
