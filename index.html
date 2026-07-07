@@ -4812,7 +4812,7 @@ function drawMomentumGraph(canvasId, matchId) {
   const ctx = cv.getContext('2d');
   ctx.scale(dpr, dpr);
 
-  const pad = { l: 8, r: 8, t: 36, b: 36 }; // room for name labels above/below
+  const pad = { l: 8, r: 8, t: 48, b: 48 }; // generous room for staggered name labels
   const cW = W - pad.l - pad.r;
   const cH = H - pad.t - pad.b;
   const midY = pad.t + cH / 2;
@@ -4943,7 +4943,9 @@ function drawMomentumGraph(canvasId, matchId) {
     // Clamp label X so text stays within canvas
     const tw = ann.tw || ctx.measureText(label).width;
     const x = Math.max(pad.l + tw/2 + 2, Math.min(W - pad.r - tw/2 - 2, ann.x));
-    const baseY = isAbove ? pad.t - 7 - stagger : H - pad.b + 16 + stagger;
+    const baseY = isAbove
+      ? Math.max(fontSize + 4, pad.t - 7 - stagger)      // never above canvas top
+      : Math.min(H - 4, H - pad.b + 16 + stagger);       // never below canvas bottom
     const tickEndY = isAbove ? pad.t + 2 : H - pad.b - 2;
 
     // Dot on line — bigger if hovered
@@ -8280,7 +8282,7 @@ function renderProfileHeatmap(name, hmapType) {
           shotShots.push({ sx: g.sx, sy: g.sy, mid, half: hk==='h1'?'1H':'2H', idx, scorer: g.scorer, assister: g.assister, time: g.time });
         }
         if (g.assister === name && g.ax != null && g.ay != null) {
-          assistShots.push({ sx: g.ax, sy: g.ay, scorerSx: g.sx ?? null, scorerSy: g.sy ?? null, mid, half: hk==='h1'?'1H':'2H', idx, scorer: g.scorer, assister: g.assister, time: g.time });
+          assistShots.push({ sx: g.ax, sy: g.ay, scorerSx: g.sx ?? null, scorerSy: g.sy ?? null, netX: g.netX ?? null, mid, half: hk==='h1'?'1H':'2H', idx, scorer: g.scorer, assister: g.assister, time: g.time });
         }
       });
     });
@@ -8471,19 +8473,40 @@ function renderProfileHeatmap(name, hmapType) {
           const ax = hit.px; // assist pill cluster centre
           const ay = hit.py;
 
-          // If scorerSx is null, look up from shotShots by scorer+mid
+          // Find scorer's shot position from event log by matching scorer + mid + time
           let scorerSx = s.scorerSx, scorerSy = s.scorerSy;
-          if (scorerSx == null || scorerSy == null) {
+          if (scorerSx === null || scorerSx === undefined || scorerSy === null || scorerSy === undefined) {
+            // Try goalCombos shotShots first
             const allGoalShots = heatCanvas._shotShots || [];
             const match = allGoalShots.find(g => g.scorer === s.scorer && g.mid === s.mid);
-            if (match) { scorerSx = match.sx; scorerSy = match.sy; }
+            if (match && match.sx !== null && match.sx !== undefined) {
+              scorerSx = match.sx; scorerSy = match.sy;
+            } else {
+              // Fall back to event log directly — most reliable source
+              try {
+                const logs = JSON.parse(localStorage.getItem('aero_event_logs') || '{}');
+                const log = logs[s.mid];
+                if (log?.events) {
+                  // Find the goal event matching scorer + time
+                  const toSecsLocal = t => { if (!t) return 0; const p = String(t).split(':'); return parseFloat(p[0]||0)*60 + parseFloat(p[1]||0); };
+                  const sSecs = toSecsLocal(s.time);
+                  const evGoal = log.events.find(e =>
+                    e.event === 'Goals' &&
+                    e.player === s.scorer &&
+                    e.shotX !== null && e.shotX !== undefined &&
+                    Math.abs((e.tsSecsRaw || toSecsLocal(e.ts) || 0) - sSecs) < 5
+                  );
+                  if (evGoal) { scorerSx = evGoal.shotX; scorerSy = evGoal.shotY; }
+                }
+              } catch(ex) {}
+            }
           }
 
           // netX for goal target height on court
           const netX = s.netX ?? 0.5;
           const targetY = goalTopY + Math.max(0, Math.min(1, netX)) * goalH;
 
-          if (scorerSx != null && scorerSy != null) {
+          if (scorerSx !== null && scorerSx !== undefined && scorerSy !== null && scorerSy !== undefined) {
             // Full 3-step: assist pill → scorer goal pill → goal face
             const gx = scorerSx * W;
             const gy = scorerSy * H;
