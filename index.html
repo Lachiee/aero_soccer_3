@@ -4873,8 +4873,6 @@ function drawMomentumGraph(canvasId, matchId) {
     }
   };
 
-  const showMom  = cv._showMom  !== false;
-  const showWorm = cv._showWorm !== false;
 
   if (showMom) {
     // Green fill above
@@ -4956,45 +4954,7 @@ function drawMomentumGraph(canvasId, matchId) {
   const fontSize = Math.max(8, Math.min(10, Math.round(W * 0.013)));
   ctx.font = `bold ${fontSize}px Barlow Condensed, sans-serif`;
 
-  // ── Score worm — Option C ghost overlay ──
-  // Build score worm from rows (stepped score difference)
-  const wormPts = [{ s: 0, d: 0 }];
-  rows.forEach(r => {
-    const abs = r.absSecs != null ? r.absSecs : r.secs;
-    wormPts.push({ s: abs, d: r.scoreA - r.scoreB });
-  });
-  wormPts.push({ s: matchDur, d: wormPts[wormPts.length - 1].d });
-  const maxD = Math.max(...wormPts.map(p => Math.abs(p.d)), 1);
-  const wToY = d => midY - (d / (maxD + 0.5)) * (cH / 2) * 0.82;
 
-  ctx.save(); ctx.beginPath(); ctx.rect(pad.l, pad.t, cW, cH); ctx.clip();
-  // Ghost fill
-  ctx.beginPath(); ctx.moveTo(toX(wormPts[0].s), midY);
-  for (let i = 1; i < wormPts.length; i++) {
-    ctx.lineTo(toX(wormPts[i].s), wToY(wormPts[i - 1].d));
-    ctx.lineTo(toX(wormPts[i].s), wToY(wormPts[i].d));
-  }
-  ctx.lineTo(toX(wormPts[wormPts.length - 1].s), midY);
-  ctx.closePath();
-  ctx.fillStyle = 'rgba(255,255,255,0.05)'; ctx.fill();
-  // Dashed stepped outline
-  ctx.beginPath(); ctx.moveTo(toX(wormPts[0].s), midY);
-  for (let i = 1; i < wormPts.length; i++) {
-    ctx.lineTo(toX(wormPts[i].s), wToY(wormPts[i - 1].d));
-    ctx.lineTo(toX(wormPts[i].s), wToY(wormPts[i].d));
-  }
-  ctx.strokeStyle = 'rgba(255,255,255,0.3)'; ctx.lineWidth = 1.5; ctx.setLineDash([3, 2]);
-  ctx.stroke(); ctx.setLineDash([]);
-  ctx.restore();
-
-  // Worm goal dots
-  rows.forEach(r => {
-    const abs = r.absSecs != null ? r.absSecs : r.secs;
-    const x = toX(abs);
-    const col = r.isOG ? '#f87171' : (r.team === 'A' ? '#39d353' : '#60a5fa');
-    ctx.beginPath(); ctx.arc(x, wToY(r.scoreA - r.scoreB), 3.5, 0, Math.PI * 2);
-    ctx.fillStyle = col; ctx.globalAlpha = 0.7; ctx.fill(); ctx.globalAlpha = 1;
-  });
 
   // Compute positions — angled labels fan out so minimal stagger needed
   ctx.font = `${Math.max(7, fontSize - 1)}px Barlow Condensed, sans-serif`;
