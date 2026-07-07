@@ -5103,9 +5103,9 @@ function drawMomentumGraph(canvasId, matchId) {
       let hovIdx = -1;
       for (let i = tgts.length - 1; i >= 0; i--) {
         const t = tgts[i];
-        const nearLabel = Math.abs(mx - t.x) < Math.max(t.w/2 + 4, 24) && Math.abs(my - t.y) < 10;
-        const nearDot   = Math.hypot(mx - t.x, my - t.dotY) < 8;
-        if (nearLabel || nearDot) { hovIdx = i; break; }
+        const nearDot = Math.hypot(mx - t.x, my - t.dotY) < 12;
+        const nearLabel = Math.abs(mx - t.x) < Math.max(t.w/2 + 4, 24) && Math.abs(my - t.y) < 14;
+        if (nearDot || nearLabel) { hovIdx = i; break; }
       }
 
       if (hovIdx !== cv._momLastHover) {
@@ -5150,13 +5150,13 @@ function drawMomentumGraph(canvasId, matchId) {
       const rect = cv.getBoundingClientRect();
       const mx = (ev.clientX - rect.left) * (cv._momW / rect.width);
       const my = (ev.clientY - rect.top) * (cv._momH / rect.height);
-      const tgts = cv._momHitTargets || [];
-      for (let i = tgts.length - 1; i >= 0; i--) {
-        const t = tgts[i];
-        if (t.hasYt && Math.abs(mx - t.x) < Math.max(t.w/2 + 4, 24) && Math.abs(my - t.y) < 10) {
-          seekYtVideo(cv._momMatchKey, cv._momYtId, t.ytTime);
-          break;
-        }
+      const tgts2 = cv._momHitTargets || [];
+      for (let i = tgts2.length - 1; i >= 0; i--) {
+        const t = tgts2[i];
+        if (!t.hasYt) continue;
+        const nearDot = Math.hypot(mx - t.x, my - t.dotY) < 12;
+        const nearLabel = Math.abs(mx - t.x) < Math.max(t.w/2 + 4, 24) && Math.abs(my - t.y) < 14;
+        if (nearDot || nearLabel) { seekYtVideo(cv._momMatchKey, cv._momYtId, t.ytTime); break; }
       }
     });
   }
@@ -8544,6 +8544,14 @@ function renderProfileHeatmap(name, hmapType) {
         const ctx = heatCanvas.getContext('2d');
         const W = heatCanvas._hmapW || heatCanvas.offsetWidth;
         const H = heatCanvas._hmapH || Math.round(W * 0.52);
+
+        // TEST: draw a bright red cross at canvas centre to confirm drawing works
+        ctx.save();
+        ctx.strokeStyle = 'red'; ctx.lineWidth = 4;
+        ctx.beginPath(); ctx.moveTo(W/2-20, H/2); ctx.lineTo(W/2+20, H/2); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(W/2, H/2-20); ctx.lineTo(W/2, H/2+20); ctx.stroke();
+        ctx.restore();
+
         const goalH = H * 0.22, goalD = W * 0.02;
         const goalFaceX = W - 3 - goalD;
         const goalTopY  = H / 2 - goalH / 2;
