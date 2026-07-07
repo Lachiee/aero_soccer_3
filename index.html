@@ -4806,18 +4806,18 @@ function drawMomentumGraph(canvasId, matchId) {
     while (el && (!el.offsetWidth || el.offsetWidth < 100)) el = el.parentElement;
     W = Math.max((el?.offsetWidth || 900) - 220, 400);
   }
-  const H = 140;
+  const H = 190; // taller so momentum fills more vertical space
   cv.width = W * dpr; cv.height = H * dpr;
   cv.style.width = W + 'px'; cv.style.height = H + 'px';
   const ctx = cv.getContext('2d');
   ctx.scale(dpr, dpr);
 
-  const pad = { l: 8, r: 8, t: 28, b: 28 };
+  const pad = { l: 8, r: 8, t: 30, b: 30 }; // room for name labels above/below
   const cW = W - pad.l - pad.r;
   const cH = H - pad.t - pad.b;
   const midY = pad.t + cH / 2;
   const toX = s => pad.l + (s / matchDur) * cW;
-  const toY = v => midY - v * (cH / 2) * 0.82;
+  const toY = v => midY - v * (cH / 2) * 0.92; // 92% so peaks nearly touch the edge
 
   // Background
   ctx.fillStyle = 'rgba(0,0,0,.3)';
@@ -4830,13 +4830,21 @@ function drawMomentumGraph(canvasId, matchId) {
 
   if (evLog) {
     const pev = evLog.filter(e => PW[e.event] != null && e.tsSecsRaw != null);
-    for (let t = 0; t <= matchDur; t += 15) {
+    // Start explicitly at 0
+    momPts.push({ s: 0, v: 0 });
+    for (let t = 15; t <= matchDur; t += 15) {
       const win = pev.filter(e => e.tsSecsRaw >= t - 90 && e.tsSecsRaw <= t);
       let pA = 0, pB = 0;
       win.forEach(e => { const w = PW[e.event] || 0; if (e.team === 'A') pA += w; else pB += w; });
       const tot = pA + pB;
       momPts.push({ s: t, v: tot > 0 ? (pA - pB) / tot : 0 });
     }
+    // Normalise: subtract mean so the curve is centred on 0
+    const mean = momPts.reduce((s, p) => s + p.v, 0) / momPts.length;
+    momPts.forEach(p => { p.v -= mean; });
+    // Scale so max absolute value = 1
+    const maxV = Math.max(...momPts.map(p => Math.abs(p.v)), 0.01);
+    momPts.forEach(p => { p.v /= maxV; });
   } else {
     momPts = [{ s: 0, v: 0 }];
     const maxD = Math.max(...rows.map(r => Math.abs(r.scoreA - r.scoreB)), 1);
@@ -7483,7 +7491,7 @@ function renderMatches() {
           const ytIdForRows = ytId;
           rows.forEach(r => {
             r.absSecs = r.secs;
-            r.ytTime = ytIdForRows && r.time ? timeToYtSeconds(r.time, r.half) : null;
+            r.ytTime = ytIdForRows && r.time ? timeToYtSeconds(r.time, '1H') : null; // timestamps are absolute, no half offset
           });
           // Sort by absolute time (already sorted by secs, but ensure correct order)
           rows.sort((a, b) => a.absSecs - b.absSecs);
@@ -7546,7 +7554,7 @@ function renderMatches() {
             +'<div style="font-size:.62rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:6px;font-family:\'Barlow Condensed\',sans-serif">Momentum'+(ytId?' · click scorer to seek video':'')+'</div>'
             +'<div style="display:grid;grid-template-columns:1fr 200px;gap:10px;align-items:start">'
             +'<div style="position:relative;width:100%;overflow:visible">'
-            +'<canvas id="'+canvasId+'" style="width:100%;height:140px;display:block;border-radius:8px"></canvas>'
+            +'<canvas id="'+canvasId+'" style="width:100%;height:190px;display:block;border-radius:8px"></canvas>'
             +'</div>'
             +statsPanel
             +'</div>'
@@ -8431,7 +8439,7 @@ function renderProfileHeatmap(name, hmapType) {
       hmapTip.style.opacity = '0';
       const isAssist = heatCanvas._hmapType === 'assist';
 
-      // For assists: highlight scorer's position as a glowing pill + line to goal
+      // For assists: draw assist pill → solid line → scorer's goal pill → dashed line → goal
       if (isAssist && hit.shots.length > 0) {
         hmapRender(heatCanvas, heatCanvas._currentShots || [], {
           width: heatCanvas._hmapW || heatCanvas.offsetWidth,
@@ -8446,39 +8454,63 @@ function renderProfileHeatmap(name, hmapType) {
         ctx.save();
         ctx.scale(dpr, dpr);
 
-        // Find the goal face X (right side of court — same as pitch view)
-        const goalFaceX = W - W * 0.02;
+        // Goal rect geometry (matches hmapDrawCourt)
+        const goalH  = H * 0.22;
+        const goalD  = W * 0.02;
+        const goalFaceX  = W - 3 - goalD;
+        const goalTopY   = H / 2 - goalH / 2;
 
         hit.shots.forEach(s => {
+          const ax = hit.px; // assist pill position (cluster centre)
+          const ay = hit.py;
           if (s.scorerSx == null || s.scorerSy == null) return;
-          const sx = s.scorerSx * W;
-          const sy = s.scorerSy * H;
+          const gx = s.scorerSx * W; // scorer's shot position
+          const gy_raw = s.scorerSy * H;
 
-          // Glow ring around scorer position (like a highlighted pill)
-          ctx.beginPath(); ctx.arc(sx, sy, 16, 0, Math.PI * 2);
-          ctx.strokeStyle = 'rgba(57,211,83,.7)'; ctx.lineWidth = 2.5; ctx.stroke();
-          ctx.beginPath(); ctx.arc(sx, sy, 16, 0, Math.PI * 2);
-          ctx.fillStyle = 'rgba(57,211,83,.15)'; ctx.fill();
+          // netX for goal target on court
+          const netX = s.netX ?? 0.5;
+          const targetY = goalTopY + Math.max(0, Math.min(1, netX)) * goalH;
 
-          // Scorer dot
-          ctx.beginPath(); ctx.arc(sx, sy, 9, 0, Math.PI * 2);
-          ctx.fillStyle = '#4ade80'; ctx.globalAlpha = 0.9; ctx.fill(); ctx.globalAlpha = 1;
-          ctx.strokeStyle = 'rgba(0,0,0,.5)'; ctx.lineWidth = 1.5; ctx.stroke();
-          ctx.fillStyle = 'white'; ctx.font = `bold ${Math.round(W*0.022)}px Barlow Condensed,sans-serif`;
-          ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-          ctx.fillText('G', sx, sy);
-
-          // Dashed line from scorer toward the right goal
+          // ── 1. Solid line: assist pill → scorer goal pill ──
           ctx.save();
-          ctx.setLineDash([5, 4]);
-          ctx.strokeStyle = 'rgba(57,211,83,.55)'; ctx.lineWidth = 1.5;
-          ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(goalFaceX, H / 2); ctx.stroke();
+          ctx.strokeStyle = 'rgba(251,191,36,0.7)'; // amber (assist colour)
+          ctx.lineWidth = 2;
+          ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(gx, gy_raw); ctx.stroke();
           ctx.restore();
 
-          // Goal marker at the right edge
-          ctx.beginPath(); ctx.arc(goalFaceX, H / 2, 5, 0, Math.PI * 2);
-          ctx.fillStyle = 'rgba(57,211,83,.7)'; ctx.fill();
+          // ── 2. Scorer goal pill — green glowing pill at scorer's position ──
+          const pillR = Math.round(W * 0.028);
+          ctx.beginPath(); ctx.arc(gx, gy_raw, pillR + 5, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(57,211,83,.15)'; ctx.fill();
+          ctx.beginPath(); ctx.arc(gx, gy_raw, pillR + 5, 0, Math.PI * 2);
+          ctx.strokeStyle = 'rgba(57,211,83,.75)'; ctx.lineWidth = 2; ctx.stroke();
+
+          ctx.beginPath(); ctx.arc(gx, gy_raw, pillR, 0, Math.PI * 2);
+          ctx.fillStyle = '#4ade80'; ctx.globalAlpha = 0.92; ctx.fill(); ctx.globalAlpha = 1;
+          ctx.strokeStyle = 'rgba(0,0,0,.5)'; ctx.lineWidth = 1.5; ctx.stroke();
+
+          ctx.fillStyle = 'white';
+          ctx.font = `bold ${Math.round(W * 0.02)}px Barlow Condensed, sans-serif`;
+          ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+          ctx.fillText('G', gx, gy_raw);
+
+          // ── 3. Dashed line: scorer goal pill → goal face ──
+          ctx.save();
+          ctx.setLineDash([5, 4]);
+          ctx.strokeStyle = '#4ade80'; ctx.globalAlpha = 0.55; ctx.lineWidth = 1.5;
+          ctx.beginPath(); ctx.moveTo(gx, gy_raw); ctx.lineTo(goalFaceX, targetY); ctx.stroke();
+          ctx.restore();
+
+          // Goal target marker
+          ctx.save();
+          ctx.globalAlpha = 0.85;
+          ctx.fillStyle = 'white';
+          ctx.beginPath(); ctx.arc(goalFaceX, targetY, 4.5, 0, Math.PI * 2); ctx.fill();
+          ctx.strokeStyle = '#4ade80'; ctx.lineWidth = 1.5;
+          ctx.beginPath(); ctx.arc(goalFaceX, targetY, 4.5, 0, Math.PI * 2); ctx.stroke();
+          ctx.restore();
         });
+
         ctx.restore();
       }
 
