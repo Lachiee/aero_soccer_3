@@ -7616,8 +7616,8 @@ function renderMatches() {
             +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">'
             +'<div style="font-size:.62rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);font-family:\'Barlow Condensed\',sans-serif">Momentum'+(ytId?' · click scorer to seek video':'')+'</div>'
             +'<div style="display:flex;gap:6px">'
-            +'<button onclick="event.stopPropagation();var cvs=this.closest(\'.match-detail-panel\').querySelectorAll(\'canvas[id^=\\"timeline-\\"]\')\ ;cvs.forEach(function(c){c._showMom=c._showMom===false;var k=c.id.replace(\'timeline-\',\'\');var m=Object.keys(window._wormData||{}).find(function(x){return x.replace(/[#,]/g,\'_\')===k;});if(m)drawMomentumGraph(c.id,m);});" style="font-size:.6rem;padding:2px 8px;border-radius:4px;border:1px solid var(--border);background:var(--card2);color:var(--muted);cursor:pointer;font-family:\'Barlow Condensed\',sans-serif;user-select:none" id="mom-btn-'+canvasId+'">Momentum</button>'
-            +'<button onclick="event.stopPropagation();var cvs=this.closest(\'.match-detail-panel\').querySelectorAll(\'canvas[id^=\\"timeline-\\"]\')\ ;cvs.forEach(function(c){c._showWorm=c._showWorm===false;var k=c.id.replace(\'timeline-\',\'\');var m=Object.keys(window._wormData||{}).find(function(x){return x.replace(/[#,]/g,\'_\')===k;});if(m)drawMomentumGraph(c.id,m);});" style="font-size:.6rem;padding:2px 8px;border-radius:4px;border:1px solid var(--border);background:var(--card2);color:var(--muted);cursor:pointer;font-family:\'Barlow Condensed\',sans-serif;user-select:none" id="worm-btn-'+canvasId+'">Score worm</button>'
+            +'<button onclick="event.stopPropagation();var cvs=this.closest(\'.match-detail-panel\').querySelectorAll(\'canvas[id^=\\"timeline-\\"]\')\ ;cvs.forEach(function(c){c._showMom=c._showMom===false;var k=c.id.replace(\'timeline-\',\'\');var m=Object.keys(window._wormData||{}).find(function(x){return x.replace(/[#,]/g,\'_\')===k;});if(m)drawMomentumGraph(c.id,m);});" style="font-size:.7rem;padding:4px 14px;border-radius:6px;border:1.5px solid rgba(57,211,83,.6);background:rgba(57,211,83,.2);color:var(--green);cursor:pointer;font-family:\'Barlow Condensed\',sans-serif;user-select:none" id="mom-btn-'+canvasId+'">▲ Momentum</button>'
+            +'<button onclick="event.stopPropagation();var cvs=this.closest(\'.match-detail-panel\').querySelectorAll(\'canvas[id^=\\"timeline-\\"]\')\ ;cvs.forEach(function(c){c._showWorm=c._showWorm===false;var k=c.id.replace(\'timeline-\',\'\');var m=Object.keys(window._wormData||{}).find(function(x){return x.replace(/[#,]/g,\'_\')===k;});if(m)drawMomentumGraph(c.id,m);});" style="font-size:.7rem;padding:4px 14px;border-radius:6px;border:1.5px solid rgba(255,255,255,.35);background:rgba(255,255,255,.1);color:rgba(255,255,255,.8);cursor:pointer;font-family:\'Barlow Condensed\',sans-serif;user-select:none" id="worm-btn-'+canvasId+'">〜 Score worm</button>'
             +'</div>'
             +'</div>'
             +'<div style="display:grid;grid-template-columns:1fr 200px;gap:10px;align-items:start">'
@@ -8552,6 +8552,11 @@ function renderProfileHeatmap(name, hmapType) {
 
         hit.shots.forEach(s => {
           const ax = hit.px, ay = hit.py;
+          console.log('[ASSIST DEBUG] shot entry:', JSON.stringify({
+            scorer: s.scorer, mid: s.mid, time: s.time,
+            scorerSx: s.scorerSx, scorerSy: s.scorerSy,
+            sx: s.sx, sy: s.sy
+          }));
 
           let scorerSx = s.scorerSx, scorerSy = s.scorerSy;
           if (scorerSx == null || scorerSy == null) {
@@ -8574,6 +8579,9 @@ function renderProfileHeatmap(name, hmapType) {
 
           const netX = s.netX ?? 0.5;
           const targetY = goalTopY + Math.max(0, Math.min(1, netX)) * goalH;
+
+          console.log('[ASSIST DEBUG] after lookup:', {scorerSx, scorerSy, ax, ay, W, H, cssW, cssH});
+          console.log('[ASSIST DEBUG] overlay:', overlay.width, overlay.height, overlay.style.left, overlay.style.top);
 
           if (scorerSx != null && scorerSy != null) {
             const gx = scorerSx * W, gy = scorerSy * H;
