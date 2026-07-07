@@ -4784,6 +4784,21 @@ function setMomStyle(ev, style) {
   });
 }
 
+function toggleMomLayer(btn, layer) {
+  const canvasId = btn.getAttribute('data-canvas-id');
+  const cv = document.getElementById(canvasId);
+  if (!cv) return;
+  if (layer === 'mom') {
+    cv._showMom = cv._showMom !== false ? false : true;
+    btn.style.opacity = cv._showMom === false ? '0.4' : '1';
+  } else {
+    cv._showWorm = cv._showWorm !== false ? false : true;
+    btn.style.opacity = cv._showWorm === false ? '0.4' : '1';
+  }
+  const mid = Object.keys(window._wormData || {}).find(k => k.replace(/[#,]/g,'_') === canvasId.replace('timeline-',''));
+  if (mid) drawMomentumGraph(canvasId, mid);
+}
+
 function drawMomentumGraph(canvasId, matchId) {
   const cv = document.getElementById(canvasId);
   const data = window._wormData?.[matchId];
@@ -7616,8 +7631,8 @@ function renderMatches() {
             +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">'
             +'<div style="font-size:.62rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);font-family:\'Barlow Condensed\',sans-serif">Momentum'+(ytId?' · click scorer to seek video':'')+'</div>'
             +'<div style="display:flex;gap:6px">'
-            +'<button onclick="event.stopPropagation();var cvs=this.closest(\'.match-detail-panel\').querySelectorAll(\'canvas[id^=\\"timeline-\\"]\')\ ;cvs.forEach(function(c){c._showMom=c._showMom!==false?false:true;var k=c.id.replace(\'timeline-\',\'\');var m=Object.keys(window._wormData||{}).find(function(x){return x.replace(/[#,]/g,\'_\')===k;});if(m)drawMomentumGraph(c.id,m);});var ov=this.closest(\'.match-detail-panel\').querySelector(\'canvas[id^=\\"timeline-\\"]\')\ ;this.style.opacity=ov&&ov._showMom===false?\'0.4\':\'1\';" style="font-size:.7rem;padding:4px 14px;border-radius:6px;border:1.5px solid rgba(57,211,83,.6);background:rgba(57,211,83,.2);color:var(--green);cursor:pointer;font-family:\'Barlow Condensed\',sans-serif;user-select:none" id="mom-btn-'+canvasId+'">▲ Momentum</button>'
-            +'<button onclick="event.stopPropagation();var cvs=this.closest(\'.match-detail-panel\').querySelectorAll(\'canvas[id^=\\"timeline-\\"]\')\ ;cvs.forEach(function(c){c._showWorm=c._showWorm!==false?false:true;var k=c.id.replace(\'timeline-\',\'\');var m=Object.keys(window._wormData||{}).find(function(x){return x.replace(/[#,]/g,\'_\')===k;});if(m)drawMomentumGraph(c.id,m);});var ov=this.closest(\'.match-detail-panel\').querySelector(\'canvas[id^=\\"timeline-\\"]\')\ ;this.style.opacity=ov&&ov._showWorm===false?\'0.4\':\'1\';" style="font-size:.7rem;padding:4px 14px;border-radius:6px;border:1.5px solid rgba(255,255,255,.35);background:rgba(255,255,255,.1);color:rgba(255,255,255,.8);cursor:pointer;font-family:\'Barlow Condensed\',sans-serif;user-select:none" id="worm-btn-'+canvasId+'">〜 Score worm</button>'
+            +'<button onclick="event.stopPropagation();toggleMomLayer(this,\'mom\')" data-canvas-id="'+canvasId+'" style="font-size:.7rem;padding:4px 14px;border-radius:6px;border:1.5px solid rgba(57,211,83,.6);background:rgba(57,211,83,.2);color:var(--green);cursor:pointer;font-family:\'Barlow Condensed\',sans-serif;user-select:none;font-weight:600;letter-spacing:.5px">▲ Momentum</button>'
+            +'<button onclick="event.stopPropagation();toggleMomLayer(this,\'worm\')" data-canvas-id="'+canvasId+'" style="font-size:.7rem;padding:4px 14px;border-radius:6px;border:1.5px solid rgba(255,255,255,.35);background:rgba(255,255,255,.1);color:rgba(255,255,255,.8);cursor:pointer;font-family:\'Barlow Condensed\',sans-serif;user-select:none;font-weight:600;letter-spacing:.5px">〜 Score worm</button>'
             +'</div>'
             +'</div>'
             +'<div style="display:grid;grid-template-columns:1fr 200px;gap:10px;align-items:start">'
