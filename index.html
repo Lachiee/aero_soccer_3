@@ -4971,14 +4971,12 @@ function drawMomentumGraph(canvasId, matchId) {
     if (ann.isOG ?? false) { ctx.fillStyle = 'rgba(255,120,120,0.85)'; }
     else { ctx.fillStyle = isHovered ? 'white' : col; }
 
-    // Background pill for readability when hovered or staggered
+    // Background pill — always show for readability
     ctx.font = `bold ${fontSize}px Barlow Condensed, sans-serif`;
-    if (isHovered || stagger > 0) {
-      ctx.fillStyle = 'rgba(10,20,12,.75)';
-      const px = x - tw/2 - 3, py = clampedBaseY - fontSize, pw = tw + 6, ph = fontSize + 2;
-      if (ctx.roundRect) ctx.roundRect(px, py, pw, ph, 3); else ctx.rect(px, py, pw, ph);
-      ctx.fill();
-    }
+    ctx.fillStyle = 'rgba(8,16,10,0.82)';
+    const px = x - tw/2 - 3, py = clampedBaseY - fontSize, pw = tw + 6, ph = fontSize + 2;
+    if (ctx.roundRect) ctx.roundRect(px, py, pw, ph, 3); else ctx.rect(px, py, pw, ph);
+    ctx.fill();
 
     ctx.fillStyle = (ann.isOG ?? false) ? 'rgba(255,150,150,0.9)' : (isHovered ? 'white' : col);
     ctx.textAlign = 'center';
@@ -8465,9 +8463,8 @@ function renderProfileHeatmap(name, hmapType) {
         const ctx = heatCanvas.getContext('2d');
         const dpr = window.devicePixelRatio || 1;
         const W = heatCanvas._hmapW || heatCanvas.offsetWidth;
-        const H = heatCanvas._hmapH || heatCanvas.offsetHeight || Math.round(W * 0.52);
-        ctx.save();
-        ctx.scale(dpr, dpr);
+        const H = heatCanvas._hmapH || Math.round(W * 0.52);
+        // Note: hmapRender already called ctx.scale(dpr,dpr) — do NOT scale again
 
         // Goal rect geometry (matches hmapDrawCourt)
         const goalH  = H * 0.22;
@@ -8569,10 +8566,9 @@ function renderProfileHeatmap(name, hmapType) {
           ctx.strokeStyle = 'rgba(0,0,0,.5)'; ctx.lineWidth = 1.2;
           ctx.beginPath(); ctx.arc(goalFaceX, targetY, 5, 0, Math.PI * 2); ctx.stroke();
           ctx.restore();
-        });
+        }); // end hit.shots.forEach
 
-        ctx.restore();
-      }
+      } // end if (isAssist)
 
       const card = document.createElement('div');
       card.id = 'hmap-goal-card';
