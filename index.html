@@ -4897,51 +4897,94 @@ function drawMomentumGraph(canvasId, matchId) {
   }
 
   // C1 goal annotations — name above (A) / below (B) with dotted tick
-  const hitTargets = [];
-  rows.forEach(r => {
+  // Stagger overlapping labels to avoid collision
+  const fontSize = Math.max(8, Math.min(10, Math.round(W * 0.013)));
+  ctx.font = `bold ${fontSize}px Barlow Condensed, sans-serif`;
+
+  // Compute positions first, then stagger
+  const annotations = rows.map(r => {
     const abs = r.absSecs != null ? r.absSecs : r.secs;
-    const x = toX(abs);
+    const x = Math.max(pad.l + 2, Math.min(W - pad.r - 2, toX(abs))); // clamp X to canvas
     const col = r.team === 'A' ? '#39d353' : '#60a5fa';
     const nearest = sm.reduce((b, p) => Math.abs(p.s - abs) < Math.abs(b.s - abs) ? p : b, sm[0]);
     const dotY = toY(nearest.v);
     const isAbove = r.team === 'A';
-    const labelY = isAbove ? pad.t - 7 : H - pad.b + 16;
+    const assister = r.assister && !r.isOG ? r.assister : null;
+    const label = r.isOG ? `${r.scorer || ''} OG` : (r.scorer || '');
+    const hasYt = !!(ytId && r.ytTime != null);
+    return { x, dotY, col, isAbove, assister, label, hasYt, ytTime: r.ytTime, scoreA: r.scoreA, scoreB: r.scoreB, stagger: 0 };
+  });
+
+  // Stagger overlapping labels vertically — push colliding ones further out
+  const MIN_GAP = 14; // minimum horizontal gap before staggering
+  for (let i = 1; i < annotations.length; i++) {
+    for (let j = 0; j < i; j++) {
+      if (annotations[i].isAbove === annotations[j].isAbove && Math.abs(annotations[i].x - annotations[j].x) < MIN_GAP) {
+        annotations[i].stagger = Math.max(annotations[i].stagger, annotations[j].stagger + 11);
+      }
+    }
+  }
+
+  const hitTargets = [];
+
+  const drawAnnotation = (ann, isHovered) => {
+    const { x, dotY, col, isAbove, assister, label, hasYt, stagger } = ann;
+    const baseY = isAbove ? pad.t - 7 - stagger : H - pad.b + 16 + stagger;
     const tickEndY = isAbove ? pad.t + 2 : H - pad.b - 2;
 
-    // Dot on line
-    ctx.beginPath(); ctx.arc(x, dotY, 4, 0, Math.PI * 2);
-    ctx.fillStyle = col; ctx.fill();
-    ctx.strokeStyle = 'rgba(0,0,0,.5)'; ctx.lineWidth = 1.2; ctx.stroke();
+    // Dot on line — bigger if hovered
+    const dotR = isHovered ? 6 : 4;
+    ctx.beginPath(); ctx.arc(x, dotY, dotR, 0, Math.PI * 2);
+    ctx.fillStyle = col;
+    if (isHovered) { ctx.globalAlpha = 1; ctx.fill(); ctx.strokeStyle = 'white'; ctx.lineWidth = 1.5; ctx.stroke(); }
+    else { ctx.fill(); ctx.strokeStyle = 'rgba(0,0,0,.5)'; ctx.lineWidth = 1.2; ctx.stroke(); }
+    ctx.globalAlpha = 1;
 
     // Dotted tick
-    ctx.strokeStyle = col; ctx.globalAlpha = 0.4; ctx.lineWidth = 1; ctx.setLineDash([2, 3]);
+    ctx.strokeStyle = col; ctx.globalAlpha = isHovered ? 0.7 : 0.4; ctx.lineWidth = 1; ctx.setLineDash([2, 3]);
     ctx.beginPath(); ctx.moveTo(x, isAbove ? dotY - 4 : dotY + 4); ctx.lineTo(x, tickEndY);
     ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1;
 
-    // Scorer name
-    const fontSize = Math.min(10, Math.round(W * 0.014));
-    ctx.font = `bold ${fontSize}px Barlow Condensed, sans-serif`;
-    ctx.fillStyle = col; ctx.textAlign = 'center';
-    ctx.fillText(r.scorer || '', x, labelY);
+    // OG marker — grey text
+    if (ann.isOG ?? false) { ctx.fillStyle = 'rgba(255,120,120,0.85)'; }
+    else { ctx.fillStyle = isHovered ? 'white' : col; }
 
-    // Assister in brackets
-    const assister = r.assister && !r.isOG ? r.assister : null;
+    // Background pill for readability when hovered or staggered
+    ctx.font = `bold ${fontSize}px Barlow Condensed, sans-serif`;
+    const tw = ctx.measureText(label).width;
+    if (isHovered || stagger > 0) {
+      ctx.fillStyle = 'rgba(10,20,12,.75)';
+      const px = x - tw/2 - 3, py = baseY - fontSize, pw = tw + 6, ph = fontSize + 2;
+      if (ctx.roundRect) ctx.roundRect(px, py, pw, ph, 3); else ctx.rect(px, py, pw, ph);
+      ctx.fill();
+    }
+
+    ctx.fillStyle = (ann.isOG ?? false) ? 'rgba(255,150,150,0.9)' : (isHovered ? 'white' : col);
+    ctx.textAlign = 'center';
+    ctx.fillText(label, x, baseY);
+
+    // Assister
     if (assister) {
-      ctx.font = `${Math.max(8, fontSize - 1)}px Barlow Condensed, sans-serif`;
+      ctx.font = `${Math.max(7, fontSize - 1)}px Barlow Condensed, sans-serif`;
       ctx.fillStyle = col; ctx.globalAlpha = 0.6;
-      ctx.fillText(`(${assister})`, x, isAbove ? labelY - 10 : labelY + 11);
+      ctx.fillText(`(${assister})`, x, isAbove ? baseY - 10 : baseY + 11);
       ctx.globalAlpha = 1;
     }
 
     // Underline if YT clickable
-    const hasYt = !!(ytId && r.ytTime != null);
     if (hasYt) {
-      const tw = ctx.measureText(r.scorer || '').width;
-      ctx.strokeStyle = col; ctx.globalAlpha = 0.5; ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(x - tw / 2, labelY + 1); ctx.lineTo(x + tw / 2, labelY + 1); ctx.stroke();
+      ctx.strokeStyle = isHovered ? 'white' : col; ctx.globalAlpha = isHovered ? 0.8 : 0.5; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(x - tw/2, baseY + 1); ctx.lineTo(x + tw/2, baseY + 1); ctx.stroke();
       ctx.globalAlpha = 1;
     }
-    hitTargets.push({ x, y: labelY, dotY, ytTime: r.ytTime, hasYt, scoreA: r.scoreA, scoreB: r.scoreB, scorer: r.scorer || '', time: r.time || '', team: r.team });
+
+    return { x, y: baseY, w: tw, dotY };
+  };
+
+  // Draw non-hovered first, hovered on top
+  annotations.forEach((ann, i) => {
+    const pos = drawAnnotation(ann, false);
+    hitTargets.push({ ...ann, ...pos, idx: i });
   });
 
   // Team labels
@@ -4960,16 +5003,20 @@ function drawMomentumGraph(canvasId, matchId) {
   ctx.font = '9px Barlow Condensed, sans-serif';
   ctx.fillText(evLog ? 'SHOT PRESSURE MOMENTUM' : 'SCORE MOMENTUM', pad.l + 4, pad.t - 16);
 
-  // Store click targets and hover data
+  // Store state for hover redraw
   const matchKey = matchId.replace(/[#,]/g, '_');
-  cv._momHitTargets = hitTargets; cv._momYtId = ytId; cv._momMatchKey = matchKey;
-  cv._momSm = sm; cv._momRows = rows; cv._momPad = pad; cv._momW = W; cv._momH = H;
-  cv._momToX = toX; cv._momToY = toY; cv._momMidY = midY; cv._momMatchDur = matchDur;
+  cv._momHitTargets = hitTargets;
+  cv._momYtId = ytId; cv._momMatchKey = matchKey;
+  cv._momSm = sm; cv._momRows = rows; cv._momPad = pad;
+  cv._momW = W; cv._momH = H; cv._momToX = toX; cv._momToY = toY;
+  cv._momMidY = midY; cv._momMatchDur = matchDur;
+  cv._momAnnotations = annotations;
+  cv._momDrawAnnotation = drawAnnotation;
+  cv._momLastHover = -1;
 
   if (!cv._momBound) {
     cv._momBound = true;
 
-    // Shared tooltip element
     let momTip = document.getElementById('mom-score-tip');
     if (!momTip) {
       momTip = document.createElement('div');
@@ -4980,31 +5027,44 @@ function drawMomentumGraph(canvasId, matchId) {
 
     cv.addEventListener('mousemove', ev => {
       const rect = cv.getBoundingClientRect();
-      const scaleX = cv._momW / rect.width;
-      const scaleY = cv._momH / rect.height;
+      const scaleX = cv._momW / rect.width, scaleY = cv._momH / rect.height;
       const mx = (ev.clientX - rect.left) * scaleX;
       const my = (ev.clientY - rect.top) * scaleY;
+      const tgts = cv._momHitTargets || [];
+      const anns = cv._momAnnotations || [];
 
-      // Check if hovering a name label (clickable)
-      const nameHit = (cv._momHitTargets || []).find(t => Math.abs(mx - t.x) < 40 && Math.abs(my - t.y) < 12);
-      cv.style.cursor = nameHit?.hasYt ? 'pointer' : 'default';
+      // Find hovered annotation (check name label and dot)
+      let hovIdx = -1;
+      for (let i = tgts.length - 1; i >= 0; i--) {
+        const t = tgts[i];
+        const nearLabel = Math.abs(mx - t.x) < Math.max(t.w/2 + 4, 24) && Math.abs(my - t.y) < 10;
+        const nearDot   = Math.hypot(mx - t.x, my - t.dotY) < 8;
+        if (nearLabel || nearDot) { hovIdx = i; break; }
+      }
 
-      // Show score tooltip based on X position
+      if (hovIdx !== cv._momLastHover) {
+        cv._momLastHover = hovIdx;
+        // Redraw hovered annotation on top
+        if (hovIdx >= 0 && cv._momDrawAnnotation) {
+          // Clear just the annotation areas by redrawing all non-hovered, then hovered
+          // Simple approach: redraw entire canvas
+          drawMomentumGraph(cv.id, Object.keys(window._wormData||{}).find(k=>k.replace(/[#,]/g,'_')===cv.id.replace('timeline-','')) || '');
+        }
+        cv.style.cursor = (hovIdx >= 0 && tgts[hovIdx]?.hasYt) ? 'pointer' : 'default';
+      }
+
+      // Score tooltip from X position
       const pad = cv._momPad;
-      const W = cv._momW;
-      if (mx >= pad.l && mx <= W - pad.r) {
-        const matchDur = cv._momMatchDur;
-        const t = (mx - pad.l) / (W - pad.l - pad.r) * matchDur;
-        // Find score at time t
-        const rws = cv._momRows || [];
+      if (mx >= pad.l && mx <= cv._momW - pad.r) {
+        const t = (mx - pad.l) / (cv._momW - pad.l - pad.r) * cv._momMatchDur;
         let sA = 0, sB = 0;
-        rws.forEach(r => {
+        (cv._momRows || []).forEach(r => {
           const abs = r.absSecs != null ? r.absSecs : r.secs;
           if (abs <= t) { sA = r.scoreA; sB = r.scoreB; }
         });
-        const mins = Math.floor(t / 60);
         const tip = document.getElementById('mom-score-tip');
         if (tip) {
+          const mins = Math.floor(t / 60);
           tip.innerHTML = `<span style="color:rgba(255,255,255,.5);font-size:.65rem">${mins}'</span> <span style="color:#39d353;font-weight:700">${sA}</span><span style="color:rgba(255,255,255,.4)"> – </span><span style="color:#60a5fa;font-weight:700">${sB}</span>`;
           tip.style.opacity = '1';
           tip.style.left = (ev.clientX + 12) + 'px';
@@ -5017,14 +5077,21 @@ function drawMomentumGraph(canvasId, matchId) {
       const tip = document.getElementById('mom-score-tip');
       if (tip) tip.style.opacity = '0';
       cv.style.cursor = 'default';
+      cv._momLastHover = -1;
     });
 
     cv.addEventListener('click', ev => {
       const rect = cv.getBoundingClientRect();
       const mx = (ev.clientX - rect.left) * (cv._momW / rect.width);
       const my = (ev.clientY - rect.top) * (cv._momH / rect.height);
-      const hit = (cv._momHitTargets || []).find(t => t.hasYt && Math.abs(mx - t.x) < 40 && Math.abs(my - t.y) < 12);
-      if (hit) seekYtVideo(cv._momMatchKey, cv._momYtId, hit.ytTime);
+      const tgts = cv._momHitTargets || [];
+      for (let i = tgts.length - 1; i >= 0; i--) {
+        const t = tgts[i];
+        if (t.hasYt && Math.abs(mx - t.x) < Math.max(t.w/2 + 4, 24) && Math.abs(my - t.y) < 10) {
+          seekYtVideo(cv._momMatchKey, cv._momYtId, t.ytTime);
+          break;
+        }
+      }
     });
   }
 }
@@ -7327,14 +7394,27 @@ function renderMatches() {
         <!-- Goal Timeline -->
         ${(() => {
           const combos = goalCombos[m.id];
-          // Build goal events from combos, event log, or empty (canvas always renders)
+          // Build goal events from combos
           let all = [];
           if (combos) {
             all = [
               ...(combos.h1||[]).map(p=>({...p,half:'1H'})),
               ...(combos.h2||[]).map(p=>({...p,half:'2H'}))
-            ].filter(p=>p.time);
+            ].filter(p=>p.time && !p.isOG); // exclude OGs here — use event log timestamps instead
           }
+          // Always merge OG and any missing goals from event log
+          try {
+            const logs = JSON.parse(localStorage.getItem('aero_event_logs') || '{}');
+            const log = logs[m.id];
+            if (log?.events) {
+              const tsToSecs = t => { if (!t) return 0; const p=String(t).split(':'); return p.length===3?parseInt(p[0])*60+parseInt(p[1])+parseFloat(p[2])/100:parseInt(p[0])*60+parseFloat(p[1]||0); };
+              log.events.filter(e => e.event === 'Goals' || e.event === 'OG').forEach(e => {
+                const eSecs = tsToSecs(e.ts);
+                const already = all.find(g => Math.abs(tsToSecs(g.time) - eSecs) < 3 && !g.isOG && e.event !== 'OG');
+                if (!already) all.push({ scorer: e.event==='OG' ? e.player : e.player, assister: e.assistBy||'', time: e.ts, half: e.half, isOG: e.event==='OG' });
+              });
+            }
+          } catch(ex) {}
           if (!all.length) {
             try {
               const logs = JSON.parse(localStorage.getItem('aero_event_logs') || '{}');
@@ -7346,19 +7426,6 @@ function renderMatches() {
               }
             } catch(ex) {}
           }
-
-          // Supplement with OG events from event log
-          try {
-            const logs = JSON.parse(localStorage.getItem('aero_event_logs') || '{}');
-            const log = logs[m.id];
-            if (log?.events) {
-              const tsToSecs = t => { if (!t) return 0; const p=String(t).split(':'); return p.length===3?parseInt(p[0])*60+parseInt(p[1])+parseFloat(p[2])/100:parseInt(p[0])*60+parseFloat(p[1]||0); };
-              log.events.filter(e => e.event === 'OG').forEach(e => {
-                const already = all.find(g => g.isOG && Math.abs(tsToSecs(g.time) - e.tsSecsRaw) < 2);
-                if (!already) all.push({ scorer: e.player, assister: e.assistBy||'', time: e.ts, half: e.half, isOG: true });
-              });
-            }
-          } catch(ex) {}
 
           const toSecs = time => { if (!time) return 0; const [min,sec]=time.split(':').map(Number); return min*60+(sec||0); };
           const matchDur = all.length ? Math.max(...all.map(p=>toSecs(p.time)), 50*60) + 60 : 3600;
