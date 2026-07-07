@@ -4819,6 +4819,9 @@ function drawMomentumGraph(canvasId, matchId) {
   const toX = s => pad.l + (s / matchDur) * cW;
   const toY = v => midY - v * (cH / 2) * 0.92; // 92% so peaks nearly touch the edge
 
+  const showMom  = cv._showMom  !== false; // default on
+  const showWorm = cv._showWorm !== false; // default on
+
   // Background
   ctx.fillStyle = 'rgba(0,0,0,.3)';
   if (ctx.roundRect) ctx.roundRect(0, 0, W, H, 8); else ctx.rect(0, 0, W, H);
@@ -4870,27 +4873,30 @@ function drawMomentumGraph(canvasId, matchId) {
     }
   };
 
-  // Green fill above — clipped to inner chart zone only
-  ctx.save(); ctx.beginPath(); ctx.rect(pad.l, pad.t, cW, midY - pad.t); ctx.clip();
-  ctx.beginPath(); ctx.moveTo(coords[0].x, midY); buildPath(coords);
-  ctx.lineTo(coords[coords.length - 1].x, midY); ctx.closePath();
-  const gA = ctx.createLinearGradient(0, pad.t, 0, midY);
-  gA.addColorStop(0, 'rgba(57,211,83,0.45)'); gA.addColorStop(1, 'rgba(57,211,83,0.05)');
-  ctx.fillStyle = gA; ctx.fill(); ctx.restore();
+  const showMom  = cv._showMom  !== false;
+  const showWorm = cv._showWorm !== false;
 
-  // Blue fill below — clipped to inner chart zone only
-  ctx.save(); ctx.beginPath(); ctx.rect(pad.l, midY, cW, cH / 2 + 2); ctx.clip();
-  ctx.beginPath(); ctx.moveTo(coords[0].x, midY); buildPath(coords);
-  ctx.lineTo(coords[coords.length - 1].x, midY); ctx.closePath();
-  const gB = ctx.createLinearGradient(0, midY, 0, pad.t + cH);
-  gB.addColorStop(0, 'rgba(96,165,250,0.05)'); gB.addColorStop(1, 'rgba(96,165,250,0.45)');
-  ctx.fillStyle = gB; ctx.fill(); ctx.restore();
-
-  // Line — clipped to inner zone
-  ctx.save(); ctx.beginPath(); ctx.rect(pad.l, pad.t, cW, cH); ctx.clip();
-  ctx.beginPath(); buildPath(coords);
-  ctx.strokeStyle = 'rgba(255,255,255,0.75)'; ctx.lineWidth = 2; ctx.stroke();
-  ctx.restore();
+  if (showMom) {
+    // Green fill above
+    ctx.save(); ctx.beginPath(); ctx.rect(pad.l, pad.t, cW, midY - pad.t); ctx.clip();
+    ctx.beginPath(); ctx.moveTo(coords[0].x, midY); buildPath(coords);
+    ctx.lineTo(coords[coords.length - 1].x, midY); ctx.closePath();
+    const gA = ctx.createLinearGradient(0, pad.t, 0, midY);
+    gA.addColorStop(0, 'rgba(57,211,83,0.45)'); gA.addColorStop(1, 'rgba(57,211,83,0.05)');
+    ctx.fillStyle = gA; ctx.fill(); ctx.restore();
+    // Blue fill below
+    ctx.save(); ctx.beginPath(); ctx.rect(pad.l, midY, cW, cH / 2 + 2); ctx.clip();
+    ctx.beginPath(); ctx.moveTo(coords[0].x, midY); buildPath(coords);
+    ctx.lineTo(coords[coords.length - 1].x, midY); ctx.closePath();
+    const gB = ctx.createLinearGradient(0, midY, 0, pad.t + cH);
+    gB.addColorStop(0, 'rgba(96,165,250,0.05)'); gB.addColorStop(1, 'rgba(96,165,250,0.45)');
+    ctx.fillStyle = gB; ctx.fill(); ctx.restore();
+    // Line
+    ctx.save(); ctx.beginPath(); ctx.rect(pad.l, pad.t, cW, cH); ctx.clip();
+    ctx.beginPath(); buildPath(coords);
+    ctx.strokeStyle = 'rgba(255,255,255,0.75)'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.restore();
+  }
 
   // Centreline
   ctx.strokeStyle = 'rgba(255,255,255,0.15)'; ctx.lineWidth = 1;
@@ -4904,6 +4910,47 @@ function drawMomentumGraph(canvasId, matchId) {
     ctx.setLineDash([]);
   }
 
+  // Score worm
+  const wormPts = [{ s: 0, d: 0 }];
+  rows.forEach(r => {
+    const abs = r.absSecs != null ? r.absSecs : r.secs;
+    wormPts.push({ s: abs, d: r.scoreA - r.scoreB });
+  });
+  wormPts.push({ s: matchDur, d: wormPts[wormPts.length - 1].d });
+  const maxD = Math.max(...wormPts.map(p => Math.abs(p.d)), 1);
+  const wToY = d => midY - (d / (maxD + 0.5)) * (cH / 2) * 0.82;
+
+  if (showWorm) {
+    ctx.save(); ctx.beginPath(); ctx.rect(pad.l, pad.t, cW, cH); ctx.clip();
+    ctx.beginPath(); ctx.moveTo(toX(wormPts[0].s), midY);
+    for (let i = 1; i < wormPts.length; i++) {
+      ctx.lineTo(toX(wormPts[i].s), wToY(wormPts[i - 1].d));
+      ctx.lineTo(toX(wormPts[i].s), wToY(wormPts[i].d));
+    }
+    ctx.lineTo(toX(wormPts[wormPts.length - 1].s), midY);
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(255,255,255,0.05)'; ctx.fill();
+    ctx.beginPath(); ctx.moveTo(toX(wormPts[0].s), midY);
+    for (let i = 1; i < wormPts.length; i++) {
+      ctx.lineTo(toX(wormPts[i].s), wToY(wormPts[i - 1].d));
+      ctx.lineTo(toX(wormPts[i].s), wToY(wormPts[i].d));
+    }
+    ctx.strokeStyle = 'rgba(255,255,255,0.3)'; ctx.lineWidth = 1.5; ctx.setLineDash([3, 2]);
+    ctx.stroke(); ctx.setLineDash([]);
+    ctx.restore();
+  }
+
+  // Goal dots — always on the worm line (score position)
+  rows.forEach(r => {
+    const abs = r.absSecs != null ? r.absSecs : r.secs;
+    const x = toX(abs);
+    const col = r.isOG ? '#f87171' : (r.team === 'A' ? '#39d353' : '#60a5fa');
+    const dotY = wToY(r.scoreA - r.scoreB);
+    ctx.beginPath(); ctx.arc(x, dotY, 4, 0, Math.PI * 2);
+    ctx.fillStyle = col; ctx.globalAlpha = 0.85; ctx.fill(); ctx.globalAlpha = 1;
+    ctx.strokeStyle = 'rgba(0,0,0,.4)'; ctx.lineWidth = 1.2; ctx.stroke();
+    r._dotY = dotY; // anchor for annotations
+  });
   // C1 goal annotations — name above (A) / below (B) with dotted tick
   // Stagger overlapping labels to avoid collision
   const fontSize = Math.max(8, Math.min(10, Math.round(W * 0.013)));
@@ -4956,7 +5003,7 @@ function drawMomentumGraph(canvasId, matchId) {
     const x = toX(abs);
     const col = r.isOG ? '#f87171' : (r.team === 'A' ? '#39d353' : '#60a5fa');
     const nearest = sm.reduce((b, p) => Math.abs(p.s - abs) < Math.abs(b.s - abs) ? p : b, sm[0]);
-    const dotY = toY(nearest.v);
+    const dotY = r._dotY != null ? r._dotY : toY(nearest.v);
     const isAbove = r.team === 'A';
     const label = r.isOG ? `${r.scorer || ''} OG` : (r.scorer || '');
     const hasYt = !!(ytId && r.ytTime != null);
@@ -7606,7 +7653,13 @@ function renderMatches() {
           })();
 
           return '<div style="margin-bottom:14px">'
-            +'<div style="font-size:.62rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:6px;font-family:\'Barlow Condensed\',sans-serif">Momentum'+(ytId?' · click scorer to seek video':'')+'</div>'
+            +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">'
+            +'<div style="font-size:.62rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);font-family:\'Barlow Condensed\',sans-serif">Momentum'+(ytId?' · click scorer to seek video':'')+'</div>'
+            +'<div style="display:flex;gap:6px">'
+            +'<button onclick="event.stopPropagation();var cvs=this.closest(\'.match-detail-panel\').querySelectorAll(\'canvas[id^=\\"timeline-\\"]\')\ ;cvs.forEach(function(c){c._showMom=c._showMom===false;var k=c.id.replace(\'timeline-\',\'\');var m=Object.keys(window._wormData||{}).find(function(x){return x.replace(/[#,]/g,\'_\')===k;});if(m)drawMomentumGraph(c.id,m);});" style="font-size:.6rem;padding:2px 8px;border-radius:4px;border:1px solid var(--border);background:var(--card2);color:var(--muted);cursor:pointer;font-family:\'Barlow Condensed\',sans-serif;user-select:none" id="mom-btn-'+canvasId+'">Momentum</button>'
+            +'<button onclick="event.stopPropagation();var cvs=this.closest(\'.match-detail-panel\').querySelectorAll(\'canvas[id^=\\"timeline-\\"]\')\ ;cvs.forEach(function(c){c._showWorm=c._showWorm===false;var k=c.id.replace(\'timeline-\',\'\');var m=Object.keys(window._wormData||{}).find(function(x){return x.replace(/[#,]/g,\'_\')===k;});if(m)drawMomentumGraph(c.id,m);});" style="font-size:.6rem;padding:2px 8px;border-radius:4px;border:1px solid var(--border);background:var(--card2);color:var(--muted);cursor:pointer;font-family:\'Barlow Condensed\',sans-serif;user-select:none" id="worm-btn-'+canvasId+'">Score worm</button>'
+            +'</div>'
+            +'</div>'
             +'<div style="display:grid;grid-template-columns:1fr 200px;gap:10px;align-items:start">'
             +'<div style="position:relative;width:100%;overflow:visible">'
             +'<canvas id="'+canvasId+'" style="width:100%;height:380px;display:block;border-radius:8px"></canvas>'
@@ -8507,10 +8560,20 @@ function renderProfileHeatmap(name, hmapType) {
 
         const rect = heatCanvas.getBoundingClientRect();
         const dpr = window.devicePixelRatio || 1;
-        const W = heatCanvas._hmapW || rect.width;
-        const H = heatCanvas._hmapH || rect.height;
-        overlay.width = W * dpr; overlay.height = H * dpr;
-        overlay.style.width = W + 'px'; overlay.style.height = H + 'px';
+        // Use the actual rendered CSS size for overlay positioning and sizing
+        const cssW = rect.width;
+        const cssH = rect.height;
+        // Use logical draw dimensions for coordinate math
+        const W = heatCanvas._hmapW || Math.round(cssW);
+        const H = heatCanvas._hmapH || Math.round(cssH);
+        // Scale factor from logical to CSS pixels
+        const scaleX = cssW / W;
+        const scaleY = cssH / H;
+
+        overlay.width = Math.round(cssW * dpr);
+        overlay.height = Math.round(cssH * dpr);
+        overlay.style.width = cssW + 'px';
+        overlay.style.height = cssH + 'px';
         overlay.style.left = rect.left + 'px';
         overlay.style.top = rect.top + 'px';
 
@@ -8519,7 +8582,8 @@ function renderProfileHeatmap(name, hmapType) {
         setTimeout(() => document.addEventListener('click', removeOv), 100);
 
         const ctx = overlay.getContext('2d');
-        ctx.scale(dpr, dpr);
+        // Scale: dpr for retina, plus scaleX/Y to map logical coords to CSS size
+        ctx.scale(dpr * scaleX, dpr * scaleY);
 
         const goalH = H * 0.22, goalD = W * 0.02;
         const goalFaceX = W - 3 - goalD;
@@ -9792,33 +9856,46 @@ function renderProfile(name) {
 
     <!-- ═══ HIGHLIGHTS ═══ -->
     ${(() => {
-      const highlights = getPlayerHighlights(name);
-      if (!highlights.length) return '';
+      const allHighlights = getPlayerHighlights(name);
+      const highlights  = allHighlights.filter(h => h.type !== 'lowlight');
+      const lowlights   = allHighlights.filter(h => h.type === 'lowlight');
+      if (!allHighlights.length) return '';
+
+      const renderCard = (h) => {
+        const matchKey = h.mid.replace(/[#,]/g,'_');
+        const ytSecs = h.ytId && h.time ? timeToYtSeconds(h.time, h.half) : null;
+        const isGoal = h.type === 'goal', isAssist = h.type === 'assist';
+        const isSave = h.type === 'save', isMoment = h.type === 'moment', isLow = h.type === 'lowlight';
+        const col = isGoal ? 'var(--green)' : isAssist ? 'var(--lime)' : isSave ? '#60a5fa' : isLow ? '#f87171' : '#f59e0b';
+        const borderCol = isGoal ? 'rgba(57,211,83,.2)' : isAssist ? 'rgba(168,224,80,.2)' : isSave ? 'rgba(96,165,250,.2)' : isLow ? 'rgba(248,113,113,.2)' : 'rgba(245,158,11,.2)';
+        const icon = h.label || (isGoal ? '⚽' : isAssist ? '🎯' : isSave ? '🧤' : isLow ? '😬' : '⭐');
+        const mins = h.time ? String(h.time).split(':')[0].replace(/^0/,'') : '?';
+        return `<div style="background:var(--card2);border:1px solid ${borderCol};border-radius:8px;padding:8px 12px;min-width:110px;${ytSecs!==null?'cursor:pointer':''}"
+          ${ytSecs!==null ? `onclick="seekYtVideo('${matchKey}','${h.ytId}',${ytSecs})" title="▶ Watch"` : ''}>
+          <div style="display:flex;align-items:center;gap:5px;margin-bottom:3px">
+            <span style="font-size:.8rem">${icon}</span>
+            <span style="font-family:'Bebas Neue',sans-serif;font-size:1rem;color:${col}">${mins}'</span>
+            <span style="font-size:.58rem;color:var(--muted)">${h.half}</span>
+            ${ytSecs!==null ? `<span style="margin-left:auto;color:var(--amber);font-size:.75rem">▶</span>` : ''}
+          </div>
+          <div style="font-size:.72rem;font-weight:600">${h.scorer}</div>
+          ${h.assister ? `<div style="font-size:.6rem;color:var(--muted)">← ${h.assister}</div>` : ''}
+          <div style="font-size:.58rem;color:var(--muted);margin-top:3px;opacity:.7">${h.match.date}</div>
+        </div>`;
+      };
+
       return `<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 20px;margin-bottom:12px">
-        <div style="font-size:.58rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:12px">⭐ Highlights</div>
-        <div style="display:flex;flex-wrap:wrap;gap:7px">
-          ${highlights.map(h => {
-            const matchKey = h.mid.replace(/[#,]/g,'_');
-            const ytSecs = h.ytId && h.time ? timeToYtSeconds(h.time, h.half) : null;
-            const col = h.type==='goal' ? 'var(--green)' : 'var(--lime)';
-            const borderCol = h.type==='goal' ? 'rgba(57,211,83,.2)' : 'rgba(168,224,80,.2)';
-            const icon = h.type==='goal' ? '⚽' : '🎯';
-            const mins = h.time ? h.time.split(':')[0].replace(/^0/,'') : '?';
-            return `<div style="background:var(--card2);border:1px solid ${borderCol};border-radius:8px;padding:8px 12px;min-width:110px;${ytSecs!==null?'cursor:pointer':''}"
-              ${ytSecs!==null ? `onclick="seekYtVideo('${matchKey}','${h.ytId}',${ytSecs})" title="▶ Watch"` : ''}>
-              <div style="display:flex;align-items:center;gap:5px;margin-bottom:3px">
-                <span style="font-size:.8rem">${icon}</span>
-                <span style="font-family:'Bebas Neue',sans-serif;font-size:1rem;color:${col}">${mins}'</span>
-                <span style="font-size:.58rem;color:var(--muted)">${h.half}</span>
-                ${ytSecs!==null ? `<span style="margin-left:auto;color:var(--amber);font-size:.75rem">▶</span>` : ''}
-              </div>
-              <div style="font-size:.72rem;font-weight:600">${h.scorer}</div>
-              ${h.assister ? `<div style="font-size:.6rem;color:var(--muted)">← ${h.assister}</div>` : ''}
-              <div style="font-size:.58rem;color:var(--muted);margin-top:3px;opacity:.7">${h.match.date}</div>
-            </div>`;
-          }).join('')}
-        </div>
-        ${!highlights.some(h=>h.ytId) ? `<div style="font-size:.6rem;color:var(--muted);margin-top:8px;opacity:.6">Flag goals with ! and assists with * in the Goal Combos importer</div>` : ''}
+        ${highlights.length ? `
+          <div style="font-size:.58rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:12px">⭐ Highlights</div>
+          <div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:${lowlights.length?'16px':'0'}">
+            ${highlights.map(renderCard).join('')}
+          </div>` : ''}
+        ${lowlights.length ? `
+          <div style="font-size:.58rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:12px">😬 Lowlights</div>
+          <div style="display:flex;flex-wrap:wrap;gap:7px">
+            ${lowlights.map(renderCard).join('')}
+          </div>` : ''}
+        ${!allHighlights.some(h=>h.ytId) ? `<div style="font-size:.6rem;color:var(--muted);margin-top:8px;opacity:.6">Flag goals with ! and assists with * in the Goal Combos importer</div>` : ''}
       </div>`;
     })()}
 
