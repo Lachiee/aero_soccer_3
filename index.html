@@ -4806,13 +4806,13 @@ function drawMomentumGraph(canvasId, matchId) {
     while (el && (!el.offsetWidth || el.offsetWidth < 100)) el = el.parentElement;
     W = Math.max((el?.offsetWidth || 900) - 220, 400);
   }
-  const H = 190; // taller so momentum fills more vertical space
+  const H = 380; // match the height of the top stats panel
   cv.width = W * dpr; cv.height = H * dpr;
   cv.style.width = W + 'px'; cv.style.height = H + 'px';
   const ctx = cv.getContext('2d');
   ctx.scale(dpr, dpr);
 
-  const pad = { l: 8, r: 8, t: 30, b: 30 }; // room for name labels above/below
+  const pad = { l: 8, r: 8, t: 36, b: 36 }; // room for name labels above/below
   const cW = W - pad.l - pad.r;
   const cH = H - pad.t - pad.b;
   const midY = pad.t + cH / 2;
@@ -4830,7 +4830,7 @@ function drawMomentumGraph(canvasId, matchId) {
 
   if (evLog) {
     const pev = evLog.filter(e => PW[e.event] != null && e.tsSecsRaw != null);
-    // Start explicitly at 0
+    // Explicit start at 0,0
     momPts.push({ s: 0, v: 0 });
     for (let t = 15; t <= matchDur; t += 15) {
       const win = pev.filter(e => e.tsSecsRaw >= t - 90 && e.tsSecsRaw <= t);
@@ -4839,10 +4839,7 @@ function drawMomentumGraph(canvasId, matchId) {
       const tot = pA + pB;
       momPts.push({ s: t, v: tot > 0 ? (pA - pB) / tot : 0 });
     }
-    // Normalise: subtract mean so the curve is centred on 0
-    const mean = momPts.reduce((s, p) => s + p.v, 0) / momPts.length;
-    momPts.forEach(p => { p.v -= mean; });
-    // Scale so max absolute value = 1
+    // Scale so the max absolute value = 1 (keeps 0 at 0)
     const maxV = Math.max(...momPts.map(p => Math.abs(p.v)), 0.01);
     momPts.forEach(p => { p.v /= maxV; });
   } else {
@@ -7554,7 +7551,7 @@ function renderMatches() {
             +'<div style="font-size:.62rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:6px;font-family:\'Barlow Condensed\',sans-serif">Momentum'+(ytId?' · click scorer to seek video':'')+'</div>'
             +'<div style="display:grid;grid-template-columns:1fr 200px;gap:10px;align-items:start">'
             +'<div style="position:relative;width:100%;overflow:visible">'
-            +'<canvas id="'+canvasId+'" style="width:100%;height:190px;display:block;border-radius:8px"></canvas>'
+            +'<canvas id="'+canvasId+'" style="width:100%;height:380px;display:block;border-radius:8px"></canvas>'
             +'</div>'
             +statsPanel
             +'</div>'
@@ -8461,53 +8458,68 @@ function renderProfileHeatmap(name, hmapType) {
         const goalTopY   = H / 2 - goalH / 2;
 
         hit.shots.forEach(s => {
-          const ax = hit.px; // assist pill position (cluster centre)
+          const ax = hit.px; // assist pill cluster centre
           const ay = hit.py;
-          if (s.scorerSx == null || s.scorerSy == null) return;
-          const gx = s.scorerSx * W; // scorer's shot position
-          const gy_raw = s.scorerSy * H;
 
-          // netX for goal target on court
+          // netX for goal target height on court
           const netX = s.netX ?? 0.5;
           const targetY = goalTopY + Math.max(0, Math.min(1, netX)) * goalH;
 
-          // ── 1. Solid line: assist pill → scorer goal pill ──
+          if (s.scorerSx != null && s.scorerSy != null) {
+            // Full 3-step: assist pill → scorer goal pill → goal face
+            const gx = s.scorerSx * W;
+            const gy = s.scorerSy * H;
+
+            // 1. Solid amber line: assist pill → scorer goal pill
+            ctx.save();
+            ctx.strokeStyle = 'rgba(251,191,36,0.75)';
+            ctx.lineWidth = 2.5;
+            ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(gx, gy); ctx.stroke();
+            ctx.restore();
+
+            // 2. Scorer goal pill — match the heatmap pill size
+            const clusters = heatCanvas._hmapClusters || [];
+            const clusterR = (heatCanvas._hmapW || W) * 0.045; // same radius as hmapRender
+            const pillR = Math.max(14, clusterR);
+            // Outer glow
+            ctx.beginPath(); ctx.arc(gx, gy, pillR + 6, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(57,211,83,.18)'; ctx.fill();
+            ctx.beginPath(); ctx.arc(gx, gy, pillR + 6, 0, Math.PI * 2);
+            ctx.strokeStyle = 'rgba(57,211,83,.8)'; ctx.lineWidth = 2; ctx.stroke();
+            // Pill fill
+            ctx.beginPath(); ctx.arc(gx, gy, pillR, 0, Math.PI * 2);
+            ctx.fillStyle = '#4ade80'; ctx.globalAlpha = 0.9; ctx.fill(); ctx.globalAlpha = 1;
+            ctx.strokeStyle = 'rgba(0,0,0,.5)'; ctx.lineWidth = 1.5; ctx.stroke();
+            // "G" label
+            ctx.fillStyle = '#071009';
+            ctx.font = `bold ${Math.round(pillR * 0.9)}px Barlow Condensed, sans-serif`;
+            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.fillText('G', gx, gy);
+
+            // 3. Dashed green line: scorer pill → goal face
+            ctx.save();
+            ctx.setLineDash([5, 4]);
+            ctx.strokeStyle = '#4ade80'; ctx.globalAlpha = 0.6; ctx.lineWidth = 1.5;
+            ctx.beginPath(); ctx.moveTo(gx, gy); ctx.lineTo(goalFaceX, targetY); ctx.stroke();
+            ctx.restore();
+
+          } else {
+            // No scorer pin — draw dashed line directly from assist pill to goal
+            ctx.save();
+            ctx.setLineDash([5, 4]);
+            ctx.strokeStyle = 'rgba(251,191,36,0.6)';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(goalFaceX, targetY); ctx.stroke();
+            ctx.restore();
+          }
+
+          // Goal target marker on court
           ctx.save();
-          ctx.strokeStyle = 'rgba(251,191,36,0.7)'; // amber (assist colour)
-          ctx.lineWidth = 2;
-          ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(gx, gy_raw); ctx.stroke();
-          ctx.restore();
-
-          // ── 2. Scorer goal pill — green glowing pill at scorer's position ──
-          const pillR = Math.round(W * 0.028);
-          ctx.beginPath(); ctx.arc(gx, gy_raw, pillR + 5, 0, Math.PI * 2);
-          ctx.fillStyle = 'rgba(57,211,83,.15)'; ctx.fill();
-          ctx.beginPath(); ctx.arc(gx, gy_raw, pillR + 5, 0, Math.PI * 2);
-          ctx.strokeStyle = 'rgba(57,211,83,.75)'; ctx.lineWidth = 2; ctx.stroke();
-
-          ctx.beginPath(); ctx.arc(gx, gy_raw, pillR, 0, Math.PI * 2);
-          ctx.fillStyle = '#4ade80'; ctx.globalAlpha = 0.92; ctx.fill(); ctx.globalAlpha = 1;
-          ctx.strokeStyle = 'rgba(0,0,0,.5)'; ctx.lineWidth = 1.5; ctx.stroke();
-
-          ctx.fillStyle = 'white';
-          ctx.font = `bold ${Math.round(W * 0.02)}px Barlow Condensed, sans-serif`;
-          ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-          ctx.fillText('G', gx, gy_raw);
-
-          // ── 3. Dashed line: scorer goal pill → goal face ──
-          ctx.save();
-          ctx.setLineDash([5, 4]);
-          ctx.strokeStyle = '#4ade80'; ctx.globalAlpha = 0.55; ctx.lineWidth = 1.5;
-          ctx.beginPath(); ctx.moveTo(gx, gy_raw); ctx.lineTo(goalFaceX, targetY); ctx.stroke();
-          ctx.restore();
-
-          // Goal target marker
-          ctx.save();
-          ctx.globalAlpha = 0.85;
-          ctx.fillStyle = 'white';
-          ctx.beginPath(); ctx.arc(goalFaceX, targetY, 4.5, 0, Math.PI * 2); ctx.fill();
-          ctx.strokeStyle = '#4ade80'; ctx.lineWidth = 1.5;
-          ctx.beginPath(); ctx.arc(goalFaceX, targetY, 4.5, 0, Math.PI * 2); ctx.stroke();
+          ctx.globalAlpha = 0.9;
+          ctx.fillStyle = '#4ade80';
+          ctx.beginPath(); ctx.arc(goalFaceX, targetY, 5, 0, Math.PI * 2); ctx.fill();
+          ctx.strokeStyle = 'rgba(0,0,0,.5)'; ctx.lineWidth = 1.2;
+          ctx.beginPath(); ctx.arc(goalFaceX, targetY, 5, 0, Math.PI * 2); ctx.stroke();
           ctx.restore();
         });
 
