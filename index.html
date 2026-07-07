@@ -4909,12 +4909,52 @@ function drawMomentumGraph(canvasId, matchId) {
   const fontSize = Math.max(8, Math.min(10, Math.round(W * 0.013)));
   ctx.font = `bold ${fontSize}px Barlow Condensed, sans-serif`;
 
+  // ── Score worm — Option C ghost overlay ──
+  // Build score worm from rows (stepped score difference)
+  const wormPts = [{ s: 0, d: 0 }];
+  rows.forEach(r => {
+    const abs = r.absSecs != null ? r.absSecs : r.secs;
+    wormPts.push({ s: abs, d: r.scoreA - r.scoreB });
+  });
+  wormPts.push({ s: matchDur, d: wormPts[wormPts.length - 1].d });
+  const maxD = Math.max(...wormPts.map(p => Math.abs(p.d)), 1);
+  const wToY = d => midY - (d / (maxD + 0.5)) * (cH / 2) * 0.82;
+
+  ctx.save(); ctx.beginPath(); ctx.rect(pad.l, pad.t, cW, cH); ctx.clip();
+  // Ghost fill
+  ctx.beginPath(); ctx.moveTo(toX(wormPts[0].s), midY);
+  for (let i = 1; i < wormPts.length; i++) {
+    ctx.lineTo(toX(wormPts[i].s), wToY(wormPts[i - 1].d));
+    ctx.lineTo(toX(wormPts[i].s), wToY(wormPts[i].d));
+  }
+  ctx.lineTo(toX(wormPts[wormPts.length - 1].s), midY);
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(255,255,255,0.05)'; ctx.fill();
+  // Dashed stepped outline
+  ctx.beginPath(); ctx.moveTo(toX(wormPts[0].s), midY);
+  for (let i = 1; i < wormPts.length; i++) {
+    ctx.lineTo(toX(wormPts[i].s), wToY(wormPts[i - 1].d));
+    ctx.lineTo(toX(wormPts[i].s), wToY(wormPts[i].d));
+  }
+  ctx.strokeStyle = 'rgba(255,255,255,0.3)'; ctx.lineWidth = 1.5; ctx.setLineDash([3, 2]);
+  ctx.stroke(); ctx.setLineDash([]);
+  ctx.restore();
+
+  // Worm goal dots
+  rows.forEach(r => {
+    const abs = r.absSecs != null ? r.absSecs : r.secs;
+    const x = toX(abs);
+    const col = r.isOG ? '#f87171' : (r.team === 'A' ? '#39d353' : '#60a5fa');
+    ctx.beginPath(); ctx.arc(x, wToY(r.scoreA - r.scoreB), 3.5, 0, Math.PI * 2);
+    ctx.fillStyle = col; ctx.globalAlpha = 0.7; ctx.fill(); ctx.globalAlpha = 1;
+  });
+
   // Compute positions — angled labels fan out so minimal stagger needed
   ctx.font = `${Math.max(7, fontSize - 1)}px Barlow Condensed, sans-serif`;
   const annotations = rows.map(r => {
     const abs = r.absSecs != null ? r.absSecs : r.secs;
     const x = toX(abs);
-    const col = r.team === 'A' ? '#39d353' : '#60a5fa';
+    const col = r.isOG ? '#f87171' : (r.team === 'A' ? '#39d353' : '#60a5fa');
     const nearest = sm.reduce((b, p) => Math.abs(p.s - abs) < Math.abs(b.s - abs) ? p : b, sm[0]);
     const dotY = toY(nearest.v);
     const isAbove = r.team === 'A';
@@ -4957,7 +4997,7 @@ function drawMomentumGraph(canvasId, matchId) {
 
     // Angled label — rotated 45° outward from centreline
     ctx.save();
-    const labelFontSize = Math.max(7, fontSize - 1);
+    const labelFontSize = Math.max(9, fontSize);
     ctx.font = `${isHovered ? 'bold ' : ''}${labelFontSize}px Barlow Condensed, sans-serif`;
     const angle = isAbove ? -Math.PI / 4 : Math.PI / 4; // 45° up for A, 45° down for B
     ctx.translate(x, tickEndY + (isAbove ? -3 : 3));
@@ -6063,6 +6103,28 @@ function getPlayerHighlights(playerName) {
       });
     });
   });
+  // Also include GK saves and Moments flagged as highlights/lowlights in event log
+  try {
+    const logs = JSON.parse(localStorage.getItem('aero_event_logs') || '{}');
+    Object.entries(logs).forEach(([mid, log]) => {
+      const match = matchList.find(m => m.id === mid);
+      const ytId = matchVideos[mid];
+      if (!match || !log.events) return;
+      log.events.forEach(e => {
+        if (e.player !== playerName) return;
+        if (!e.highlight || e.highlight === 'none') return;
+        if (e.event === 'Goals' || e.event === 'Key Passes') return; // already handled above
+        const ytTime = ytId && e.ts ? timeToYtSeconds(e.ts, e.half) : null;
+        highlights.push({
+          mid, match, ytId, time: e.ts, half: e.half,
+          scorer: playerName, assister: null,
+          type: e.event === 'GK Saves' ? 'save' : e.highlight === 'lowlight' ? 'lowlight' : 'moment',
+          isOG: false, ytTime,
+          label: e.event === 'GK Saves' ? '🧤 Save' : e.highlight === 'lowlight' ? '😬 Moment' : '⭐ Moment',
+        });
+      });
+    });
+  } catch(ex) {}
   return highlights.sort((a,b) => b.match.date.localeCompare(a.match.date));
 }
 
@@ -8434,21 +8496,28 @@ function renderProfileHeatmap(name, hmapType) {
       hmapTip.style.opacity = '0';
       const isAssist = heatCanvas._hmapType === 'assist';
 
-      // For assists: overlay canvas approach — clean separate context, no state issues
+      // For assists: overlay canvas — positioned over the heatmap using body-level absolute
       if (isAssist && hit.shots.length > 0) {
-        let overlay = document.getElementById('assist-ov-' + heatCanvas.id);
-        if (!overlay) {
-          overlay = document.createElement('canvas');
-          overlay.id = 'assist-ov-' + heatCanvas.id;
-          overlay.style.cssText = 'position:absolute;top:0;left:0;pointer-events:none;border-radius:10px';
-          heatCanvas.parentElement.style.position = 'relative';
-          heatCanvas.parentElement.appendChild(overlay);
-        }
+        // Remove any existing overlay
+        document.getElementById('assist-ov-global')?.remove();
+        const overlay = document.createElement('canvas');
+        overlay.id = 'assist-ov-global';
+        overlay.style.cssText = 'position:fixed;pointer-events:none;z-index:9990';
+        document.body.appendChild(overlay);
+
+        const rect = heatCanvas.getBoundingClientRect();
         const dpr = window.devicePixelRatio || 1;
-        const W = heatCanvas._hmapW || heatCanvas.offsetWidth;
-        const H = heatCanvas._hmapH || Math.round(W * 0.52);
+        const W = heatCanvas._hmapW || rect.width;
+        const H = heatCanvas._hmapH || rect.height;
         overlay.width = W * dpr; overlay.height = H * dpr;
         overlay.style.width = W + 'px'; overlay.style.height = H + 'px';
+        overlay.style.left = rect.left + 'px';
+        overlay.style.top = rect.top + 'px';
+
+        // Auto-remove on next click
+        const removeOv = () => { overlay.remove(); document.removeEventListener('click', removeOv); };
+        setTimeout(() => document.addEventListener('click', removeOv), 100);
+
         const ctx = overlay.getContext('2d');
         ctx.scale(dpr, dpr);
 
@@ -8519,9 +8588,7 @@ function renderProfileHeatmap(name, hmapType) {
           ctx.fillStyle='#4ade80'; ctx.globalAlpha=0.9; ctx.fill(); ctx.globalAlpha=1;
         });
       } else {
-        // Clear overlay when not in assist mode or clicking elsewhere
-        const overlay = document.getElementById('assist-ov-' + heatCanvas.id);
-        if (overlay) overlay.getContext('2d').clearRect(0, 0, overlay.width, overlay.height);
+        document.getElementById('assist-ov-global')?.remove();
       }
       const card = document.createElement('div');
       card.id = 'hmap-goal-card';
