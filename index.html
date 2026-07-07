@@ -8358,6 +8358,7 @@ function renderProfileHeatmap(name, hmapType) {
           shotShots.push({ sx: g.sx, sy: g.sy, mid, half: hk==='h1'?'1H':'2H', idx, scorer: g.scorer, assister: g.assister, time: g.time });
         }
         if (g.assister === name && g.ax != null && g.ay != null) {
+          if (g.scorer && !g.sx) console.warn('[ASSIST] No sx for scorer', g.scorer, 'in mid', mid, 'full entry:', JSON.stringify(g));
           assistShots.push({ sx: g.ax, sy: g.ay, scorerSx: g.sx ?? null, scorerSy: g.sy ?? null, netX: g.netX ?? null, mid, half: hk==='h1'?'1H':'2H', idx, scorer: g.scorer, assister: g.assister, time: g.time });
         }
       });
