@@ -4812,7 +4812,7 @@ function drawMomentumGraph(canvasId, matchId) {
   const ctx = cv.getContext('2d');
   ctx.scale(dpr, dpr);
 
-  const pad = { l: 8, r: 8, t: 56, b: 56 }; // dedicated label zones top & bottom
+  const pad = { l: 8, r: 8, t: 42, b: 42 }; // label zones — angled text needs less space
   const cW = W - pad.l - pad.r;
   const cH = H - pad.t - pad.b;
   const midY = pad.t + cH / 2;
@@ -4909,31 +4909,27 @@ function drawMomentumGraph(canvasId, matchId) {
   const fontSize = Math.max(8, Math.min(10, Math.round(W * 0.013)));
   ctx.font = `bold ${fontSize}px Barlow Condensed, sans-serif`;
 
-  // Compute positions first, then stagger using actual text widths
-  ctx.font = `bold ${fontSize}px Barlow Condensed, sans-serif`;
+  // Compute positions — angled labels fan out so minimal stagger needed
+  ctx.font = `${Math.max(7, fontSize - 1)}px Barlow Condensed, sans-serif`;
   const annotations = rows.map(r => {
     const abs = r.absSecs != null ? r.absSecs : r.secs;
-    const x = toX(abs); // clamping happens at draw time
+    const x = toX(abs);
     const col = r.team === 'A' ? '#39d353' : '#60a5fa';
     const nearest = sm.reduce((b, p) => Math.abs(p.s - abs) < Math.abs(b.s - abs) ? p : b, sm[0]);
     const dotY = toY(nearest.v);
     const isAbove = r.team === 'A';
-    const assister = r.assister && !r.isOG ? r.assister : null;
     const label = r.isOG ? `${r.scorer || ''} OG` : (r.scorer || '');
     const hasYt = !!(ytId && r.ytTime != null);
     const tw = ctx.measureText(label).width;
-    return { x, dotY, col, isAbove, assister, label, hasYt, ytTime: r.ytTime, scoreA: r.scoreA, scoreB: r.scoreB, stagger: 0, tw };
+    return { x, dotY, col, isAbove, label, hasYt, ytTime: r.ytTime, scoreA: r.scoreA, scoreB: r.scoreB, stagger: 0, tw };
   });
 
-  // Stagger: push labels that collide (based on actual text width) further from centreline
-  const LINE_H = fontSize + 4;
+  // Only stagger labels that are extremely close (nearly same position)
   for (let i = 1; i < annotations.length; i++) {
     for (let j = 0; j < i; j++) {
       if (annotations[i].isAbove !== annotations[j].isAbove) continue;
-      const gap = Math.abs(annotations[i].x - annotations[j].x);
-      const minGap = (annotations[i].tw + annotations[j].tw) / 2 + 8;
-      if (gap < minGap) {
-        annotations[i].stagger = Math.max(annotations[i].stagger, annotations[j].stagger + LINE_H);
+      if (Math.abs(annotations[i].x - annotations[j].x) < 8) {
+        annotations[i].stagger = Math.max(annotations[i].stagger, annotations[j].stagger + 1);
       }
     }
   }
@@ -4941,63 +4937,49 @@ function drawMomentumGraph(canvasId, matchId) {
   const hitTargets = [];
 
   const drawAnnotation = (ann, isHovered) => {
-    const { dotY, col, isAbove, assister, label, hasYt, stagger } = ann;
-    // Clamp label X so text stays within canvas
+    const { dotY, col, isAbove, label, hasYt, stagger } = ann;
     const tw = ann.tw || ctx.measureText(label).width;
-    const x = Math.max(pad.l + tw/2 + 2, Math.min(W - pad.r - tw/2 - 2, ann.x));
-    const baseY = isAbove
-      ? pad.t - 8 - stagger          // labels live ABOVE pad.t line
-      : H - pad.b + 14 + stagger;   // labels live BELOW H-pad.b line
-    // Clamp so labels never escape the canvas
-    const clampedBaseY = isAbove
-      ? Math.max(fontSize + 2, baseY)
-      : Math.min(H - 2, baseY);
-    const tickEndY = isAbove ? pad.t : H - pad.b; // tick stops at chart boundary
+    const x = Math.max(pad.l + 4, Math.min(W - pad.r - 4, ann.x));
+    const tickEndY = isAbove ? pad.t : H - pad.b;
 
-    // Dot on line — bigger if hovered
+    // Dot on line
     const dotR = isHovered ? 6 : 4;
     ctx.beginPath(); ctx.arc(x, dotY, dotR, 0, Math.PI * 2);
     ctx.fillStyle = col;
-    if (isHovered) { ctx.globalAlpha = 1; ctx.fill(); ctx.strokeStyle = 'white'; ctx.lineWidth = 1.5; ctx.stroke(); }
+    if (isHovered) { ctx.fill(); ctx.strokeStyle = 'white'; ctx.lineWidth = 1.5; ctx.stroke(); }
     else { ctx.fill(); ctx.strokeStyle = 'rgba(0,0,0,.5)'; ctx.lineWidth = 1.2; ctx.stroke(); }
     ctx.globalAlpha = 1;
 
-    // Dotted tick
-    ctx.strokeStyle = col; ctx.globalAlpha = isHovered ? 0.7 : 0.4; ctx.lineWidth = 1; ctx.setLineDash([2, 3]);
+    // Dotted tick to label zone boundary
+    ctx.strokeStyle = col; ctx.globalAlpha = 0.4; ctx.lineWidth = 1; ctx.setLineDash([2, 3]);
     ctx.beginPath(); ctx.moveTo(x, isAbove ? dotY - 4 : dotY + 4); ctx.lineTo(x, tickEndY);
     ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1;
 
-    // OG marker — grey text
-    if (ann.isOG ?? false) { ctx.fillStyle = 'rgba(255,120,120,0.85)'; }
-    else { ctx.fillStyle = isHovered ? 'white' : col; }
-
-    // Background pill — always show for readability
-    ctx.font = `bold ${fontSize}px Barlow Condensed, sans-serif`;
-    ctx.fillStyle = 'rgba(8,16,10,0.82)';
-    const px = x - tw/2 - 3, py = clampedBaseY - fontSize, pw = tw + 6, ph = fontSize + 2;
-    if (ctx.roundRect) ctx.roundRect(px, py, pw, ph, 3); else ctx.rect(px, py, pw, ph);
-    ctx.fill();
-
+    // Angled label — rotated 45° outward from centreline
+    ctx.save();
+    const labelFontSize = Math.max(7, fontSize - 1);
+    ctx.font = `${isHovered ? 'bold ' : ''}${labelFontSize}px Barlow Condensed, sans-serif`;
+    const angle = isAbove ? -Math.PI / 4 : Math.PI / 4; // 45° up for A, 45° down for B
+    ctx.translate(x, tickEndY + (isAbove ? -3 : 3));
+    ctx.rotate(angle);
+    // Background pill
+    const lw = ctx.measureText(label).width;
+    ctx.fillStyle = isHovered ? 'rgba(8,16,10,0.95)' : 'rgba(8,16,10,0.78)';
+    ctx.fillRect(-2, -labelFontSize - 1, lw + 4, labelFontSize + 3);
+    // Text
     ctx.fillStyle = (ann.isOG ?? false) ? 'rgba(255,150,150,0.9)' : (isHovered ? 'white' : col);
-    ctx.textAlign = 'center';
-    ctx.fillText(label, x, clampedBaseY);
-
-    // Assister
-    if (assister) {
-      ctx.font = `${Math.max(7, fontSize - 1)}px Barlow Condensed, sans-serif`;
-      ctx.fillStyle = col; ctx.globalAlpha = 0.6;
-      ctx.fillText(`(${assister})`, x, isAbove ? clampedBaseY - 11 : clampedBaseY + 11);
-      ctx.globalAlpha = 1;
-    }
-
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillText(label, 0, 0);
     // Underline if YT clickable
     if (hasYt) {
-      ctx.strokeStyle = isHovered ? 'white' : col; ctx.globalAlpha = isHovered ? 0.8 : 0.5; ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(x - tw/2, clampedBaseY + 1); ctx.lineTo(x + tw/2, clampedBaseY + 1); ctx.stroke();
+      ctx.strokeStyle = col; ctx.globalAlpha = 0.5; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(0, 2); ctx.lineTo(lw, 2); ctx.stroke();
       ctx.globalAlpha = 1;
     }
+    ctx.restore();
 
-    return { x, y: clampedBaseY, w: tw, dotY };
+    return { x, y: tickEndY + (isAbove ? -3 : 3), w: lw, dotY };
   };
 
   // Draw non-hovered first, hovered on top
@@ -8452,124 +8434,95 @@ function renderProfileHeatmap(name, hmapType) {
       hmapTip.style.opacity = '0';
       const isAssist = heatCanvas._hmapType === 'assist';
 
-      // For assists: draw assist pill → solid line → scorer's goal pill → dashed line → goal
+      // For assists: overlay canvas approach — clean separate context, no state issues
       if (isAssist && hit.shots.length > 0) {
-        hmapRender(heatCanvas, heatCanvas._currentShots || [], {
-          width: heatCanvas._hmapW || heatCanvas.offsetWidth,
-          markerType: 'assist',
-          pillSize: window._hmapPillSize ?? 0.85,
-          showNumbers: window._hmapShowNumbers ?? true,
-        });
-        const ctx = heatCanvas.getContext('2d');
+        let overlay = document.getElementById('assist-ov-' + heatCanvas.id);
+        if (!overlay) {
+          overlay = document.createElement('canvas');
+          overlay.id = 'assist-ov-' + heatCanvas.id;
+          overlay.style.cssText = 'position:absolute;top:0;left:0;pointer-events:none;border-radius:10px';
+          heatCanvas.parentElement.style.position = 'relative';
+          heatCanvas.parentElement.appendChild(overlay);
+        }
         const dpr = window.devicePixelRatio || 1;
         const W = heatCanvas._hmapW || heatCanvas.offsetWidth;
         const H = heatCanvas._hmapH || Math.round(W * 0.52);
-        // Note: hmapRender already called ctx.scale(dpr,dpr) — do NOT scale again
+        overlay.width = W * dpr; overlay.height = H * dpr;
+        overlay.style.width = W + 'px'; overlay.style.height = H + 'px';
+        const ctx = overlay.getContext('2d');
+        ctx.scale(dpr, dpr);
 
-        // Goal rect geometry (matches hmapDrawCourt)
-        const goalH  = H * 0.22;
-        const goalD  = W * 0.02;
-        const goalFaceX  = W - 3 - goalD;
-        const goalTopY   = H / 2 - goalH / 2;
+        const goalH = H * 0.22, goalD = W * 0.02;
+        const goalFaceX = W - 3 - goalD;
+        const goalTopY = H / 2 - goalH / 2;
+        const pillR = Math.max(10, W * 0.030) * (window._hmapPillSize ?? 0.85);
 
         hit.shots.forEach(s => {
-          const ax = hit.px; // assist pill cluster centre
-          const ay = hit.py;
+          const ax = hit.px, ay = hit.py;
 
-          // Find scorer's shot position — try multiple sources
           let scorerSx = s.scorerSx, scorerSy = s.scorerSy;
-          if (scorerSx === null || scorerSx === undefined || scorerSy === null || scorerSy === undefined) {
-            // 1. goalCombos shotShots
-            const allGoalShots = heatCanvas._shotShots || [];
-            const gsMatch = allGoalShots.find(g => g.scorer === s.scorer && g.mid === s.mid);
-            if (gsMatch && gsMatch.sx !== null && gsMatch.sx !== undefined) {
-              scorerSx = gsMatch.sx; scorerSy = gsMatch.sy;
-            } else {
-              // 2. Search event log — try multiple possible mid key formats
+          if (scorerSx == null || scorerSy == null) {
+            const gs = (heatCanvas._shotShots || []).find(g => g.scorer === s.scorer && g.mid === s.mid);
+            if (gs?.sx != null) { scorerSx = gs.sx; scorerSy = gs.sy; }
+            else {
               try {
                 const logs = JSON.parse(localStorage.getItem('aero_event_logs') || '{}');
-                const toSecsL = t => { if (!t) return 0; const p = String(t).split(':'); return parseFloat(p[0]||0)*60 + parseFloat(p[1]||0); };
-                const sSecs = toSecsL(s.time);
-                const date = (s.mid || '').split('#')[0];
-                const candidates = [logs[s.mid], logs[date + '#1'],
-                  ...Object.values(logs).filter(l => l.date === date)].filter(Boolean);
-                for (const log of candidates) {
-                  if (!log.events) continue;
-                  const evGoal = log.events.find(e =>
-                    e.event === 'Goals' && e.player === s.scorer &&
-                    e.shotX !== null && e.shotX !== undefined &&
-                    (sSecs === 0 || Math.abs((e.tsSecsRaw || toSecsL(e.ts) || 0) - sSecs) < 8)
-                  );
-                  if (evGoal) { scorerSx = evGoal.shotX; scorerSy = evGoal.shotY; break; }
+                const toS = t => { if (!t) return 0; const p = String(t).split(':'); return parseFloat(p[0]||0)*60+parseFloat(p[1]||0); };
+                const sSecs = toS(s.time);
+                const date = (s.mid||'').split('#')[0];
+                const cands = [logs[s.mid], logs[date+'#1'], ...Object.values(logs).filter(l=>l.date===date)].filter(Boolean);
+                for (const log of cands) {
+                  const ev = (log.events||[]).find(e => e.event==='Goals' && e.player===s.scorer && e.shotX!=null && Math.abs((e.tsSecsRaw||toS(e.ts)||0)-sSecs)<8);
+                  if (ev) { scorerSx=ev.shotX; scorerSy=ev.shotY; break; }
                 }
-              } catch(ex) {}
+              } catch(e) {}
             }
           }
 
-          // netX for goal target height on court
           const netX = s.netX ?? 0.5;
           const targetY = goalTopY + Math.max(0, Math.min(1, netX)) * goalH;
 
-          if (scorerSx !== null && scorerSx !== undefined && scorerSy !== null && scorerSy !== undefined) {
-            // Full 3-step: assist pill → scorer goal pill → goal face
-            const gx = scorerSx * W;
-            const gy = scorerSy * H;
-
-            // 1. Solid amber line: assist pill → scorer goal pill
-            ctx.save();
-            ctx.strokeStyle = 'rgba(251,191,36,0.75)';
-            ctx.lineWidth = 2.5;
+          if (scorerSx != null && scorerSy != null) {
+            const gx = scorerSx * W, gy = scorerSy * H;
+            // 1. Amber line: assist pill → scorer pill
+            ctx.strokeStyle = 'rgba(251,191,36,0.8)'; ctx.lineWidth = 2.5;
             ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(gx, gy); ctx.stroke();
-            ctx.restore();
-
-            // 2. Scorer goal pill — match the heatmap pill size
-            const clusters = heatCanvas._hmapClusters || [];
-            const clusterR = (heatCanvas._hmapW || W) * 0.045; // same radius as hmapRender
-            const pillR = Math.max(14, clusterR);
-            // Outer glow
-            ctx.beginPath(); ctx.arc(gx, gy, pillR + 6, 0, Math.PI * 2);
-            ctx.fillStyle = 'rgba(57,211,83,.18)'; ctx.fill();
-            ctx.beginPath(); ctx.arc(gx, gy, pillR + 6, 0, Math.PI * 2);
-            ctx.strokeStyle = 'rgba(57,211,83,.8)'; ctx.lineWidth = 2; ctx.stroke();
-            // Pill fill
-            ctx.beginPath(); ctx.arc(gx, gy, pillR, 0, Math.PI * 2);
-            ctx.fillStyle = '#4ade80'; ctx.globalAlpha = 0.9; ctx.fill(); ctx.globalAlpha = 1;
-            ctx.strokeStyle = 'rgba(0,0,0,.5)'; ctx.lineWidth = 1.5; ctx.stroke();
-            // "G" label
-            ctx.fillStyle = '#071009';
-            ctx.font = `bold ${Math.round(pillR * 0.9)}px Barlow Condensed, sans-serif`;
-            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            // Arrow tip
+            const ang = Math.atan2(gy-ay, gx-ax);
+            ctx.fillStyle = 'rgba(251,191,36,0.8)';
+            ctx.beginPath(); ctx.moveTo(gx,gy);
+            ctx.lineTo(gx-10*Math.cos(ang-0.38),gy-10*Math.sin(ang-0.38));
+            ctx.lineTo(gx-10*Math.cos(ang+0.38),gy-10*Math.sin(ang+0.38));
+            ctx.closePath(); ctx.fill();
+            // 2. Scorer pill (green)
+            ctx.beginPath(); ctx.arc(gx, gy, pillR+5, 0, Math.PI*2);
+            ctx.fillStyle='rgba(57,211,83,.15)'; ctx.fill();
+            ctx.strokeStyle='rgba(57,211,83,.8)'; ctx.lineWidth=1.5; ctx.stroke();
+            ctx.beginPath(); ctx.arc(gx, gy, pillR, 0, Math.PI*2);
+            ctx.fillStyle='#4ade80'; ctx.globalAlpha=0.92; ctx.fill(); ctx.globalAlpha=1;
+            ctx.strokeStyle='rgba(0,0,0,.4)'; ctx.lineWidth=1.2; ctx.stroke();
+            ctx.fillStyle='#071009'; ctx.textAlign='center'; ctx.textBaseline='middle';
+            ctx.font=`bold ${Math.round(pillR*0.9)}px Barlow Condensed,sans-serif`;
             ctx.fillText('G', gx, gy);
-
-            // 3. Dashed green line: scorer pill → goal face
-            ctx.save();
-            ctx.setLineDash([5, 4]);
-            ctx.strokeStyle = '#4ade80'; ctx.globalAlpha = 0.6; ctx.lineWidth = 1.5;
-            ctx.beginPath(); ctx.moveTo(gx, gy); ctx.lineTo(goalFaceX, targetY); ctx.stroke();
-            ctx.restore();
-
+            // 3. Dashed line: scorer → goal
+            ctx.setLineDash([5,4]); ctx.strokeStyle='rgba(57,211,83,0.6)'; ctx.globalAlpha=0.7; ctx.lineWidth=1.5;
+            ctx.beginPath(); ctx.moveTo(gx,gy); ctx.lineTo(goalFaceX,targetY); ctx.stroke();
+            ctx.setLineDash([]); ctx.globalAlpha=1;
           } else {
-            // No scorer pin — draw dashed line directly from assist pill to goal
-            ctx.save();
-            ctx.setLineDash([5, 4]);
-            ctx.strokeStyle = 'rgba(251,191,36,0.6)';
-            ctx.lineWidth = 1.5;
-            ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(goalFaceX, targetY); ctx.stroke();
-            ctx.restore();
+            // Fallback: dashed amber line assist → goal
+            ctx.setLineDash([5,4]); ctx.strokeStyle='rgba(251,191,36,0.6)'; ctx.lineWidth=1.5;
+            ctx.beginPath(); ctx.moveTo(ax,ay); ctx.lineTo(goalFaceX,targetY); ctx.stroke();
+            ctx.setLineDash([]);
           }
-
-          // Goal target marker on court
-          ctx.save();
-          ctx.globalAlpha = 0.9;
-          ctx.fillStyle = '#4ade80';
-          ctx.beginPath(); ctx.arc(goalFaceX, targetY, 5, 0, Math.PI * 2); ctx.fill();
-          ctx.strokeStyle = 'rgba(0,0,0,.5)'; ctx.lineWidth = 1.2;
-          ctx.beginPath(); ctx.arc(goalFaceX, targetY, 5, 0, Math.PI * 2); ctx.stroke();
-          ctx.restore();
-        }); // end hit.shots.forEach
-
-      } // end if (isAssist)
-
+          // Goal target dot
+          ctx.beginPath(); ctx.arc(goalFaceX, targetY, 5, 0, Math.PI*2);
+          ctx.fillStyle='#4ade80'; ctx.globalAlpha=0.9; ctx.fill(); ctx.globalAlpha=1;
+        });
+      } else {
+        // Clear overlay when not in assist mode or clicking elsewhere
+        const overlay = document.getElementById('assist-ov-' + heatCanvas.id);
+        if (overlay) overlay.getContext('2d').clearRect(0, 0, overlay.width, overlay.height);
+      }
       const card = document.createElement('div');
       card.id = 'hmap-goal-card';
       card.style.cssText = 'position:fixed;z-index:9998;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px 16px;font-family:"Barlow Condensed",sans-serif;box-shadow:0 8px 32px rgba(0,0,0,.7);min-width:200px;max-width:280px';
