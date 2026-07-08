@@ -9081,6 +9081,12 @@ function initShotMap(safeName, allGoalData, allAssistData) {
           }
         });
         ctx.restore();
+
+        // Redraw assist connection if one is selected
+        if (mode === 'assists' && cv._selectedAssist != null && pitchData[cv._selectedAssist]) {
+          const g = pitchData[cv._selectedAssist];
+          drawAssistConnection(ctx, g, W, H);
+        }
       };
 
       const getHit = (ev) => {
@@ -9130,72 +9136,59 @@ function initShotMap(safeName, allGoalData, allAssistData) {
         tip.style.opacity = '0'; cv.style.cursor = 'crosshair';
       });
 
+      // Helper: draw assist → scorer → goal connection
+      const drawAssistConnection = (ctx, g, W, H) => {
+        const goalH = H * 0.22, goalD = W * 0.02;
+        const goalFaceX = W - 3 - goalD;
+        const goalTopY = H / 2 - goalH / 2;
+        const pillR = Math.max(10, W * 0.025);
+        const ax = g.sx * W, ay = g.sy * H;
+        let scorerSx = g.scorerSx, scorerSy = g.scorerSy;
+        if (scorerSx == null) {
+          Object.values(goalCombos).forEach(md => ['h1','h2'].forEach(hk => (md[hk]||[]).forEach(e => {
+            if (e.assister === g.assister && e.scorer === g.scorer && e.sx != null && scorerSx == null) {
+              scorerSx = e.sx; scorerSy = e.sy;
+            }
+          })));
+        }
+        const netX = g.netX ?? 0.5;
+        const targetY = goalTopY + Math.max(0, Math.min(1, netX)) * goalH;
+        if (scorerSx != null) {
+          const gx = scorerSx * W, gy = scorerSy * H;
+          ctx.strokeStyle = 'rgba(251,191,36,0.85)'; ctx.lineWidth = 2.5;
+          ctx.beginPath(); ctx.moveTo(ax,ay); ctx.lineTo(gx,gy); ctx.stroke();
+          const ang = Math.atan2(gy-ay,gx-ax);
+          ctx.fillStyle='rgba(251,191,36,0.85)';
+          ctx.beginPath(); ctx.moveTo(gx,gy);
+          ctx.lineTo(gx-10*Math.cos(ang-0.38),gy-10*Math.sin(ang-0.38));
+          ctx.lineTo(gx-10*Math.cos(ang+0.38),gy-10*Math.sin(ang+0.38));
+          ctx.closePath(); ctx.fill();
+          ctx.beginPath(); ctx.arc(gx,gy,pillR+4,0,Math.PI*2); ctx.fillStyle='rgba(57,211,83,.15)'; ctx.fill();
+          ctx.strokeStyle='rgba(57,211,83,.8)'; ctx.lineWidth=1.5; ctx.stroke();
+          ctx.beginPath(); ctx.arc(gx,gy,pillR,0,Math.PI*2); ctx.fillStyle='#4ade80'; ctx.globalAlpha=0.92; ctx.fill(); ctx.globalAlpha=1;
+          ctx.strokeStyle='rgba(0,0,0,.4)'; ctx.lineWidth=1.2; ctx.stroke();
+          ctx.fillStyle='#071009'; ctx.textAlign='center'; ctx.textBaseline='middle';
+          ctx.font=`bold ${Math.round(pillR*0.9)}px Barlow Condensed,sans-serif`;
+          ctx.fillText('G',gx,gy);
+          ctx.setLineDash([5,4]); ctx.strokeStyle='rgba(57,211,83,0.6)'; ctx.globalAlpha=0.7; ctx.lineWidth=1.5;
+          ctx.beginPath(); ctx.moveTo(gx,gy); ctx.lineTo(goalFaceX,targetY); ctx.stroke();
+          ctx.setLineDash([]); ctx.globalAlpha=1;
+        } else {
+          ctx.setLineDash([5,4]); ctx.strokeStyle='rgba(251,191,36,0.6)'; ctx.lineWidth=1.5;
+          ctx.beginPath(); ctx.moveTo(ax,ay); ctx.lineTo(goalFaceX,targetY); ctx.stroke();
+          ctx.setLineDash([]);
+        }
+        ctx.beginPath(); ctx.arc(goalFaceX,targetY,5,0,Math.PI*2);
+        ctx.fillStyle='#4ade80'; ctx.globalAlpha=0.9; ctx.fill(); ctx.globalAlpha=1;
+      };
+
       cv.addEventListener('click', ev => {
         const hit = getHit(ev);
         if (hit >= 0) {
           selectedP = hit;
           tip.style.opacity = '0';
+          if (mode === 'assists') cv._selectedAssist = hit; else cv._selectedAssist = null;
           drawPitch(lastHitP, selectedP);
-
-          // In assists mode, draw scorer connection on top of the pitch
-          if (mode === 'assists') {
-            const g = pitchData[hit];
-            const dpr = window.devicePixelRatio || 1;
-            const W = cv._logW || cv.offsetWidth;
-            const H = cv._logH || Math.round(W * 0.52);
-            const ctx = cv.getContext('2d');
-            // ctx already scaled by drawPitch — draw in logical coords
-            const goalH = H * 0.22, goalD = W * 0.02;
-            const goalFaceX = W - 3 - goalD;
-            const goalTopY = H / 2 - goalH / 2;
-            const pillR = Math.max(10, W * 0.025);
-            const ax = g.sx * W, ay = g.sy * H; // assist origin
-            let scorerSx = g.scorerSx, scorerSy = g.scorerSy;
-            // Look up scorer position if not on entry
-            if (scorerSx == null) {
-              const gs = goalCombos;
-              Object.values(gs).forEach(md => ['h1','h2'].forEach(hk => (md[hk]||[]).forEach(e => {
-                if (e.assister === g.assister && e.scorer === g.scorer && e.sx != null) {
-                  scorerSx = e.sx; scorerSy = e.sy;
-                }
-              })));
-            }
-            const netX = g.netX ?? 0.5;
-            const targetY = goalTopY + Math.max(0, Math.min(1, netX)) * goalH;
-            if (scorerSx != null) {
-              const gx = scorerSx * W, gy = scorerSy * H;
-              // Amber line
-              ctx.strokeStyle = 'rgba(251,191,36,0.85)'; ctx.lineWidth = 2.5;
-              ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(gx, gy); ctx.stroke();
-              // Arrow
-              const ang = Math.atan2(gy-ay, gx-ax);
-              ctx.fillStyle = 'rgba(251,191,36,0.85)';
-              ctx.beginPath(); ctx.moveTo(gx,gy);
-              ctx.lineTo(gx-10*Math.cos(ang-0.38),gy-10*Math.sin(ang-0.38));
-              ctx.lineTo(gx-10*Math.cos(ang+0.38),gy-10*Math.sin(ang+0.38));
-              ctx.closePath(); ctx.fill();
-              // Scorer pill
-              ctx.beginPath(); ctx.arc(gx,gy,pillR+4,0,Math.PI*2); ctx.fillStyle='rgba(57,211,83,.15)'; ctx.fill();
-              ctx.strokeStyle='rgba(57,211,83,.8)'; ctx.lineWidth=1.5; ctx.stroke();
-              ctx.beginPath(); ctx.arc(gx,gy,pillR,0,Math.PI*2); ctx.fillStyle='#4ade80'; ctx.globalAlpha=0.92; ctx.fill(); ctx.globalAlpha=1;
-              ctx.strokeStyle='rgba(0,0,0,.4)'; ctx.lineWidth=1.2; ctx.stroke();
-              ctx.fillStyle='#071009'; ctx.textAlign='center'; ctx.textBaseline='middle';
-              ctx.font=`bold ${Math.round(pillR*0.9)}px Barlow Condensed,sans-serif`;
-              ctx.fillText('G',gx,gy);
-              // Dashed line to goal
-              ctx.setLineDash([5,4]); ctx.strokeStyle='rgba(57,211,83,0.6)'; ctx.globalAlpha=0.7; ctx.lineWidth=1.5;
-              ctx.beginPath(); ctx.moveTo(gx,gy); ctx.lineTo(goalFaceX,targetY); ctx.stroke();
-              ctx.setLineDash([]); ctx.globalAlpha=1;
-            } else {
-              ctx.setLineDash([5,4]); ctx.strokeStyle='rgba(251,191,36,0.6)'; ctx.lineWidth=1.5;
-              ctx.beginPath(); ctx.moveTo(ax,ay); ctx.lineTo(goalFaceX,targetY); ctx.stroke();
-              ctx.setLineDash([]);
-            }
-            // Goal dot
-            ctx.beginPath(); ctx.arc(goalFaceX,targetY,5,0,Math.PI*2);
-            ctx.fillStyle='#4ade80'; ctx.globalAlpha=0.9; ctx.fill(); ctx.globalAlpha=1;
-          }
-
           showDetail(pitchData[hit]);
         }
       });
