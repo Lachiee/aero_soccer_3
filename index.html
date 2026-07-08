@@ -5002,11 +5002,13 @@ function drawMomentumGraph(canvasId, matchId) {
 
   const drawAnnotation = (ann, isHovered) => {
     const { dotY, col, isAbove, label, hasYt, stagger } = ann;
-    const tw = ann.tw || ctx.measureText(label).width;
+    const lFontSize = Math.max(10, fontSize + 1);
+    ctx.font = `${isHovered ? 'bold ' : ''}${lFontSize}px Barlow Condensed, sans-serif`;
+    const tw = ctx.measureText(label).width;
     const x = Math.max(pad.l + 4, Math.min(W - pad.r - 4, ann.x));
     const tickEndY = isAbove ? pad.t : H - pad.b;
 
-    // Dot on line
+    // Dot on worm line
     const dotR = isHovered ? 6 : 4;
     ctx.beginPath(); ctx.arc(x, dotY, dotR, 0, Math.PI * 2);
     ctx.fillStyle = col;
@@ -5014,36 +5016,45 @@ function drawMomentumGraph(canvasId, matchId) {
     else { ctx.fill(); ctx.strokeStyle = 'rgba(0,0,0,.5)'; ctx.lineWidth = 1.2; ctx.stroke(); }
     ctx.globalAlpha = 1;
 
-    // Dotted tick to label zone boundary
+    // Dotted tick
     ctx.strokeStyle = col; ctx.globalAlpha = 0.4; ctx.lineWidth = 1; ctx.setLineDash([2, 3]);
     ctx.beginPath(); ctx.moveTo(x, isAbove ? dotY - 4 : dotY + 4); ctx.lineTo(x, tickEndY);
     ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1;
 
-    // Angled label — rotated 45° outward from centreline
+    // Angled label
     ctx.save();
-    const labelFontSize = Math.max(9, fontSize);
-    ctx.font = `${isHovered ? 'bold ' : ''}${labelFontSize}px Barlow Condensed, sans-serif`;
-    const angle = isAbove ? -Math.PI / 4 : Math.PI / 4; // 45° up for A, 45° down for B
+    const angle = isAbove ? -Math.PI / 4 : Math.PI / 4;
     ctx.translate(x, tickEndY + (isAbove ? -3 : 3));
     ctx.rotate(angle);
-    // Background pill
-    const lw = ctx.measureText(label).width;
-    ctx.fillStyle = isHovered ? 'rgba(8,16,10,0.95)' : 'rgba(8,16,10,0.78)';
-    ctx.fillRect(-2, -labelFontSize - 1, lw + 4, labelFontSize + 3);
+
+    const pillPad = 4, pillW = tw + pillPad * 2, pillH = lFontSize + pillPad;
+    // Pill background
+    ctx.fillStyle = isHovered
+      ? (col === '#39d353' ? 'rgba(15,40,20,0.97)' : col === '#60a5fa' ? 'rgba(15,25,50,0.97)' : 'rgba(60,15,15,0.97)')
+      : 'rgba(8,16,10,0.85)';
+    if (ctx.roundRect) ctx.roundRect(-pillPad, -lFontSize, pillW, pillH, 4);
+    else ctx.rect(-pillPad, -lFontSize, pillW, pillH);
+    ctx.fill();
+    // Pill border on hover
+    if (isHovered) {
+      ctx.strokeStyle = col; ctx.globalAlpha = 0.7; ctx.lineWidth = 1.2;
+      if (ctx.roundRect) ctx.roundRect(-pillPad, -lFontSize, pillW, pillH, 4);
+      else ctx.rect(-pillPad, -lFontSize, pillW, pillH);
+      ctx.stroke(); ctx.globalAlpha = 1;
+    }
     // Text
-    ctx.fillStyle = (ann.isOG ?? false) ? 'rgba(255,150,150,0.9)' : (isHovered ? 'white' : col);
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'alphabetic';
+    ctx.fillStyle = (ann.isOG ?? false) ? '#fca5a5' : (isHovered ? 'white' : col);
+    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
     ctx.fillText(label, 0, 0);
-    // Underline if YT clickable
+    // Full underline if YT clickable
     if (hasYt) {
-      ctx.strokeStyle = col; ctx.globalAlpha = 0.5; ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(0, 2); ctx.lineTo(lw, 2); ctx.stroke();
+      ctx.strokeStyle = isHovered ? 'white' : col;
+      ctx.globalAlpha = isHovered ? 0.85 : 0.55; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(-pillPad, 2); ctx.lineTo(tw + pillPad, 2); ctx.stroke();
       ctx.globalAlpha = 1;
     }
     ctx.restore();
-
-    return { x, y: tickEndY + (isAbove ? -3 : 3), w: lw, dotY };
+    return { x, y: tickEndY + (isAbove ? -3 : 3), w: tw, dotY };
   };
 
   // Draw non-hovered first, hovered on top
@@ -5087,7 +5098,7 @@ function drawMomentumGraph(canvasId, matchId) {
     if (!momTip) {
       momTip = document.createElement('div');
       momTip.id = 'mom-score-tip';
-      momTip.style.cssText = 'position:fixed;z-index:9999;background:#0d1a0f;border:1px solid rgba(57,211,83,.3);border-radius:7px;padding:5px 10px;font-family:"Barlow Condensed",sans-serif;pointer-events:none;opacity:0;transition:opacity .1s;font-size:.75rem;line-height:1.5;box-shadow:0 4px 16px rgba(0,0,0,.7)';
+      momTip.style.cssText = 'position:fixed;z-index:9999;background:rgba(8,20,12,0.95);border:1px solid rgba(57,211,83,.35);border-radius:10px;padding:8px 14px;font-family:"Barlow Condensed",sans-serif;pointer-events:none;opacity:0;transition:opacity .08s;box-shadow:0 4px 20px rgba(0,0,0,.8);min-width:70px';
       document.body.appendChild(momTip);
     }
 
@@ -5120,9 +5131,9 @@ function drawMomentumGraph(canvasId, matchId) {
       }
 
       // Score tooltip from X position
-      const pad = cv._momPad;
-      if (mx >= pad.l && mx <= cv._momW - pad.r) {
-        const t = (mx - pad.l) / (cv._momW - pad.l - pad.r) * cv._momMatchDur;
+      const pad2 = cv._momPad;
+      if (pad2 && mx >= pad2.l && mx <= cv._momW - pad2.r) {
+        const t = (mx - pad2.l) / (cv._momW - pad2.l - pad2.r) * cv._momMatchDur;
         let sA = 0, sB = 0;
         (cv._momRows || []).forEach(r => {
           const abs = r.absSecs != null ? r.absSecs : r.secs;
@@ -5131,10 +5142,20 @@ function drawMomentumGraph(canvasId, matchId) {
         const tip = document.getElementById('mom-score-tip');
         if (tip) {
           const mins = Math.floor(t / 60);
-          tip.innerHTML = `<span style="color:rgba(255,255,255,.5);font-size:.65rem">${mins}'</span> <span style="color:#39d353;font-weight:700">${sA}</span><span style="color:rgba(255,255,255,.4)"> – </span><span style="color:#60a5fa;font-weight:700">${sB}</span>`;
+          const fA = window._wormData?.[cv._momMatchKey?.replace(/_/g,'#')]?.fA || 'A';
+          const fB = window._wormData?.[cv._momMatchKey?.replace(/_/g,'#')]?.fB || 'B';
+          tip.innerHTML =
+            `<div style="font-size:.6rem;color:rgba(255,255,255,.4);letter-spacing:.5px;margin-bottom:4px">${mins}'</div>` +
+            `<div style="display:flex;align-items:center;gap:8px;font-family:'Bebas Neue',sans-serif;font-size:1.4rem;line-height:1">` +
+            `<span style="color:#39d353">${sA}</span>` +
+            `<span style="color:rgba(255,255,255,.3);font-size:.9rem">–</span>` +
+            `<span style="color:#60a5fa">${sB}</span>` +
+            `</div>` +
+            `<div style="display:flex;justify-content:space-between;gap:12px;font-size:.6rem;color:rgba(255,255,255,.35);margin-top:2px">` +
+            `<span>${fA}</span><span>${fB}</span></div>`;
           tip.style.opacity = '1';
-          tip.style.left = (ev.clientX + 12) + 'px';
-          tip.style.top = (ev.clientY - 16) + 'px';
+          tip.style.left = (ev.clientX + 14) + 'px';
+          tip.style.top = (ev.clientY - 48) + 'px';
         }
       }
     });
@@ -8540,17 +8561,13 @@ function renderProfileHeatmap(name, hmapType) {
           showNumbers: window._hmapShowNumbers ?? true,
         });
 
-        // hmapRender already called ctx.scale(dpr,dpr) — draw directly on top
+        // hmapRender resets canvas.width which clears the transform — reapply scale
+        const dpr = window.devicePixelRatio || 1;
         const ctx = heatCanvas.getContext('2d');
+        ctx.scale(dpr, dpr);
+
         const W = heatCanvas._hmapW || heatCanvas.offsetWidth;
         const H = heatCanvas._hmapH || Math.round(W * 0.52);
-
-        // TEST: draw a bright red cross at canvas centre to confirm drawing works
-        ctx.save();
-        ctx.strokeStyle = 'red'; ctx.lineWidth = 4;
-        ctx.beginPath(); ctx.moveTo(W/2-20, H/2); ctx.lineTo(W/2+20, H/2); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(W/2, H/2-20); ctx.lineTo(W/2, H/2+20); ctx.stroke();
-        ctx.restore();
 
         const goalH = H * 0.22, goalD = W * 0.02;
         const goalFaceX = W - 3 - goalD;
