@@ -5133,10 +5133,9 @@ function drawMomentumGraph(canvasId, matchId) {
 
       if (hovIdx !== cv._momLastHover) {
         cv._momLastHover = hovIdx;
-        if (hovIdx >= 0) {
-          const mid = Object.keys(window._wormData||{}).find(k=>k.replace(/[#,]/g,'_')===cv.id.replace('timeline-',''));
-          if (mid) drawMomentumGraph(cv.id, mid);
-        }
+        // Redraw graph so hovered annotation renders on top
+        const mid2 = Object.keys(window._wormData||{}).find(k=>k.replace(/[#,]/g,'_')===cv.id.replace('timeline-',''));
+        if (mid2) drawMomentumGraph(cv.id, mid2);
         cv.style.cursor = (hovIdx >= 0 && tgts[hovIdx]?.hasYt) ? 'pointer' : 'default';
       }
 
@@ -8593,102 +8592,89 @@ function renderProfileHeatmap(name, hmapType) {
       hmapTip.style.opacity = '0';
       const isAssist = heatCanvas._hmapType === 'assist';
 
-      // For assists: draw directly on heatCanvas after hmapRender resets it
+      // For assists: draw on a dedicated overlay canvas (never wiped by hmapRender)
       if (isAssist && hit.shots.length > 0) {
-        // Re-render the heatmap first so we have a clean canvas
-        hmapRender(heatCanvas, heatCanvas._currentShots || [], {
-          width: heatCanvas._hmapW || heatCanvas.offsetWidth,
-          markerType: 'assist',
-          pillSize: window._hmapPillSize ?? 0.85,
-          showNumbers: window._hmapShowNumbers ?? true,
-        });
+        const ov = document.getElementById('profile-heatmap-overlay');
+        if (ov) {
+          const dpr = window.devicePixelRatio || 1;
+          const W = heatCanvas._hmapW || heatCanvas.offsetWidth;
+          const H = heatCanvas._hmapH || Math.round(W * 0.52);
+          ov.width = Math.round(W * dpr);
+          ov.height = Math.round(H * dpr);
+          ov.style.display = 'block';
+          const ctx = ov.getContext('2d');
+          ctx.clearRect(0, 0, ov.width, ov.height);
+          ctx.scale(dpr, dpr);
 
-        // Store drawing function so hover renders can re-apply it
-        heatCanvas._assistDraw = () => {
-        const dpr = window.devicePixelRatio || 1;
-        const ctx = heatCanvas.getContext('2d');
-        ctx.scale(dpr, dpr);
-        const W = heatCanvas._hmapW || heatCanvas.offsetWidth;
-        const H = heatCanvas._hmapH || Math.round(W * 0.52);
-        // UNMISSABLE TEST: fill entire canvas semi-transparent red
-        ctx.fillStyle = 'rgba(255,0,0,0.4)';
-        ctx.fillRect(0, 0, W, H);
+          const goalH = H * 0.22, goalD = W * 0.02;
+          const goalFaceX = W - 3 - goalD;
+          const goalTopY = H / 2 - goalH / 2;
+          const pillR = Math.max(10, W * 0.030) * (window._hmapPillSize ?? 0.85);
 
-        const goalH = H * 0.22, goalD = W * 0.02;
-        const goalFaceX = W - 3 - goalD;
-        const goalTopY  = H / 2 - goalH / 2;
-        const pillR = Math.max(10, W * 0.030) * (window._hmapPillSize ?? 0.85);
-
-        hit.shots.forEach(s => {
-          const ax = hit.px, ay = hit.py;
-
-          // Get scorer position
-          let scorerSx = s.scorerSx, scorerSy = s.scorerSy;
-          if (scorerSx == null || scorerSy == null) {
-            const gs = (heatCanvas._shotShots || []).find(g => g.scorer === s.scorer && g.mid === s.mid);
-            if (gs?.sx != null) { scorerSx = gs.sx; scorerSy = gs.sy; }
-            else {
-              try {
-                const logs = JSON.parse(localStorage.getItem('aero_event_logs') || '{}');
-                const toS = t => { if (!t) return 0; const p = String(t).split(':'); return parseFloat(p[0]||0)*60+parseFloat(p[1]||0); };
-                const sSecs = toS(s.time);
-                const date = (s.mid||'').split('#')[0];
-                const cands = [logs[s.mid], logs[date+'#1'], ...Object.values(logs).filter(l=>l.date===date)].filter(Boolean);
-                for (const log of cands) {
-                  const ev = (log.events||[]).find(e => e.event==='Goals' && e.player===s.scorer && e.shotX!=null && Math.abs((e.tsSecsRaw||toS(e.ts)||0)-sSecs)<8);
-                  if (ev) { scorerSx=ev.shotX; scorerSy=ev.shotY; break; }
-                }
-              } catch(e) {}
+          hit.shots.forEach(s => {
+            const ax = hit.px, ay = hit.py;
+            let scorerSx = s.scorerSx, scorerSy = s.scorerSy;
+            if (scorerSx == null || scorerSy == null) {
+              const gs = (heatCanvas._shotShots || []).find(g => g.scorer === s.scorer && g.mid === s.mid);
+              if (gs?.sx != null) { scorerSx = gs.sx; scorerSy = gs.sy; }
+              else {
+                try {
+                  const logs = JSON.parse(localStorage.getItem('aero_event_logs') || '{}');
+                  const toS = t => { if (!t) return 0; const p = String(t).split(':'); return parseFloat(p[0]||0)*60+parseFloat(p[1]||0); };
+                  const sSecs = toS(s.time);
+                  const date = (s.mid||'').split('#')[0];
+                  const cands = [logs[s.mid], logs[date+'#1'], ...Object.values(logs).filter(l=>l.date===date)].filter(Boolean);
+                  for (const log of cands) {
+                    const ev = (log.events||[]).find(e => e.event==='Goals' && e.player===s.scorer && e.shotX!=null && Math.abs((e.tsSecsRaw||toS(e.ts)||0)-sSecs)<8);
+                    if (ev) { scorerSx=ev.shotX; scorerSy=ev.shotY; break; }
+                  }
+                } catch(e) {}
+              }
             }
-          }
 
-          const netX = s.netX ?? 0.5;
-          const targetY = goalTopY + Math.max(0, Math.min(1, netX)) * goalH;
+            const netX = s.netX ?? 0.5;
+            const targetY = goalTopY + Math.max(0, Math.min(1, netX)) * goalH;
 
-          if (scorerSx != null && scorerSy != null) {
-            const gx = scorerSx * W, gy = scorerSy * H;
-            // 1. Amber line assist → scorer
-            ctx.strokeStyle = 'rgba(251,191,36,0.85)'; ctx.lineWidth = 2.5;
-            ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(gx, gy); ctx.stroke();
-            // Arrow tip
-            const ang = Math.atan2(gy-ay, gx-ax);
-            ctx.fillStyle = 'rgba(251,191,36,0.85)';
-            ctx.beginPath();
-            ctx.moveTo(gx, gy);
-            ctx.lineTo(gx-10*Math.cos(ang-0.38), gy-10*Math.sin(ang-0.38));
-            ctx.lineTo(gx-10*Math.cos(ang+0.38), gy-10*Math.sin(ang+0.38));
-            ctx.closePath(); ctx.fill();
-            // 2. Scorer pill glow
-            ctx.beginPath(); ctx.arc(gx, gy, pillR+5, 0, Math.PI*2);
-            ctx.fillStyle='rgba(57,211,83,.15)'; ctx.fill();
-            ctx.strokeStyle='rgba(57,211,83,.8)'; ctx.lineWidth=1.5; ctx.stroke();
-            // Scorer pill fill
-            ctx.beginPath(); ctx.arc(gx, gy, pillR, 0, Math.PI*2);
-            ctx.fillStyle='#4ade80'; ctx.globalAlpha=0.92; ctx.fill(); ctx.globalAlpha=1;
-            ctx.strokeStyle='rgba(0,0,0,.4)'; ctx.lineWidth=1.2; ctx.stroke();
-            ctx.fillStyle='#071009'; ctx.textAlign='center'; ctx.textBaseline='middle';
-            ctx.font=`bold ${Math.round(pillR*0.9)}px Barlow Condensed,sans-serif`;
-            ctx.fillText('G', gx, gy);
-            // 3. Dashed line scorer → goal
-            ctx.setLineDash([5,4]); ctx.strokeStyle='rgba(57,211,83,0.6)'; ctx.globalAlpha=0.7; ctx.lineWidth=1.5;
-            ctx.beginPath(); ctx.moveTo(gx,gy); ctx.lineTo(goalFaceX,targetY); ctx.stroke();
-            ctx.setLineDash([]); ctx.globalAlpha=1;
-          } else {
-            // Fallback: dashed amber line to goal
-            ctx.setLineDash([5,4]); ctx.strokeStyle='rgba(251,191,36,0.6)'; ctx.lineWidth=1.5;
-            ctx.beginPath(); ctx.moveTo(ax,ay); ctx.lineTo(goalFaceX,targetY); ctx.stroke();
-            ctx.setLineDash([]);
-          }
-          // Goal target dot
-          ctx.beginPath(); ctx.arc(goalFaceX, targetY, 5, 0, Math.PI*2);
-          ctx.fillStyle='#4ade80'; ctx.globalAlpha=0.9; ctx.fill(); ctx.globalAlpha=1;
-        }); // end forEach
-        }; // end _assistDraw
-        heatCanvas._assistDraw(); // call immediately
-
+            if (scorerSx != null && scorerSy != null) {
+              const gx = scorerSx * W, gy = scorerSy * H;
+              // 1. Amber line assist → scorer
+              ctx.strokeStyle = 'rgba(251,191,36,0.85)'; ctx.lineWidth = 2.5;
+              ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(gx, gy); ctx.stroke();
+              // Arrow tip
+              const ang = Math.atan2(gy-ay, gx-ax);
+              ctx.fillStyle = 'rgba(251,191,36,0.85)';
+              ctx.beginPath(); ctx.moveTo(gx,gy);
+              ctx.lineTo(gx-10*Math.cos(ang-0.38), gy-10*Math.sin(ang-0.38));
+              ctx.lineTo(gx-10*Math.cos(ang+0.38), gy-10*Math.sin(ang+0.38));
+              ctx.closePath(); ctx.fill();
+              // 2. Scorer pill glow
+              ctx.beginPath(); ctx.arc(gx, gy, pillR+5, 0, Math.PI*2);
+              ctx.fillStyle='rgba(57,211,83,.18)'; ctx.fill();
+              ctx.strokeStyle='rgba(57,211,83,.8)'; ctx.lineWidth=1.5; ctx.stroke();
+              // Scorer pill
+              ctx.beginPath(); ctx.arc(gx, gy, pillR, 0, Math.PI*2);
+              ctx.fillStyle='#4ade80'; ctx.globalAlpha=0.92; ctx.fill(); ctx.globalAlpha=1;
+              ctx.strokeStyle='rgba(0,0,0,.4)'; ctx.lineWidth=1.2; ctx.stroke();
+              ctx.fillStyle='#071009'; ctx.textAlign='center'; ctx.textBaseline='middle';
+              ctx.font=`bold ${Math.round(pillR*0.9)}px Barlow Condensed,sans-serif`;
+              ctx.fillText('G', gx, gy);
+              // 3. Dashed line scorer → goal
+              ctx.setLineDash([5,4]); ctx.strokeStyle='rgba(57,211,83,0.6)'; ctx.globalAlpha=0.7; ctx.lineWidth=1.5;
+              ctx.beginPath(); ctx.moveTo(gx,gy); ctx.lineTo(goalFaceX,targetY); ctx.stroke();
+              ctx.setLineDash([]); ctx.globalAlpha=1;
+            } else {
+              ctx.setLineDash([5,4]); ctx.strokeStyle='rgba(251,191,36,0.6)'; ctx.lineWidth=1.5;
+              ctx.beginPath(); ctx.moveTo(ax,ay); ctx.lineTo(goalFaceX,targetY); ctx.stroke();
+              ctx.setLineDash([]);
+            }
+            // Goal dot
+            ctx.beginPath(); ctx.arc(goalFaceX, targetY, 5, 0, Math.PI*2);
+            ctx.fillStyle='#4ade80'; ctx.globalAlpha=0.9; ctx.fill(); ctx.globalAlpha=1;
+          });
+        }
       } else {
-        heatCanvas._assistDraw = null;
-        document.getElementById('assist-ov-global')?.remove();
+        const ov = document.getElementById('profile-heatmap-overlay');
+        if (ov) { ov.style.display='none'; ov.getContext('2d').clearRect(0,0,ov.width,ov.height); }
       }
       const card = document.createElement('div');
       card.id = 'hmap-goal-card';
@@ -9886,7 +9872,10 @@ function renderProfile(name) {
             <div style="color:var(--muted);font-size:.7rem;padding:30px 0;text-align:center;opacity:.5">Click a goal to see details</div>
           </div>
         </div>
-        <canvas id="profile-heatmap" width="400" height="208" style="display:none;width:100%;border-radius:10px;background:#1a7a32;margin-top:8px"></canvas>
+        <div style="position:relative;display:inline-block;width:100%;margin-top:8px">
+          <canvas id="profile-heatmap" width="400" height="208" style="display:none;width:100%;border-radius:10px;background:#1a7a32;display:block"></canvas>
+          <canvas id="profile-heatmap-overlay" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;border-radius:10px;display:none"></canvas>
+        </div>
         <div id="profile-heatmap-stats" style="display:none;margin-top:12px"></div>
       </div>`;
     })()}
