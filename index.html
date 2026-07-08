@@ -4827,7 +4827,7 @@ function drawMomentumGraph(canvasId, matchId) {
   const ctx = cv.getContext('2d');
   ctx.scale(dpr, dpr);
 
-  const pad = { l: 8, r: 8, t: 42, b: 42 }; // label zones — angled text needs less space
+  const pad = { l: 8, r: 40, t: 42, b: 42 }; // extra right padding so end-of-game names aren't clipped
   const cW = W - pad.l - pad.r;
   const cH = H - pad.t - pad.b;
   const midY = pad.t + cH / 2;
@@ -8599,6 +8599,7 @@ function renderProfileHeatmap(name, hmapType) {
 
     heatCanvas.addEventListener('click', ev => {
       const hit = getHit(ev);
+      console.log('[HMAP CLICK] hit='+!!hit+' hmapType='+heatCanvas._hmapType+' clusters='+(heatCanvas._hmapClusters?.length||0));
       if (!hit?.shots?.length) return;
       document.getElementById('hmap-goal-card')?.remove();
       hmapTip.style.opacity = '0';
