@@ -5130,8 +5130,28 @@ function drawMomentumGraph(canvasId, matchId) {
         cv.style.cursor = (hovIdx >= 0 && tgts[hovIdx]?.hasYt) ? 'pointer' : 'default';
       }
 
-      // Score tooltip from X position
+      // Vertical position line following mouse
       const pad2 = cv._momPad;
+      const momW = cv._momW, momH = cv._momH;
+      if (pad2 && mx >= pad2.l && mx <= momW - pad2.r) {
+        // Draw vertical line — need to redraw the full graph then overlay
+        // Instead use a separate overlay div
+        let vline = document.getElementById('mom-vline-' + cv.id);
+        if (!vline) {
+          vline = document.createElement('div');
+          vline.id = 'mom-vline-' + cv.id;
+          vline.style.cssText = 'position:absolute;top:0;bottom:0;width:1px;background:rgba(255,255,255,0.25);pointer-events:none;z-index:10';
+          cv.parentElement.style.position = 'relative';
+          cv.parentElement.appendChild(vline);
+        }
+        const rect2 = cv.getBoundingClientRect();
+        const pct = (mx - pad2.l) / (momW - pad2.l - pad2.r);
+        const cssX = pad2.l / momW * rect2.width + pct * (rect2.width * (momW - pad2.l - pad2.r) / momW);
+        vline.style.left = cssX + 'px';
+        vline.style.display = 'block';
+      } else {
+        document.getElementById('mom-vline-' + cv.id)?.remove();
+      }
       if (pad2 && mx >= pad2.l && mx <= cv._momW - pad2.r) {
         const t = (mx - pad2.l) / (cv._momW - pad2.l - pad2.r) * cv._momMatchDur;
         let sA = 0, sB = 0;
@@ -5163,6 +5183,8 @@ function drawMomentumGraph(canvasId, matchId) {
     cv.addEventListener('mouseleave', () => {
       const tip = document.getElementById('mom-score-tip');
       if (tip) tip.style.opacity = '0';
+      const vline = document.getElementById('mom-vline-' + cv.id);
+      if (vline) vline.style.display = 'none';
       cv.style.cursor = 'default';
       cv._momLastHover = -1;
     });
@@ -5175,9 +5197,10 @@ function drawMomentumGraph(canvasId, matchId) {
       for (let i = tgts2.length - 1; i >= 0; i--) {
         const t = tgts2[i];
         if (!t.hasYt) continue;
-        const nearDot = Math.hypot(mx - t.x, my - t.dotY) < 12;
-        const nearLabel = Math.abs(mx - t.x) < Math.max(t.w/2 + 4, 24) && Math.abs(my - t.y) < 14;
-        if (nearDot || nearLabel) { seekYtVideo(cv._momMatchKey, cv._momYtId, t.ytTime); break; }
+        // Check near the dot (most reliable — dot is the click target)
+        if (Math.hypot(mx - t.x, my - t.dotY) < 14) {
+          seekYtVideo(cv._momMatchKey, cv._momYtId, t.ytTime); break;
+        }
       }
     });
   }
@@ -8512,6 +8535,8 @@ function renderProfileHeatmap(name, hmapType) {
           pillSize: window._hmapPillSize ?? 0.85,
           showNumbers: window._hmapShowNumbers ?? true,
         });
+        // Re-run assist overlay after hover render resets canvas
+        if (heatCanvas._assistDraw) heatCanvas._assistDraw();
         // Draw highlight ring on top
         const ctx = heatCanvas.getContext('2d');
         const dpr = window.devicePixelRatio || 1;
@@ -8561,6 +8586,8 @@ function renderProfileHeatmap(name, hmapType) {
           showNumbers: window._hmapShowNumbers ?? true,
         });
 
+        // Store drawing function so hover renders can re-apply it
+        heatCanvas._assistDraw = () => {
         // hmapRender resets canvas.width which clears the transform — reapply scale
         const dpr = window.devicePixelRatio || 1;
         const ctx = heatCanvas.getContext('2d');
@@ -8637,9 +8664,12 @@ function renderProfileHeatmap(name, hmapType) {
           // Goal target dot
           ctx.beginPath(); ctx.arc(goalFaceX, targetY, 5, 0, Math.PI*2);
           ctx.fillStyle='#4ade80'; ctx.globalAlpha=0.9; ctx.fill(); ctx.globalAlpha=1;
-        });
+        }); // end forEach
+        }; // end _assistDraw
+        heatCanvas._assistDraw(); // call immediately
 
       } else {
+        heatCanvas._assistDraw = null;
         document.getElementById('assist-ov-global')?.remove();
       }
       const card = document.createElement('div');
