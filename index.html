@@ -9080,13 +9080,12 @@ function initShotMap(safeName, allGoalData, allAssistData) {
             ctx.strokeStyle = 'rgba(0,0,0,.5)'; ctx.lineWidth = 1.5; ctx.stroke();
           }
         });
-        ctx.restore();
-
-        // Redraw assist connection if one is selected
+        // Redraw assist connection if one is selected — must be before ctx.restore()
         if (mode === 'assists' && cv._selectedAssist != null && pitchData[cv._selectedAssist]) {
           const g = pitchData[cv._selectedAssist];
           drawAssistConnection(ctx, g, W, H);
         }
+        ctx.restore();
       };
 
       const getHit = (ev) => {
