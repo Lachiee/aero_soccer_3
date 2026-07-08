@@ -5058,11 +5058,18 @@ function drawMomentumGraph(canvasId, matchId) {
   };
 
   // Draw non-hovered first, hovered on top
+  const lastHov = cv._momLastHover ?? -1;
   annotations.forEach((ann, i) => {
-    if (!showWorm) return; // names are tied to the worm — hide with it
+    if (!showWorm) return;
+    if (i === lastHov) return; // draw last
     const pos = drawAnnotation(ann, false);
     hitTargets.push({ ...ann, ...pos, idx: i });
   });
+  // Draw hovered annotation last so it renders over neighbours
+  if (showWorm && lastHov >= 0 && annotations[lastHov]) {
+    const pos = drawAnnotation(annotations[lastHov], true);
+    hitTargets.push({ ...annotations[lastHov], ...pos, idx: lastHov });
+  }
 
   // Team labels
   ctx.font = '9px Barlow Condensed, sans-serif'; ctx.textAlign = 'left';
@@ -5126,11 +5133,9 @@ function drawMomentumGraph(canvasId, matchId) {
 
       if (hovIdx !== cv._momLastHover) {
         cv._momLastHover = hovIdx;
-        // Redraw hovered annotation on top
-        if (hovIdx >= 0 && cv._momDrawAnnotation) {
-          // Clear just the annotation areas by redrawing all non-hovered, then hovered
-          // Simple approach: redraw entire canvas
-          drawMomentumGraph(cv.id, Object.keys(window._wormData||{}).find(k=>k.replace(/[#,]/g,'_')===cv.id.replace('timeline-','')) || '');
+        if (hovIdx >= 0) {
+          const mid = Object.keys(window._wormData||{}).find(k=>k.replace(/[#,]/g,'_')===cv.id.replace('timeline-',''));
+          if (mid) drawMomentumGraph(cv.id, mid);
         }
         cv.style.cursor = (hovIdx >= 0 && tgts[hovIdx]?.hasYt) ? 'pointer' : 'default';
       }
@@ -8600,13 +8605,14 @@ function renderProfileHeatmap(name, hmapType) {
 
         // Store drawing function so hover renders can re-apply it
         heatCanvas._assistDraw = () => {
-        // hmapRender resets canvas.width which clears the transform — reapply scale
         const dpr = window.devicePixelRatio || 1;
         const ctx = heatCanvas.getContext('2d');
         ctx.scale(dpr, dpr);
-
         const W = heatCanvas._hmapW || heatCanvas.offsetWidth;
         const H = heatCanvas._hmapH || Math.round(W * 0.52);
+        // UNMISSABLE TEST: fill entire canvas semi-transparent red
+        ctx.fillStyle = 'rgba(255,0,0,0.4)';
+        ctx.fillRect(0, 0, W, H);
 
         const goalH = H * 0.22, goalD = W * 0.02;
         const goalFaceX = W - 3 - goalD;
