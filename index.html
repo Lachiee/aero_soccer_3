@@ -5054,7 +5054,7 @@ function drawMomentumGraph(canvasId, matchId) {
       ctx.globalAlpha = 1;
     }
     ctx.restore();
-    return { x, y: tickEndY + (isAbove ? -3 : 3), w: tw, dotY };
+    return { x, y: tickEndY + (isAbove ? -3 : 3), w: tw, dotY, isAbove, lFontSize };
   };
 
   // Draw non-hovered first, hovered on top
@@ -5110,13 +5110,18 @@ function drawMomentumGraph(canvasId, matchId) {
       const tgts = cv._momHitTargets || [];
       const anns = cv._momAnnotations || [];
 
-      // Find hovered annotation (check name label and dot)
       let hovIdx = -1;
       for (let i = tgts.length - 1; i >= 0; i--) {
         const t = tgts[i];
-        const nearDot = Math.hypot(mx - t.x, my - t.dotY) < 12;
-        const nearLabel = Math.abs(mx - t.x) < Math.max(t.w/2 + 4, 24) && Math.abs(my - t.y) < 14;
-        if (nearDot || nearLabel) { hovIdx = i; break; }
+        const pivotX = t.x, pivotY = t.y;
+        const angle = t.isAbove ? -Math.PI / 4 : Math.PI / 4;
+        const dx = mx - pivotX, dy = my - pivotY;
+        const lx = dx * Math.cos(-angle) - dy * Math.sin(-angle);
+        const ly = dx * Math.sin(-angle) + dy * Math.cos(-angle);
+        const pillPad = 4, fs = t.lFontSize || 12;
+        const inLabel = lx >= -pillPad && lx <= t.w + pillPad && ly >= -fs && ly <= fs * 0.4;
+        const nearDot = Math.hypot(mx - t.x, my - t.dotY) < 10;
+        if (inLabel || nearDot) { hovIdx = i; break; }
       }
 
       if (hovIdx !== cv._momLastHover) {
@@ -5197,8 +5202,14 @@ function drawMomentumGraph(canvasId, matchId) {
       for (let i = tgts2.length - 1; i >= 0; i--) {
         const t = tgts2[i];
         if (!t.hasYt) continue;
-        // Check near the dot (most reliable — dot is the click target)
-        if (Math.hypot(mx - t.x, my - t.dotY) < 14) {
+        // Transform mouse into label's rotated coordinate space
+        const pivotX = t.x, pivotY = t.y;
+        const angle = t.isAbove ? -Math.PI / 4 : Math.PI / 4;
+        const dx = mx - pivotX, dy = my - pivotY;
+        const lx =  dx * Math.cos(-angle) - dy * Math.sin(-angle);
+        const ly =  dx * Math.sin(-angle) + dy * Math.cos(-angle);
+        const pillPad = 4;
+        if (lx >= -pillPad && lx <= t.w + pillPad && ly >= -(t.lFontSize||12) && ly <= (t.lFontSize||12) * 0.4) {
           seekYtVideo(cv._momMatchKey, cv._momYtId, t.ytTime); break;
         }
       }
@@ -8523,6 +8534,7 @@ function renderProfileHeatmap(name, hmapType) {
             pillSize: window._hmapPillSize ?? 0.85,
             showNumbers: window._hmapShowNumbers ?? true,
           });
+          if (heatCanvas._assistDraw) heatCanvas._assistDraw();
         }
         return;
       }
