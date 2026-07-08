@@ -8975,19 +8975,17 @@ function initShotMap(safeName, allGoalData, allAssistData) {
       pitchEl.style.cssText = '';  // reset any max-width from net view
       const pitchData = data.filter(g => g.sx != null);
       const cv = document.createElement('canvas');
-      // In assists mode, hide the pitch canvas — profile-heatmap handles the display
-      cv.style.cssText = mode === 'assists'
-        ? 'width:100%;display:none;border-radius:10px;cursor:crosshair'
-        : 'width:100%;display:block;border-radius:10px;cursor:crosshair';
+      cv.style.cssText = 'width:100%;display:block;border-radius:10px;cursor:crosshair';
       pitchEl.innerHTML = '';
       pitchEl.appendChild(cv);
 
-      // In assists mode, render the assist heatmap; otherwise ensure shot mode
-      if (mode === 'assists' && currentProfileName) {
-        setTimeout(() => renderProfileHeatmap(currentProfileName, 'assist'), 50);
-      } else if (mode !== 'assists' && currentProfileName) {
-        setTimeout(() => renderProfileHeatmap(currentProfileName, 'shot'), 50);
-      }
+      // Hide profile-heatmap — we use the plain pitch canvas for everything
+      const hc = document.getElementById('profile-heatmap');
+      const hcParent = hc?.parentElement;
+      if (hc) hc.style.display = 'none';
+      if (hcParent) hcParent.style.display = 'none';
+      const ovEl = document.getElementById('profile-heatmap-overlay');
+      if (ovEl) { ovEl.style.display = 'none'; ovEl.getContext('2d').clearRect(0,0,ovEl.width,ovEl.height); }
 
       // Shared tooltip (reuse same one as net view)
       let tip = document.getElementById('net-dot-tip');
@@ -9138,6 +9136,66 @@ function initShotMap(safeName, allGoalData, allAssistData) {
           selectedP = hit;
           tip.style.opacity = '0';
           drawPitch(lastHitP, selectedP);
+
+          // In assists mode, draw scorer connection on top of the pitch
+          if (mode === 'assists') {
+            const g = pitchData[hit];
+            const dpr = window.devicePixelRatio || 1;
+            const W = cv._logW || cv.offsetWidth;
+            const H = cv._logH || Math.round(W * 0.52);
+            const ctx = cv.getContext('2d');
+            // ctx already scaled by drawPitch — draw in logical coords
+            const goalH = H * 0.22, goalD = W * 0.02;
+            const goalFaceX = W - 3 - goalD;
+            const goalTopY = H / 2 - goalH / 2;
+            const pillR = Math.max(10, W * 0.025);
+            const ax = g.sx * W, ay = g.sy * H; // assist origin
+            let scorerSx = g.scorerSx, scorerSy = g.scorerSy;
+            // Look up scorer position if not on entry
+            if (scorerSx == null) {
+              const gs = goalCombos;
+              Object.values(gs).forEach(md => ['h1','h2'].forEach(hk => (md[hk]||[]).forEach(e => {
+                if (e.assister === g.assister && e.scorer === g.scorer && e.sx != null) {
+                  scorerSx = e.sx; scorerSy = e.sy;
+                }
+              })));
+            }
+            const netX = g.netX ?? 0.5;
+            const targetY = goalTopY + Math.max(0, Math.min(1, netX)) * goalH;
+            if (scorerSx != null) {
+              const gx = scorerSx * W, gy = scorerSy * H;
+              // Amber line
+              ctx.strokeStyle = 'rgba(251,191,36,0.85)'; ctx.lineWidth = 2.5;
+              ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(gx, gy); ctx.stroke();
+              // Arrow
+              const ang = Math.atan2(gy-ay, gx-ax);
+              ctx.fillStyle = 'rgba(251,191,36,0.85)';
+              ctx.beginPath(); ctx.moveTo(gx,gy);
+              ctx.lineTo(gx-10*Math.cos(ang-0.38),gy-10*Math.sin(ang-0.38));
+              ctx.lineTo(gx-10*Math.cos(ang+0.38),gy-10*Math.sin(ang+0.38));
+              ctx.closePath(); ctx.fill();
+              // Scorer pill
+              ctx.beginPath(); ctx.arc(gx,gy,pillR+4,0,Math.PI*2); ctx.fillStyle='rgba(57,211,83,.15)'; ctx.fill();
+              ctx.strokeStyle='rgba(57,211,83,.8)'; ctx.lineWidth=1.5; ctx.stroke();
+              ctx.beginPath(); ctx.arc(gx,gy,pillR,0,Math.PI*2); ctx.fillStyle='#4ade80'; ctx.globalAlpha=0.92; ctx.fill(); ctx.globalAlpha=1;
+              ctx.strokeStyle='rgba(0,0,0,.4)'; ctx.lineWidth=1.2; ctx.stroke();
+              ctx.fillStyle='#071009'; ctx.textAlign='center'; ctx.textBaseline='middle';
+              ctx.font=`bold ${Math.round(pillR*0.9)}px Barlow Condensed,sans-serif`;
+              ctx.fillText('G',gx,gy);
+              // Dashed line to goal
+              ctx.setLineDash([5,4]); ctx.strokeStyle='rgba(57,211,83,0.6)'; ctx.globalAlpha=0.7; ctx.lineWidth=1.5;
+              ctx.beginPath(); ctx.moveTo(gx,gy); ctx.lineTo(goalFaceX,targetY); ctx.stroke();
+              ctx.setLineDash([]); ctx.globalAlpha=1;
+            } else {
+              ctx.setLineDash([5,4]); ctx.strokeStyle='rgba(251,191,36,0.6)'; ctx.lineWidth=1.5;
+              ctx.beginPath(); ctx.moveTo(ax,ay); ctx.lineTo(goalFaceX,targetY); ctx.stroke();
+              ctx.setLineDash([]);
+            }
+            // Goal dot
+            ctx.beginPath(); ctx.arc(goalFaceX,targetY,5,0,Math.PI*2);
+            ctx.fillStyle='#4ade80'; ctx.globalAlpha=0.9; ctx.fill(); ctx.globalAlpha=1;
+          }
+
           showDetail(pitchData[hit]);
         }
       });
@@ -9850,7 +9908,7 @@ function renderProfile(name) {
         ['h1','h2'].forEach(hk => {
           (data[hk]||[]).forEach((gg, idx) => {
             if (!gg.isOG && gg.assister === name && gg.ax != null && gg.ay != null) {
-              allAssistData.push({ sx: gg.ax, sy: gg.ay, netX: gg.netX ?? null, netY: gg.netY ?? null, foot: gg.foot || null, time: gg.time || null, scorer: gg.scorer || null, mid, half: hk==='h1'?'1H':'2H', idx });
+              allAssistData.push({ sx: gg.ax, sy: gg.ay, scorerSx: gg.sx??null, scorerSy: gg.sy??null, netX: gg.netX ?? null, netY: gg.netY ?? null, foot: gg.foot || null, time: gg.time || null, scorer: gg.scorer || null, assister: gg.assister || null, mid, half: hk==='h1'?'1H':'2H', idx });
             }
           });
         });
@@ -10032,7 +10090,7 @@ function renderProfile(name) {
           (data[hk]||[]).forEach(gg => {
             if (gg.isOG) return;
             if (gg.scorer === name) goalData.push({ sx: gg.sx??null, sy: gg.sy??null, netX: gg.netX??null, netY: gg.netY??null, foot: gg.foot||null, time: gg.time||null, assister: gg.assister||null, mid, half: hk==='h1'?'1H':'2H' });
-            if (gg.assister === name && gg.ax != null) assistData.push({ sx: gg.ax, sy: gg.ay, netX: gg.netX??null, netY: gg.netY??null, foot: gg.foot||null, time: gg.time||null, scorer: gg.scorer||null, mid, half: hk==='h1'?'1H':'2H' });
+            if (gg.assister === name && gg.ax != null) assistData.push({ sx: gg.ax, sy: gg.ay, scorerSx: gg.sx??null, scorerSy: gg.sy??null, netX: gg.netX??null, netY: gg.netY??null, foot: gg.foot||null, time: gg.time||null, scorer: gg.scorer||null, assister: gg.assister||null, mid, half: hk==='h1'?'1H':'2H' });
           });
         });
       });
