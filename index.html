@@ -5130,7 +5130,7 @@ function drawMomentumGraph(canvasId, matchId) {
         const pillPad = 4, fs = t.lFontSize || 12;
         const inLabel = lx >= -pillPad && lx <= t.w + pillPad && ly >= -fs && ly <= fs * 0.4;
         const nearDot = Math.hypot(mx - t.x, my - t.dotY) < 10;
-        if (inLabel || nearDot) { hovIdx = i; break; }
+        if (inLabel || nearDot) { hovIdx = t.idx ?? i; break; }
       }
 
       if (hovIdx !== cv._momLastHover) {
@@ -8607,6 +8607,7 @@ function renderProfileHeatmap(name, hmapType) {
       // For assists: draw on a dedicated overlay canvas (never wiped by hmapRender)
       if (isAssist && hit.shots.length > 0) {
         const ov = document.getElementById('profile-heatmap-overlay');
+        console.log('[ASSIST CLICK] ov='+!!ov+' parent.display='+(ov?.parentElement?.style.display||'?')+' W='+heatCanvas._hmapW+' hit.px='+hit.px+' shots='+JSON.stringify(hit.shots.map(s=>({scorer:s.scorer,scorerSx:s.scorerSx,ax:s.sx,ay:s.sy}))));
         if (ov) {
           const dpr = window.devicePixelRatio || 1;
           const W = heatCanvas._hmapW || heatCanvas.offsetWidth;
