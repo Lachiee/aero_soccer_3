@@ -5163,8 +5163,8 @@ function drawMomentumGraph(canvasId, matchId) {
       } else {
         document.getElementById('mom-vline-' + cv.id)?.remove();
       }
-      if (pad2 && mx >= pad2.l && mx <= cv._momW - pad2.r) {
-        const t = (mx - pad2.l) / (cv._momW - pad2.l - pad2.r) * cv._momMatchDur;
+      if (pad2 && mx >= 0 && mx <= cv._momW) {
+        const t = Math.max(0, Math.min(cv._momMatchDur, (mx - pad2.l) / (cv._momW - pad2.l - pad2.r) * cv._momMatchDur));
         let sA = 0, sB = 0;
         (cv._momRows || []).forEach(r => {
           const abs = r.absSecs != null ? r.absSecs : r.secs;
@@ -8975,7 +8975,10 @@ function initShotMap(safeName, allGoalData, allAssistData) {
       pitchEl.style.cssText = '';  // reset any max-width from net view
       const pitchData = data.filter(g => g.sx != null);
       const cv = document.createElement('canvas');
-      cv.style.cssText = 'width:100%;display:block;border-radius:10px;cursor:crosshair';
+      // In assists mode, hide the pitch canvas — profile-heatmap handles the display
+      cv.style.cssText = mode === 'assists'
+        ? 'width:100%;display:none;border-radius:10px;cursor:crosshair'
+        : 'width:100%;display:block;border-radius:10px;cursor:crosshair';
       pitchEl.innerHTML = '';
       pitchEl.appendChild(cv);
 
