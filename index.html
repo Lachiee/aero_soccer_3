@@ -4848,18 +4848,29 @@ function drawMomentumGraph(canvasId, matchId) {
 
   if (evLog) {
     const pev = evLog.filter(e => PW[e.event] != null && e.tsSecsRaw != null);
-    // Explicit start at 0,0
     momPts.push({ s: 0, v: 0 });
-    for (let t = 15; t <= matchDur; t += 15) {
-      const win = pev.filter(e => e.tsSecsRaw >= t - 90 && e.tsSecsRaw <= t);
+    for (let t = 10; t <= matchDur; t += 10) {
+      const win = pev.filter(e => e.tsSecsRaw >= t - 60 && e.tsSecsRaw <= t);
       let pA = 0, pB = 0;
       win.forEach(e => { const w = PW[e.event] || 0; if (e.team === 'A') pA += w; else pB += w; });
       const tot = pA + pB;
       momPts.push({ s: t, v: tot > 0 ? (pA - pB) / tot : 0 });
     }
-    // Scale so the max absolute value = 1 (keeps 0 at 0)
-    const maxV = Math.max(...momPts.map(p => Math.abs(p.v)), 0.01);
-    momPts.forEach(p => { p.v /= maxV; });
+    // Gaussian smoothing σ=4 — smooth curve, no step lag, starts at 0
+    const sigma = 4;
+    const gSmooth = momPts.map((p, i) => {
+      let wSum = 0, vSum = 0;
+      momPts.forEach((q, j) => {
+        const w = Math.exp(-(i-j)*(i-j) / (2*sigma*sigma));
+        wSum += w; vSum += q.v * w;
+      });
+      return { s: p.s, v: vSum / wSum };
+    });
+    gSmooth[0].v = 0;
+    const maxV = Math.max(...gSmooth.map(p => Math.abs(p.v)), 0.01);
+    gSmooth.forEach(p => { p.v /= maxV; });
+    gSmooth[0].v = 0;
+    momPts = gSmooth;
   } else {
     momPts = [{ s: 0, v: 0 }];
     const maxD = Math.max(...rows.map(r => Math.abs(r.scoreA - r.scoreB)), 1);
@@ -9018,8 +9029,8 @@ function initShotMap(safeName, allGoalData, allAssistData) {
         const goalTopY    = H / 2 - goalH / 2;
         const goalBottomY = H / 2 + goalH / 2;
 
-        // Draw shot-to-goal line for selected dot
-        if (selectedIdx >= 0 && selectedIdx < pitchData.length) {
+        // Draw shot-to-goal line for selected dot (not in assists mode — chain is drawn separately)
+        if (selectedIdx >= 0 && selectedIdx < pitchData.length && mode !== 'assists') {
           const g = pitchData[selectedIdx];
           const px = g.sx * W, py = g.sy * H;
 
