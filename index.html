@@ -8982,6 +8982,13 @@ function initShotMap(safeName, allGoalData, allAssistData) {
       pitchEl.innerHTML = '';
       pitchEl.appendChild(cv);
 
+      // In assists mode, render the assist heatmap; otherwise ensure shot mode
+      if (mode === 'assists' && currentProfileName) {
+        setTimeout(() => renderProfileHeatmap(currentProfileName, 'assist'), 50);
+      } else if (mode !== 'assists' && currentProfileName) {
+        setTimeout(() => renderProfileHeatmap(currentProfileName, 'shot'), 50);
+      }
+
       // Shared tooltip (reuse same one as net view)
       let tip = document.getElementById('net-dot-tip');
       if (!tip) {
