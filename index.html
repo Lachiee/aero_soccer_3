@@ -5058,7 +5058,8 @@ function drawMomentumGraph(canvasId, matchId) {
   };
 
   // Draw non-hovered first, hovered on top
-  const lastHov = cv._momLastHover ?? -1;
+  // Only use hover state if mouse is actually over the canvas
+  const lastHov = cv._momMouseOver ? (cv._momLastHover ?? -1) : -1;
   annotations.forEach((ann, i) => {
     if (!showWorm) return;
     if (i === lastHov) return; // draw last
@@ -5110,6 +5111,7 @@ function drawMomentumGraph(canvasId, matchId) {
     }
 
     cv.addEventListener('mousemove', ev => {
+      cv._momMouseOver = true;
       const rect = cv.getBoundingClientRect();
       const scaleX = cv._momW / rect.width, scaleY = cv._momH / rect.height;
       const mx = (ev.clientX - rect.left) * scaleX;
@@ -5195,7 +5197,11 @@ function drawMomentumGraph(canvasId, matchId) {
       const vline = document.getElementById('mom-vline-' + cv.id);
       if (vline) vline.style.display = 'none';
       cv.style.cursor = 'default';
+      cv._momMouseOver = false;
       cv._momLastHover = -1;
+      // Redraw to clear hover highlight
+      const mid3 = Object.keys(window._wormData||{}).find(k=>k.replace(/[#,]/g,'_')===cv.id.replace('timeline-',''));
+      if (mid3) drawMomentumGraph(cv.id, mid3);
     });
 
     cv.addEventListener('click', ev => {
@@ -8440,6 +8446,12 @@ function renderProfileHeatmap(name, hmapType) {
   const pitchView = document.getElementById('profile-pitch-view');
   if (pitchView) pitchView.style.display = hmapType === 'assist' ? 'none' : '';
   if (heatCanvas) heatCanvas.style.display = hmapType === 'assist' ? 'block' : 'none';
+  // Ensure overlay canvas parent always has height when heatmap is shown
+  const ovCanvas = document.getElementById('profile-heatmap-overlay');
+  if (ovCanvas?.parentElement) {
+    ovCanvas.parentElement.style.display = hmapType === 'assist' ? 'block' : 'none';
+  }
+  if (ovCanvas && hmapType !== 'assist') { ovCanvas.style.display = 'none'; }
 
   // Update toggle button styles
   const shotBtn   = document.getElementById('hmap-btn-shot');
