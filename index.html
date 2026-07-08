@@ -4784,6 +4784,65 @@ function setMomStyle(ev, style) {
   });
 }
 
+function drawBreakdownCanvases(uid, shotX, shotY, netX, netY) {
+  function drawPitchMini(canvasId, sx, sy) {
+    const cv = document.getElementById(canvasId); if (!cv) return;
+    const dpr = window.devicePixelRatio || 1;
+    const W = 70, H = 46;
+    cv.width = W*dpr; cv.height = H*dpr;
+    cv.style.width = W+'px'; cv.style.height = H+'px';
+    const ctx = cv.getContext('2d'); ctx.scale(dpr, dpr);
+    ctx.fillStyle = '#0d1f0e'; ctx.fillRect(0,0,W,H);
+    for(let i=0;i<6;i++){ctx.fillStyle=i%2?'rgba(255,255,255,.018)':'rgba(255,255,255,.010)';ctx.fillRect(i*(W/6),0,W/6,H);}
+    ctx.strokeStyle='rgba(57,211,83,.35)'; ctx.lineWidth=0.5;
+    ctx.strokeRect(0.5,0.5,W-1,H-1);
+    ctx.beginPath(); ctx.moveTo(W/2,0); ctx.lineTo(W/2,H); ctx.stroke();
+    const boxW=W*0.12, boxH=H*0.45;
+    ctx.strokeRect(0.5,H/2-boxH/2,boxW,boxH);
+    ctx.strokeRect(W-boxW-0.5,H/2-boxH/2,boxW,boxH);
+    ctx.beginPath(); ctx.arc(W/2,H/2,H*0.18,0,Math.PI*2); ctx.stroke();
+    const goalH=H*0.3;
+    ctx.strokeStyle='rgba(255,255,255,.5)'; ctx.lineWidth=1;
+    ctx.strokeRect(W-1,H/2-goalH/2,0.5,goalH);
+    ctx.strokeRect(0,H/2-goalH/2,0.5,goalH);
+    ctx.fillStyle='rgba(0,0,0,.45)'; ctx.fillRect(0,H*0.38,W,H*0.24);
+    if (sx != null) {
+      const px=sx*W, py=(sy||0.5)*H;
+      const g=ctx.createRadialGradient(px,py,0,px,py,10);
+      g.addColorStop(0,'rgba(57,211,83,.6)'); g.addColorStop(1,'rgba(57,211,83,0)');
+      ctx.fillStyle=g; ctx.beginPath(); ctx.arc(px,py,10,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle='#39d353'; ctx.beginPath(); ctx.arc(px,py,3.5,0,Math.PI*2); ctx.fill();
+      ctx.strokeStyle='rgba(0,0,0,.5)'; ctx.lineWidth=0.8; ctx.stroke();
+    }
+  }
+  function drawNetMini(canvasId, nx, ny) {
+    const cv = document.getElementById(canvasId); if (!cv) return;
+    const dpr = window.devicePixelRatio || 1;
+    const W = 52, H = 36;
+    cv.width = W*dpr; cv.height = H*dpr;
+    cv.style.width = W+'px'; cv.style.height = H+'px';
+    const ctx = cv.getContext('2d'); ctx.scale(dpr, dpr);
+    ctx.fillStyle='#0d1f0e'; ctx.fillRect(0,0,W,H);
+    ctx.strokeStyle='rgba(255,255,255,.1)'; ctx.lineWidth=0.5;
+    for(let i=1;i<5;i++){ctx.beginPath();ctx.moveTo(i*(W/5),0);ctx.lineTo(i*(W/5),H);ctx.stroke();}
+    for(let i=1;i<4;i++){ctx.beginPath();ctx.moveTo(0,i*(H/4));ctx.lineTo(W,i*(H/4));ctx.stroke();}
+    ctx.strokeStyle='rgba(255,255,255,.7)'; ctx.lineWidth=1.2;
+    ctx.strokeRect(0.6,0.6,W-1.2,H-1.2);
+    ctx.strokeStyle='rgba(255,255,255,.5)'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(0,H*0.08); ctx.lineTo(W,H*0.08); ctx.stroke();
+    if (nx != null && ny != null) {
+      const px=nx*W, py=ny*H;
+      const g=ctx.createRadialGradient(px,py,0,px,py,10);
+      g.addColorStop(0,'rgba(57,211,83,.7)'); g.addColorStop(1,'rgba(57,211,83,0)');
+      ctx.fillStyle=g; ctx.beginPath(); ctx.arc(px,py,10,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle='#39d353'; ctx.beginPath(); ctx.arc(px,py,3.5,0,Math.PI*2); ctx.fill();
+      ctx.strokeStyle='rgba(0,0,0,.5)'; ctx.lineWidth=0.8; ctx.stroke();
+    }
+  }
+  drawPitchMini(uid+'_pitch', shotX, shotY);
+  drawNetMini(uid+'_net', netX, netY);
+}
+
 function toggleMomLayer(btn, layer) {
   const canvasId = btn.getAttribute('data-canvas-id');
   const cv = document.getElementById(canvasId);
@@ -9814,6 +9873,70 @@ function renderProfile(name) {
       })()}
     </div>
 
+    <!-- ═══ BREAKDOWN STRIP ═══ -->
+    ${(() => {
+      const logs = (() => { try { return JSON.parse(localStorage.getItem('aero_event_logs')||'{}'); } catch(e){ return {}; } })();
+      const allGoals = [];
+      Object.values(logs).forEach(log => { (log.events||[]).forEach(e => { if (e.event==='Goals' && e.player===name) allGoals.push(e); }); });
+      if (!allGoals.length) return '';
+      const sx = allGoals.filter(e=>e.shotX!=null).map(e=>e.shotX);
+      const sy = allGoals.filter(e=>e.shotX!=null&&e.shotY!=null).map(e=>e.shotY);
+      const nx = allGoals.filter(e=>e.netX!=null).map(e=>e.netX);
+      const ny = allGoals.filter(e=>e.netX!=null&&e.netY!=null).map(e=>e.netY);
+      const feet = allGoals.map(e=>e.foot).filter(Boolean);
+      const rft = feet.filter(f=>f==='right').length, lft = feet.filter(f=>f==='left').length;
+      const tot = rft+lft;
+      const rPct = tot ? Math.round(rft/tot*100) : null;
+      const domFoot = rPct!=null ? (rPct>=70?'Right':rPct<=30?'Left':'Both') : null;
+      const timeBuckets = [0,0,0,0,0];
+      allGoals.forEach(e => { const m=(e.tsSecsRaw||0)/60; timeBuckets[Math.min(4,Math.floor(m/10))]++; });
+      const peakIdx = timeBuckets.indexOf(Math.max(...timeBuckets));
+      const peakLabel = ["0–10'","10–20'","20–30'","30–40'","40+'"][peakIdx];
+      const avgSx = sx.length ? (sx.reduce((a,b)=>a+b,0)/sx.length).toFixed(3) : 'null';
+      const avgSy = sy.length ? (sy.reduce((a,b)=>a+b,0)/sy.length).toFixed(3) : 'null';
+      const avgNx = nx.length ? (nx.reduce((a,b)=>a+b,0)/nx.length).toFixed(3) : 'null';
+      const avgNy = ny.length ? (ny.reduce((a,b)=>a+b,0)/ny.length).toFixed(3) : 'null';
+      const uid = 'bd_' + name.replace(/[^a-z0-9]/gi,'_');
+      const shotLabel = avgSx!=='null' ? (parseFloat(avgSx)>0.85?'Close range':parseFloat(avgSx)>0.7?'Right third':'Mid range') : '–';
+      const netLabel = avgNy!=='null'&&avgNx!=='null' ? (parseFloat(avgNy)<0.5?'Top':'Bottom')+' '+(parseFloat(avgNx)<0.5?'left':'right') : '–';
+      const timeBarsHtml = timeBuckets.map((v,i) => {
+        const h = Math.max(...timeBuckets)>0 ? Math.max(8,Math.round(v/Math.max(...timeBuckets)*100)) : 8;
+        const peak = i===peakIdx;
+        return '<div style="flex:1;border-radius:2px 2px 0 0;height:'+h+'%;background:'+(peak?'var(--green)':'rgba(57,211,83,.2)')+'"></div>';
+      }).join('');
+      return '<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;margin-bottom:12px;overflow:hidden">'
+        +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr">'
+        +'<div style="padding:12px 8px;text-align:center;border-right:1px solid var(--border)">'
+        +'<div style="font-size:.5rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:8px">Shot zone</div>'
+        +'<canvas id="'+uid+'_pitch" width="70" height="46" style="display:block;margin:0 auto 5px;border-radius:3px"></canvas>'
+        +'<div style="font-size:.7rem;font-weight:600">'+shotLabel+'</div>'
+        +'<div style="font-size:.58rem;color:var(--muted)">'+(avgSx!=='null'?sx.length+' goals mapped':'no data')+'</div>'
+        +'</div>'
+        +'<div style="padding:12px 8px;text-align:center;border-right:1px solid var(--border)">'
+        +'<div style="font-size:.5rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:8px">Net zone</div>'
+        +'<canvas id="'+uid+'_net" width="52" height="36" style="display:block;margin:0 auto 5px;border-radius:2px"></canvas>'
+        +'<div style="font-size:.7rem;font-weight:600">'+netLabel+'</div>'
+        +'<div style="font-size:.58rem;color:var(--muted)">'+(avgNx!=='null'?nx.length+' goals mapped':'no data')+'</div>'
+        +'</div>'
+        +'<div style="padding:12px 8px;text-align:center;border-right:1px solid var(--border)">'
+        +'<div style="font-size:.5rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:8px">Foot</div>'
+        +'<div style="width:52px;height:22px;margin:0 auto 5px;border-radius:4px;overflow:hidden;border:1px solid var(--border);display:flex">'
+        +(rPct!=null&&rPct>0?'<div style="flex:'+rPct+';background:rgba(57,211,83,.28);display:flex;align-items:center;justify-content:center;font-size:9px;color:var(--green);font-weight:600">R</div>':'')
+        +((rPct==null||rPct)<100&&lft>0?'<div style="flex:'+(100-(rPct||0))+';background:rgba(96,165,250,.2);display:flex;align-items:center;justify-content:center;font-size:9px;color:#60a5fa">L</div>':'')
+        +'</div>'
+        +'<div style="font-size:.7rem;font-weight:600">'+(domFoot||'–')+' foot</div>'
+        +'<div style="font-size:.58rem;color:var(--muted)">'+(rPct!=null?rPct+'% right':tot+' recorded')+'</div>'
+        +'</div>'
+        +'<div style="padding:12px 8px;text-align:center">'
+        +'<div style="font-size:.5rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:8px">Goals by time</div>'
+        +'<div style="display:flex;align-items:flex-end;gap:2px;height:30px;width:52px;margin:0 auto 5px">'+timeBarsHtml+'</div>'
+        +'<div style="font-size:.7rem;font-weight:600">'+peakLabel+'</div>'
+        +'<div style="font-size:.58rem;color:var(--muted)">peak window</div>'
+        +'</div>'
+        +'</div></div>'
+        +'<div data-bd="'+uid+'" data-sx="'+avgSx+'" data-sy="'+avgSy+'" data-nx="'+avgNx+'" data-ny="'+avgNy+'" style="display:none"></div>';
+    })()}
+
     <!-- ═══ STATS (compact 2-col) ═══ -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
       <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px 16px">
@@ -10079,6 +10202,15 @@ function renderProfile(name) {
 
   // Draw mini courts registered during HTML generation, then charts
   drawPendingCourts();
+  // Draw breakdown strip canvases
+  document.querySelectorAll('[data-bd]').forEach(el => {
+    const uid = el.dataset.bd;
+    const sx = el.dataset.sx === 'null' ? null : parseFloat(el.dataset.sx);
+    const sy = el.dataset.sy === 'null' ? null : parseFloat(el.dataset.sy);
+    const nx = el.dataset.nx === 'null' ? null : parseFloat(el.dataset.nx);
+    const ny = el.dataset.ny === 'null' ? null : parseFloat(el.dataset.ny);
+    requestAnimationFrame(() => drawBreakdownCanvases(uid, sx, sy, nx, ny));
+  });
 
   // Draw charts after DOM paint
   setTimeout(() => {
