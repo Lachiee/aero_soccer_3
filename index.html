@@ -9897,8 +9897,25 @@ function renderProfile(name) {
       const avgNx = nx.length ? (nx.reduce((a,b)=>a+b,0)/nx.length).toFixed(3) : 'null';
       const avgNy = ny.length ? (ny.reduce((a,b)=>a+b,0)/ny.length).toFixed(3) : 'null';
       const uid = 'bd_' + name.replace(/[^a-z0-9]/gi,'_');
-      const shotLabel = avgSx!=='null' ? (parseFloat(avgSx)>0.85?'Close range':parseFloat(avgSx)>0.7?'Right third':'Mid range') : '–';
-      const netLabel = avgNy!=='null'&&avgNx!=='null' ? (parseFloat(avgNy)<0.5?'Top':'Bottom')+' '+(parseFloat(avgNx)<0.5?'left':'right') : '–';
+      // Shot zone label — use Y position (angle) since all shots go right
+      // Y: 0=top of pitch, 0.5=centre, 1=bottom
+      const sxV = avgSx!=='null' ? parseFloat(avgSx) : null;
+      const syV = avgSy!=='null' ? parseFloat(avgSy) : null;
+      let shotLabel = '–';
+      if (sxV!=null && syV!=null) {
+        const dist = sxV > 0.85 ? 'Close' : sxV > 0.72 ? 'Mid-range' : 'Long range';
+        const angle = syV < 0.3 ? 'top angle' : syV > 0.7 ? 'bottom angle' : syV < 0.42 ? 'slight top angle' : syV > 0.58 ? 'slight bottom angle' : 'central';
+        shotLabel = dist + ' · ' + angle;
+      }
+      // Net zone label — more precise with threshold zones
+      const nxV = avgNx!=='null' ? parseFloat(avgNx) : null;
+      const nyV = avgNy!=='null' ? parseFloat(avgNy) : null;
+      let netLabel = '–';
+      if (nxV!=null && nyV!=null) {
+        const vert = nyV < 0.35 ? 'Top' : nyV > 0.65 ? 'Bottom' : 'Mid';
+        const horiz = nxV < 0.35 ? 'left' : nxV > 0.65 ? 'right' : 'centre';
+        netLabel = vert + ' ' + horiz;
+      }
       const timeBarsHtml = timeBuckets.map((v,i) => {
         const h = Math.max(...timeBuckets)>0 ? Math.max(8,Math.round(v/Math.max(...timeBuckets)*100)) : 8;
         const peak = i===peakIdx;
@@ -9935,6 +9952,71 @@ function renderProfile(name) {
         +'</div>'
         +'</div></div>'
         +'<div data-bd="'+uid+'" data-sx="'+avgSx+'" data-sy="'+avgSy+'" data-nx="'+avgNx+'" data-ny="'+avgNy+'" style="display:none"></div>';
+    })()}
+
+    <!-- BEST GAME + CAREER HIGHS -->
+    ${(() => {
+      const bg = s.bestGame;
+      if (!bg) return '';
+      const logs = (() => { try { return JSON.parse(localStorage.getItem('aero_event_logs')||'{}'); } catch(e){ return {}; } })();
+      const byMatch = {};
+      Object.values(logs).forEach(log => {
+        (log.events||[]).forEach(e => {
+          if (e.player !== name) return;
+          const d = log.date||'?';
+          if (!byMatch[d]) byMatch[d] = {g:0,a:0,kp:0,sh:0,son:0,tk:0,int:0,bl:0,nm:0,saves:0};
+          if (e.event==='Goals') byMatch[d].g++;
+          else if (e.event==='Key Passes') byMatch[d].kp++;
+          else if (e.event==='On Target') byMatch[d].son++;
+          else if (e.event==='Off Target') byMatch[d].sh++;
+          else if (e.event==='Tackles') byMatch[d].tk++;
+          else if (e.event==='Interceptions') byMatch[d].int++;
+          else if (e.event==='Blocks') byMatch[d].bl++;
+          else if (e.event==='Nutmegs') byMatch[d].nm++;
+          else if (e.event==='GK Saves') byMatch[d].saves++;
+        });
+        (log.events||[]).forEach(e => {
+          if (e.event==='Goals' && e.assistBy===name) {
+            const d = log.date||'?';
+            if (!byMatch[d]) byMatch[d] = {g:0,a:0,kp:0,sh:0,son:0,tk:0,int:0,bl:0,nm:0,saves:0};
+            byMatch[d].a++;
+          }
+        });
+      });
+      const matchArr = Object.values(byMatch);
+      const peak = key => matchArr.length ? Math.max(...matchArr.map(m=>m[key]||0)) : 0;
+      const peakShots = matchArr.length ? Math.max(...matchArr.map(m=>(m.son||0)+(m.sh||0))) : 0;
+      const peakConv = matchArr.length ? Math.max(...matchArr.map(m => {
+        const tot=(m.son||0)+(m.sh||0); return tot>0 ? Math.round(m.g/tot*100) : 0;
+      })) : 0;
+      const hiStats = [
+        {label:'Goals',val:peak('g')},{label:'Assists',val:peak('a')},
+        {label:'Key passes',val:peak('kp')},{label:'Shots',val:peakShots},
+        {label:'Conv%',val:peakConv+'%'},{label:'On target',val:peak('son')},
+        {label:'Tackles',val:peak('tk')},{label:'Intercepts',val:peak('int')},
+        {label:'Blocks',val:peak('bl')},{label:'Nutmegs',val:peak('nm')},
+        ...(peak('saves')>0?[{label:'GK saves',val:peak('saves')}]:[]),
+      ];
+      const nv = v => (v==null||v===undefined||isNaN(v)) ? '\u2013' : v;
+      return '<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:12px">'
+        +'<div style="font-size:.5rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:10px">Best game</div>'
+        +'<div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">'
+        +'<div style="background:rgba(57,211,83,.1);border:1px solid rgba(57,211,83,.25);border-radius:9px;padding:8px 14px;text-align:center;flex-shrink:0">'
+        +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:1.6rem;color:var(--green);line-height:1">'+nv(bg.goals)+'G&nbsp;'+nv(bg.assists)+'A</div>'
+        +'<div style="font-size:.55rem;color:var(--muted);letter-spacing:.5px;margin-top:2px">'+bg.match_date+'</div>'
+        +'</div>'
+        +'<div style="flex:1;display:flex;gap:14px;flex-wrap:wrap;align-items:center">'
+        +[['Key passes',nv(bg.key_passes)],['Shots',nv(bg.total_shots)],['Tackles',nv(bg.tackles)],['Nutmegs',nv(bg.nutmegs)]].map(([l,v])=>'<div style="text-align:center"><div style="font-size:1.1rem;font-weight:500">'+v+'</div><div style="font-size:.6rem;color:var(--muted)">'+l+'</div></div>').join('')
+        +'</div>'
+        +'</div>'
+        +'<div style="font-size:.5rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:8px">Career highs</div>'
+        +'<div style="display:flex;flex-wrap:nowrap;overflow:hidden;border:1px solid var(--border);border-radius:8px">'
+        +hiStats.map((h,i)=>'<div style="flex:1;min-width:0;padding:7px 2px;text-align:center'+(i>0?';border-left:1px solid var(--border)':'')+'">'
+          +'<div style="font-size:.9rem;font-weight:500;line-height:1">'+h.val+'</div>'
+          +'<div style="font-size:.5rem;color:var(--muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 2px">'+h.label+'</div>'
+          +'</div>').join('')
+        +'</div>'
+        +'</div>';
     })()}
 
     <!-- ═══ STATS (compact 2-col) ═══ -->
