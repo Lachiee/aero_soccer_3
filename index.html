@@ -9892,30 +9892,44 @@ function renderProfile(name) {
       allGoals.forEach(e => { const m=(e.tsSecsRaw||0)/60; timeBuckets[Math.min(4,Math.floor(m/10))]++; });
       const peakIdx = timeBuckets.indexOf(Math.max(...timeBuckets));
       const peakLabel = ["0–10'","10–20'","20–30'","30–40'","40+'"][peakIdx];
-      const avgSx = sx.length ? (sx.reduce((a,b)=>a+b,0)/sx.length).toFixed(3) : 'null';
-      const avgSy = sy.length ? (sy.reduce((a,b)=>a+b,0)/sy.length).toFixed(3) : 'null';
-      const avgNx = nx.length ? (nx.reduce((a,b)=>a+b,0)/nx.length).toFixed(3) : 'null';
-      const avgNy = ny.length ? (ny.reduce((a,b)=>a+b,0)/ny.length).toFixed(3) : 'null';
       const uid = 'bd_' + name.replace(/[^a-z0-9]/gi,'_');
-      // Shot zone label — use Y position (angle) since all shots go right
-      // Y: 0=top of pitch, 0.5=centre, 1=bottom
-      const sxV = avgSx!=='null' ? parseFloat(avgSx) : null;
-      const syV = avgSy!=='null' ? parseFloat(avgSy) : null;
-      let shotLabel = '–';
-      if (sxV!=null && syV!=null) {
-        const dist = sxV > 0.85 ? 'Close' : sxV > 0.72 ? 'Mid-range' : 'Long range';
-        const angle = syV < 0.3 ? 'top angle' : syV > 0.7 ? 'bottom angle' : syV < 0.42 ? 'slight top angle' : syV > 0.58 ? 'slight bottom angle' : 'central';
-        shotLabel = dist + ' · ' + angle;
-      }
-      // Net zone label — more precise with threshold zones
-      const nxV = avgNx!=='null' ? parseFloat(avgNx) : null;
-      const nyV = avgNy!=='null' ? parseFloat(avgNy) : null;
-      let netLabel = '–';
-      if (nxV!=null && nyV!=null) {
-        const vert = nyV < 0.35 ? 'Top' : nyV > 0.65 ? 'Bottom' : 'Mid';
-        const horiz = nxV < 0.35 ? 'left' : nxV > 0.65 ? 'right' : 'centre';
-        netLabel = vert + ' ' + horiz;
-      }
+      // Shot zone / net zone — MODE zone (bucket every shot, label = most-frequent bucket),
+      // NOT the average X/Y. Averaging a bimodal spread (e.g. lots of left-angle + lots of
+      // right-angle shots, few central ones) collapses to a misleading "central" midpoint.
+      const classifyShotZone = (px, py) => {
+        const dist = px > 0.85 ? 'Close' : px > 0.72 ? 'Mid-range' : 'Long range';
+        const angle = py < 0.3 ? 'top angle' : py > 0.7 ? 'bottom angle' : py < 0.42 ? 'slight top angle' : py > 0.58 ? 'slight bottom angle' : 'central';
+        return dist + ' · ' + angle;
+      };
+      const classifyNetZone = (px, py) => {
+        const vert = py < 0.35 ? 'Top' : py > 0.65 ? 'Bottom' : 'Mid';
+        const horiz = px < 0.35 ? 'left' : px > 0.65 ? 'right' : 'centre';
+        return vert + ' ' + horiz;
+      };
+      const modeZone = (xs, ys, classify) => {
+        const zones = {};
+        for (let i = 0; i < xs.length; i++) {
+          const z = classify(xs[i], ys[i]);
+          if (!zones[z]) zones[z] = { count: 0, sx: 0, sy: 0 };
+          zones[z].count++; zones[z].sx += xs[i]; zones[z].sy += ys[i];
+        }
+        const entries = Object.entries(zones);
+        if (!entries.length) return { label: '–', x: null, y: null };
+        entries.sort((a, b) => b[1].count - a[1].count);
+        const [label, z] = entries[0];
+        return { label, x: (z.sx / z.count).toFixed(3), y: (z.sy / z.count).toFixed(3) };
+      };
+      // pair up shotX/shotY (and netX/netY) from the same goal events so mode-zone counting is correct
+      const shotPairs = allGoals.filter(e => e.shotX != null && e.shotY != null);
+      const netPairs = allGoals.filter(e => e.netX != null && e.netY != null);
+      const shotMode = modeZone(shotPairs.map(e => e.shotX), shotPairs.map(e => e.shotY), classifyShotZone);
+      const netMode = modeZone(netPairs.map(e => e.netX), netPairs.map(e => e.netY), classifyNetZone);
+      const shotLabel = shotMode.label;
+      const netLabel = netMode.label;
+      const avgSx = shotMode.x !== null ? shotMode.x : 'null';
+      const avgSy = shotMode.y !== null ? shotMode.y : 'null';
+      const avgNx = netMode.x !== null ? netMode.x : 'null';
+      const avgNy = netMode.y !== null ? netMode.y : 'null';
       const timeBarsHtml = timeBuckets.map((v,i) => {
         const h = Math.max(...timeBuckets)>0 ? Math.max(8,Math.round(v/Math.max(...timeBuckets)*100)) : 8;
         const peak = i===peakIdx;
@@ -9955,65 +9969,45 @@ function renderProfile(name) {
     })()}
 
     <!-- BEST GAME + CAREER HIGHS -->
+    ${bestGameHtml}
     ${(() => {
-      const bg = s.bestGame;
-      if (!bg) return '';
-      const logs = (() => { try { return JSON.parse(localStorage.getItem('aero_event_logs')||'{}'); } catch(e){ return {}; } })();
-      const byMatch = {};
-      Object.values(logs).forEach(log => {
-        (log.events||[]).forEach(e => {
-          if (e.player !== name) return;
-          const d = log.date||'?';
-          if (!byMatch[d]) byMatch[d] = {g:0,a:0,kp:0,sh:0,son:0,tk:0,int:0,bl:0,nm:0,saves:0};
-          if (e.event==='Goals') byMatch[d].g++;
-          else if (e.event==='Key Passes') byMatch[d].kp++;
-          else if (e.event==='On Target') byMatch[d].son++;
-          else if (e.event==='Off Target') byMatch[d].sh++;
-          else if (e.event==='Tackles') byMatch[d].tk++;
-          else if (e.event==='Interceptions') byMatch[d].int++;
-          else if (e.event==='Blocks') byMatch[d].bl++;
-          else if (e.event==='Nutmegs') byMatch[d].nm++;
-          else if (e.event==='GK Saves') byMatch[d].saves++;
-        });
-        (log.events||[]).forEach(e => {
-          if (e.event==='Goals' && e.assistBy===name) {
-            const d = log.date||'?';
-            if (!byMatch[d]) byMatch[d] = {g:0,a:0,kp:0,sh:0,son:0,tk:0,int:0,bl:0,nm:0,saves:0};
-            byMatch[d].a++;
-          }
-        });
-      });
-      const matchArr = Object.values(byMatch);
-      const peak = key => matchArr.length ? Math.max(...matchArr.map(m=>m[key]||0)) : 0;
-      const peakShots = matchArr.length ? Math.max(...matchArr.map(m=>(m.son||0)+(m.sh||0))) : 0;
-      const peakConv = matchArr.length ? Math.max(...matchArr.map(m => {
-        const tot=(m.son||0)+(m.sh||0); return tot>0 ? Math.round(m.g/tot*100) : 0;
-      })) : 0;
-      const hiStats = [
-        {label:'Goals',val:peak('g')},{label:'Assists',val:peak('a')},
-        {label:'Key passes',val:peak('kp')},{label:'Shots',val:peakShots},
-        {label:'Conv%',val:peakConv+'%'},{label:'On target',val:peak('son')},
-        {label:'Tackles',val:peak('tk')},{label:'Intercepts',val:peak('int')},
-        {label:'Blocks',val:peak('bl')},{label:'Nutmegs',val:peak('nm')},
-        ...(peak('saves')>0?[{label:'GK saves',val:peak('saves')}]:[]),
-      ];
+      if (!s.matches.length) return '';
       const nv = v => (v==null||v===undefined||isNaN(v)) ? '\u2013' : v;
+      // best row (and value) for a given stat key, sourced straight from the season match rows
+      // (data.csv), not the localStorage event log — every row already carries match_id/match_date.
+      const bestOf = key => s.matches.reduce((b, r) => n(r[key]) > n((b||{})[key] || 0) ? r : b, null);
+      const bestConv = (() => {
+        let best = null, bestPct = -1;
+        s.matches.forEach(r => {
+          const tot = n(r.total_shots);
+          if (tot <= 0) return;
+          const pct = Math.round(n(r.goals) / tot * 100);
+          if (pct > bestPct) { bestPct = pct; best = r; }
+        });
+        return best ? { row: best, pct: bestPct } : null;
+      })();
+      const statDefs = [
+        ['Goals', 'goals'], ['Assists', 'assists'], ['Key passes', 'key_passes'], ['Shots', 'total_shots'],
+      ];
+      let hiStats = statDefs.map(([label, key]) => {
+        const row = bestOf(key);
+        const val = row ? n(row[key]) : 0;
+        return (row && val) ? { label, val, row } : null;
+      }).filter(Boolean);
+      if (bestConv) hiStats.push({ label: 'Conv%', val: bestConv.pct + '%', row: bestConv.row });
+      [['On target', 'shots_on_target'], ['Tackles', 'tackles'], ['Intercepts', 'interceptions'],
+       ['Blocks', 'blocks'], ['Nutmegs', 'nutmegs'], ['GK saves', 'goalkeeper_saves']].forEach(([label, key]) => {
+        const row = bestOf(key);
+        const val = row ? n(row[key]) : 0;
+        if (row && val) hiStats.push({ label, val, row });
+      });
       return '<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:12px">'
-        +'<div style="font-size:.5rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:10px">Best game</div>'
-        +'<div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">'
-        +'<div style="background:rgba(57,211,83,.1);border:1px solid rgba(57,211,83,.25);border-radius:9px;padding:8px 14px;text-align:center;flex-shrink:0">'
-        +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:1.6rem;color:var(--green);line-height:1">'+nv(bg.goals)+'G&nbsp;'+nv(bg.assists)+'A</div>'
-        +'<div style="font-size:.55rem;color:var(--muted);letter-spacing:.5px;margin-top:2px">'+bg.match_date+'</div>'
-        +'</div>'
-        +'<div style="flex:1;display:flex;gap:14px;flex-wrap:wrap;align-items:center">'
-        +[['Key passes',nv(bg.key_passes)],['Shots',nv(bg.total_shots)],['Tackles',nv(bg.tackles)],['Nutmegs',nv(bg.nutmegs)]].map(([l,v])=>'<div style="text-align:center"><div style="font-size:1.1rem;font-weight:500">'+v+'</div><div style="font-size:.6rem;color:var(--muted)">'+l+'</div></div>').join('')
-        +'</div>'
-        +'</div>'
         +'<div style="font-size:.5rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:8px">Career highs</div>'
         +'<div style="display:flex;flex-wrap:nowrap;overflow:hidden;border:1px solid var(--border);border-radius:8px">'
-        +hiStats.map((h,i)=>'<div style="flex:1;min-width:0;padding:7px 2px;text-align:center'+(i>0?';border-left:1px solid var(--border)':'')+'">'
-          +'<div style="font-size:.9rem;font-weight:500;line-height:1">'+h.val+'</div>'
+        +hiStats.map((h,i)=>'<div onclick="navToMatch(\''+h.row.match_id+'\')" title="Click to view match" style="cursor:pointer;flex:1;min-width:0;padding:7px 2px;text-align:center;transition:background .12s'+(i>0?';border-left:1px solid var(--border)':'')+'" onmouseenter="this.style.background=\'var(--card2)\'" onmouseleave="this.style.background=\'transparent\'">'
+          +'<div style="font-size:.9rem;font-weight:500;line-height:1">'+nv(h.val)+'</div>'
           +'<div style="font-size:.5rem;color:var(--muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 2px">'+h.label+'</div>'
+          +'<div style="font-size:.45rem;color:var(--muted);opacity:.65;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 2px">'+(h.row.match_date||'')+'</div>'
           +'</div>').join('')
         +'</div>'
         +'</div>';
@@ -10215,36 +10209,6 @@ function renderProfile(name) {
       </div>`;
     })()}
 
-    <!-- ═══ CAREER HIGHS ═══ -->
-    ${(() => {
-      if (!s.matches.length) return '';
-      const statBests = [
-        ['Most Goals','goals','⚽'],['Most Assists','assists','🎯'],['Most Tackles','tackles','💪'],
-        ['Most Nutmegs','nutmegs','🪄'],['Most Key Passes','key_passes','🔑'],['Most Shots','total_shots','🔫'],
-      ].map(([lbl, stat, icon]) => {
-        const best = s.matches.reduce((b, r) => n(r[stat]) > n(b[stat]||0) ? r : b, s.matches[0]||{});
-        const val = best ? n(best[stat]) : 0;
-        if (!val) return '';
-        const opp = best.team==='A' ? 'Team B' : 'Team A';
-        return `<div style="background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:10px 12px">
-          <div style="font-size:.55rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:3px">${icon} ${lbl}</div>
-          <div style="font-family:'Bebas Neue',sans-serif;font-size:1.8rem;color:var(--green);line-height:1;margin-bottom:2px">${val}</div>
-          <div style="font-size:.6rem;color:var(--muted)">${opp} · ${best.match_date||''}</div>
-        </div>`;
-      }).filter(Boolean);
-      return `<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 20px;margin-bottom:12px">
-        <div style="font-size:.58rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:12px">Career Highs</div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px">
-          ${statBests.join('')}
-          <div style="background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:10px 12px">
-            <div style="font-size:.55rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:3px">🏆 Best Streak</div>
-            <div style="font-family:'Bebas Neue',sans-serif;font-size:1.8rem;color:var(--green);line-height:1;margin-bottom:2px">${s.longestWinStreak}</div>
-            <div style="font-size:.6rem;color:var(--muted)">wins in a row</div>
-          </div>
-        </div>
-      </div>`;
-    })()}
-
     <!-- ═══ RECENT MATCHES ═══ -->
     <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 20px;margin-bottom:14px">
       <div style="font-size:.58rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:12px">Recent Matches</div>
@@ -10259,7 +10223,7 @@ function renderProfile(name) {
           const dateStr = r.match_date ? r.match_date.replace(/^(\d{4})-(\d{2})-(\d{2})$/,'$3/$2/$1') : '';
           const isMvp = m && ((m.mvp===r.player)||(m.mvp2===r.player)||(m.mvp3===r.player));
           const chips = [['⚽',n(r.goals)],['🎯',n(r.assists)],['🔫',n(r.total_shots)],['🔑',n(r.key_passes)],['✂',n(r.interceptions)]].filter(([,v])=>v>0).map(([ic,v])=>`<span style="font-size:.68rem;color:var(--muted)">${ic}<span style="color:var(--text);font-family:'Bebas Neue',sans-serif;font-size:.82rem"> ${v}</span></span>`).join('');
-          return `<div onclick="openMatchDetailFromProfile('${r.match_id}')" style="display:grid;grid-template-columns:64px 50px 1fr auto;align-items:center;gap:10px;padding:9px 8px;border-radius:7px;cursor:pointer;transition:background .12s;border-bottom:1px solid rgba(255,255,255,.03)" onmouseenter="this.style.background='var(--card2)'" onmouseleave="this.style.background='transparent'">
+          return `<div onclick="navToMatch('${r.match_id}')" style="display:grid;grid-template-columns:64px 50px 1fr auto;align-items:center;gap:10px;padding:9px 8px;border-radius:7px;cursor:pointer;transition:background .12s;border-bottom:1px solid rgba(255,255,255,.03)" onmouseenter="this.style.background='var(--card2)'" onmouseleave="this.style.background='transparent'">
             <div style="font-size:.68rem;color:var(--muted)">${dateStr}</div>
             <div style="display:flex;align-items:center;gap:5px"><span style="width:20px;height:20px;border-radius:50%;background:${resBg};border:1px solid ${resCol};color:${resCol};font-family:'Bebas Neue',sans-serif;font-size:.68rem;display:flex;align-items:center;justify-content:center;flex-shrink:0">${res}</span><span style="font-size:.62rem;color:var(--muted)">T${r.team}</span></div>
             <div style="display:flex;gap:9px;flex-wrap:wrap">${chips}</div>
@@ -10272,9 +10236,6 @@ function renderProfile(name) {
 
     <!-- ═══ GK TIME GRAPH ═══ -->
     <div id="profile-gk-timeline"></div>
-
-    <!-- ═══ BEST GAME ═══ -->
-    ${bestGameHtml}
 
     <!-- ═══ STRIKE PARTNERSHIPS removed ═══ -->
 
