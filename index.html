@@ -4860,18 +4860,9 @@ function toggleMomLayer(btn, layer) {
 
 function drawMomentumGraph(canvasId, matchId) {
   const cv = document.getElementById(canvasId);
+  if (!cv) return;
   const data = window._wormData?.[matchId];
-  if (!cv || !data) return;
-  const { rows, matchDur, htSecs, fA, fB, ytId } = data;
-  if (!rows || rows.length < 1) return;
-
-  // Try event log for shot-pressure momentum
-  let evLog = null;
-  try {
-    const logs = JSON.parse(localStorage.getItem('aero_event_logs') || '{}');
-    const log = logs[matchId];
-    evLog = log?.events?.length ? log.events : null;
-  } catch(e) {}
+  const rows = data?.rows;
 
   const dpr = window.devicePixelRatio || 1;
   let W = cv.offsetWidth;
@@ -4885,6 +4876,32 @@ function drawMomentumGraph(canvasId, matchId) {
   cv.style.width = W + 'px'; cv.style.height = H + 'px';
   const ctx = cv.getContext('2d');
   ctx.scale(dpr, dpr);
+
+  // No time-based data for this match (no goal times from the Goal Combos importer,
+  // no imported events.csv) — draw a clear placeholder instead of leaving it blank.
+  if (!data || !rows || rows.length < 1) {
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = 'rgba(0,0,0,.3)';
+    if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(0, 0, W, H, 8); ctx.fill(); } else { ctx.fillRect(0, 0, W, H); }
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = 'rgba(154,184,156,.55)';
+    ctx.font = '14px Barlow Condensed, sans-serif';
+    ctx.fillText('⏱ No time-based data recorded for this match', W / 2, H / 2 - 10);
+    ctx.fillStyle = 'rgba(154,184,156,.32)';
+    ctx.font = '11px Barlow Condensed, sans-serif';
+    ctx.fillText('Import goal times or the events CSV to see momentum & score worm', W / 2, H / 2 + 12);
+    return;
+  }
+  const { matchDur, htSecs, fA, fB, ytId } = data;
+
+  // Try event log for shot-pressure momentum
+  let evLog = null;
+  try {
+    const logs = JSON.parse(localStorage.getItem('aero_event_logs') || '{}');
+    const log = logs[matchId];
+    evLog = log?.events?.length ? log.events : null;
+  } catch(e) {}
 
   const pad = { l: 8, r: 40, t: 42, b: 42 }; // extra right padding so end-of-game names aren't clipped
   const cW = W - pad.l - pad.r;
@@ -6439,6 +6456,46 @@ function getComboStats() {
   return Object.values(combos).map(c => ({ ...c, matchCount: c.matches.size })).sort((a,b) => b.goals - a.goals);
 }
 
+// Best Partnership — for a given player, who they've combined with for the most goals
+// (counting both directions: goals they scored off partner's assists + goals partner scored
+// off their assists) plus real key-pass → shot "chains", matched by timestamp proximity via
+// getCreationPartners (a Key Pass followed by a same-team shot within 10s = that shot's taker
+// is the creation recipient). Chain data only exists for matches where the full events.csv was
+// imported — narrower coverage than goal combos, but a precise link rather than a guess.
+function getPlayerPartnerships(name) {
+  const combos = getComboStats();
+  const pairTotals = {};
+  combos.forEach(c => {
+    if (c.scorer !== name && c.assister !== name) return;
+    const partner = c.scorer === name ? c.assister : c.scorer;
+    if (partner === name) return;
+    if (!pairTotals[partner]) pairTotals[partner] = { partner, goals: 0, asScorer: 0, asAssister: 0, matches: new Set(), kpFor: 0, kpFrom: 0 };
+    pairTotals[partner].goals += c.goals;
+    if (c.scorer === name) pairTotals[partner].asScorer += c.goals; else pairTotals[partner].asAssister += c.goals;
+    c.matches.forEach(mid => pairTotals[partner].matches.add(mid));
+  });
+  const creation = getCreationPartners(name);
+  const ensure = pname => {
+    if (!pairTotals[pname]) pairTotals[pname] = { partner: pname, goals: 0, asScorer: 0, asAssister: 0, matches: new Set(), kpFor: 0, kpFrom: 0 };
+    return pairTotals[pname];
+  };
+  creation.setsUp.forEach(su => { ensure(su.name).kpFor = su.shots; });   // key passes I made that became their shot
+  creation.setUpBy.forEach(su => { ensure(su.name).kpFrom = su.shots; }); // their key passes that became my shot
+  return Object.values(pairTotals)
+    .map(p => ({ ...p, matchCount: p.matches.size, chains: p.kpFor + p.kpFrom }))
+    .sort((a,b) => (b.goals * 2 + b.chains) - (a.goals * 2 + a.chains));
+}
+
+// Chemistry Leaders — reuses the existing window._chemistry pairwise data (win rate together
+// vs each player's individual baseline win rate) to find which teammates this player's team
+// performs best with, regardless of goals/assists.
+function getPlayerChemistry(name) {
+  return (window._filteredChemistry || window._chemistry || [])
+    .filter(c => (c.p1 === name || c.p2 === name) && c.games >= 2)
+    .map(c => ({ partner: c.p1 === name ? c.p2 : c.p1, games: c.games, winRate: c.winRate, delta: c.delta }))
+    .sort((a,b) => b.delta - a.delta);
+}
+
 function renderComboLeaderboard() {
   const stats = getComboStats();
   if (!stats.length) return '<div style="color:var(--muted);font-size:.8rem">No combination data yet.</div>';
@@ -6865,15 +6922,25 @@ function drawSpiderWithSquad(canvasId, labels, playerValues, squadValues, player
     ctx.fill();
   });
 
-  // Labels — align dynamically based on position so labels near the left/right edges
-  // (e.g. "NUTMEGS", "KEY PASS") extend inward instead of running off the canvas.
-  ctx.fillStyle = '#9ab89c';
+  // Labels — align dynamically so labels near the left/right edges don't get clipped,
+  // and give each one a small background chip so it stays legible even if the shape
+  // or a dot happens to sit close to the label ring.
   ctx.font = '10px Barlow Condensed, sans-serif';
   labels.forEach((lbl, i) => {
     const r = R + 18;
     const cosA = Math.cos(angle(i));
-    ctx.textAlign = cosA > 0.3 ? 'right' : cosA < -0.3 ? 'left' : 'center';
-    ctx.fillText(lbl.toUpperCase(), cx + r * cosA, cy + r * Math.sin(angle(i)) + 4);
+    const align = cosA > 0.3 ? 'right' : cosA < -0.3 ? 'left' : 'center';
+    const text = lbl.toUpperCase();
+    const x = cx + r * cosA;
+    const y = cy + r * Math.sin(angle(i)) + 4;
+    const tw = ctx.measureText(text).width;
+    const bx = align === 'center' ? x - tw / 2 - 3 : align === 'left' ? x - 3 : x - tw - 3;
+    ctx.fillStyle = 'rgba(11,20,13,.72)';
+    if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(bx, y - 9, tw + 6, 12, 3); ctx.fill(); }
+    else ctx.fillRect(bx, y - 9, tw + 6, 12);
+    ctx.fillStyle = '#9ab89c';
+    ctx.textAlign = align;
+    ctx.fillText(text, x, y);
   });
 }
 
@@ -6945,15 +7012,22 @@ function drawSpider(canvasId, labels, values, color) {
     ctx.fill();
   });
 
-  // Labels — align dynamically so labels near the left/right edges don't get clipped
-  ctx.fillStyle = '#9ab89c';
+  // Labels — align dynamically so labels near the left/right edges don't get clipped,
+  // with a small background chip so they stay legible over the plotted shape
   ctx.font = '11px Barlow, sans-serif';
   labels.forEach((lbl, i) => {
     const r = R + 18;
     const cosA = Math.cos(angle(i));
-    ctx.textAlign = cosA > 0.3 ? 'right' : cosA < -0.3 ? 'left' : 'center';
+    const align = cosA > 0.3 ? 'right' : cosA < -0.3 ? 'left' : 'center';
     const x = cx + r * cosA;
     const y = cy + r * Math.sin(angle(i)) + 4;
+    const tw = ctx.measureText(lbl).width;
+    const bx = align === 'center' ? x - tw / 2 - 3 : align === 'left' ? x - 3 : x - tw - 3;
+    ctx.fillStyle = 'rgba(11,20,13,.72)';
+    if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(bx, y - 9, tw + 6, 12, 3); ctx.fill(); }
+    else ctx.fillRect(bx, y - 9, tw + 6, 12);
+    ctx.fillStyle = '#9ab89c';
+    ctx.textAlign = align;
     ctx.fillText(lbl, x, y);
   });
 }
@@ -8211,56 +8285,51 @@ function renderPlayers() {
   if (!grid) return;
   grid.innerHTML = list.map(p => {
     const cs = customStats[p.player] || {};
-    const wl = p.wins + p.losses + (p.draws||0) > 0 ? `<div class="wl-badge"><span class="wl-w">${p.wins}W</span><span class="wl-d">${p.draws||0}D</span><span class="wl-l">${p.losses}L</span>${(p.mvps||0)>0?`<span class="mvp-counter">👑${p.mvps}</span>`:''}</div>` : '';
-    const trend = p.formTrend;
+    const pg = Math.max(p.games, 1);
     const mom = p.momentum;
+    const leaderTags = getLeaderTags(p.player);
 
-    // Form row — win rate over last 5 vs previous 5
-    const trendHtml = trend ? (() => {
-      const up = trend === 'up', down = trend === 'down';
-      const col = up ? 'var(--green)' : down ? 'var(--red)' : 'var(--muted)';
-      const icon = up ? '▲' : down ? '▼' : '●';
-      const lbl = up ? 'Win rate up' : down ? 'Win rate down' : 'Win rate steady';
-      return `<span data-tip="Win rate: last 5 games vs previous 5 games" style="font-size:.72rem;color:${col};cursor:help">${icon} ${lbl}</span>`;
-    })() : '';
-
-    // Momentum row — per-game stat change vs 5 games ago
-    const momHtml = mom !== null && mom !== undefined ? (() => {
+    // Compact momentum arrow — replaces the old full-sentence "Stats slightly up +10%" line
+    const momHtml = (mom !== null && mom !== undefined) ? (() => {
       const col = mom >= 15 ? 'var(--green)' : mom >= 0 ? 'var(--lime)' : mom >= -15 ? 'var(--amber)' : 'var(--red)';
       const icon = mom >= 15 ? '▲▲' : mom >= 0 ? '▲' : mom >= -15 ? '▼' : '▼▼';
       const sign = mom > 0 ? '+' : '';
-      const lbl = mom >= 15 ? 'Stats trending up' : mom >= 0 ? 'Stats slightly up' : mom >= -15 ? 'Stats slightly down' : 'Stats trending down';
-      return `<span data-tip="Stats vs 5 games ago: goals, assists, shots, tackles, interceptions, key passes" style="font-size:.72rem;color:${col};cursor:help">${icon} ${lbl} ${sign}${mom}%</span>`;
+      return `<span data-tip="Stats vs 5 games ago: goals, assists, shots, tackles, interceptions, key passes" style="font-size:.65rem;color:${col};cursor:help;white-space:nowrap">${icon} ${sign}${mom}%</span>`;
     })() : '';
 
-    const trendMomHtml = (trendHtml || momHtml) ? `
-      <div style="display:flex;flex-direction:column;gap:2px;margin-top:4px">
-        ${trendHtml ? `<div>${trendHtml}</div>` : ''}
-        ${momHtml ? `<div>${momHtml}</div>` : ''}
-      </div>` : '';
-
-    // Time-based badge — show 2H trend if event log data exists
+    // Compact 2H trend icon — replaces the old full-sentence 2H line
     const timeHtml = (() => {
       const ts = getPlayerEventStats(p.player);
       if (!ts || ts.matchesWithData < 2) return '';
       const trend2h = ts.dominantTrend;
       const diff = (ts.avgH2 - ts.avgH1).toFixed(1);
-      if (trend2h === '↗') return `<span data-tip="Gets stronger in 2H — avg ${diff} more stats/window in 2nd half vs 1st (${ts.matchesWithData} games)" style="font-size:.7rem;color:var(--green);cursor:help">📈 2H +${diff}</span>`;
-      if (trend2h === '↘') return `<span data-tip="Fades in 2H — avg ${Math.abs(diff)} fewer stats/window in 2nd half vs 1st (${ts.matchesWithData} games)" style="font-size:.7rem;color:var(--amber);cursor:help">📉 2H ${diff}</span>`;
+      if (trend2h === '↗') return `<span data-tip="Gets stronger in 2H — avg ${diff} more stats/window in 2nd half vs 1st (${ts.matchesWithData} games)" style="font-size:.65rem;color:var(--green);cursor:help;white-space:nowrap">📈 2H+${diff}</span>`;
+      if (trend2h === '↘') return `<span data-tip="Fades in 2H — avg ${Math.abs(diff)} fewer stats/window in 2nd half vs 1st (${ts.matchesWithData} games)" style="font-size:.65rem;color:var(--amber);cursor:help;white-space:nowrap">📉 2H${diff}</span>`;
       return '';
     })();
+
+    // Last 5 results, oldest → newest (p._form8 is already most-recent-first, from computeAnalytics)
+    const last5 = (p._form8 || []).slice(0, 5).reverse();
+
     return `<div class="pcard" onclick="nav('profile','${p.player}')">
-      <div style="display:flex;align-items:baseline;gap:6px;flex-wrap:wrap">
-        <div class="pcard-name">${p.player}</div>
-        ${getLeaderTags(p.player).map(t => `<span data-tip="${t.tip}" style="font-size:.72rem;color:var(--gold);opacity:.85;cursor:help;white-space:nowrap">${t.label}</span>`).join('')}
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+        <div style="min-width:0">
+          <div class="pcard-name">${p.player}</div>
+          ${leaderTags.length ? `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:2px">${leaderTags.map(t => `<span data-tip="${t.tip}" style="font-size:.68rem;color:var(--gold);opacity:.9;cursor:help;white-space:nowrap">${t.label}</span>`).join('')}</div>` : ''}
+        </div>
+        ${(p.mvps||0) > 0 ? `<span data-tip="MVP awards (1st place)" style="cursor:help;flex-shrink:0;display:inline-flex;align-items:center;gap:3px;background:rgba(240,192,64,.15);color:var(--gold);font-size:.72rem;font-weight:700;padding:3px 8px;border-radius:6px;font-family:'Barlow Condensed',sans-serif">👑 ${p.mvps}</span>` : ''}
       </div>
-      <div class="pcard-rating">${adminMode ? `Rating <span>${p.rating}</span>` : ''}</div>
-      <div class="pcard-tags">${renderTags(p._tags)}</div>
-      <div class="stat-row"><span class="stat-lbl">Goals/G</span><span class="stat-val">${(p.goals/Math.max(p.games,1)).toFixed(2)}</span></div>
-      <div class="stat-row"><span class="stat-lbl">Assists/G</span><span class="stat-val">${(p.assists/Math.max(p.games,1)).toFixed(2)}</span></div>
-      <div class="stat-row"><span class="stat-lbl">Shots/G</span><span class="stat-val">${(p.total_shots/Math.max(p.games,1)).toFixed(1)}</span></div>
-      <div class="stat-row"><span class="stat-lbl">Tackles/G</span><span class="stat-val">${(p.tackles/Math.max(p.games,1)).toFixed(1)}</span></div>
-      ${timeHtml ? `<div style="margin-top:4px">${timeHtml}</div>` : ''}
+      <div class="pcard-tags" style="margin-top:8px">${renderTags(p._tags)}</div>
+      <div style="display:flex;justify-content:space-between;padding:8px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border);margin-bottom:8px">
+        <div style="text-align:center"><div style="font-family:'Bebas Neue',sans-serif;font-size:1rem">${(p.goals/pg).toFixed(2)}</div><div style="font-size:.55rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">G/g</div></div>
+        <div style="text-align:center"><div style="font-family:'Bebas Neue',sans-serif;font-size:1rem">${(p.assists/pg).toFixed(2)}</div><div style="font-size:.55rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">A/g</div></div>
+        <div style="text-align:center"><div style="font-family:'Bebas Neue',sans-serif;font-size:1rem">${(p.total_shots/pg).toFixed(1)}</div><div style="font-size:.55rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">SH/g</div></div>
+        <div style="text-align:center"><div style="font-family:'Bebas Neue',sans-serif;font-size:1rem">${(p.goalkeeper_saves/pg).toFixed(1)}</div><div style="font-size:.55rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">SV/g</div></div>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;gap:8px">
+        <div class="form-dots" data-tip="Last 5 results" style="cursor:help">${formDotsHtml(last5)}</div>
+        <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">${momHtml}${timeHtml}</div>
+      </div>
       ${adminMode ? `
       <div class="stat-row"><span class="stat-lbl">Enforcer</span><span class="stat-val" style="color:var(--purple)">${n(cs.enforcer)}/10</span></div>
       <div class="stat-row"><span class="stat-lbl">Stamina</span><span class="stat-val" style="color:var(--amber)">${n(cs.stamina)}/10</span></div>
@@ -8275,12 +8344,10 @@ function renderPlayers() {
           <span class="stat-val" style="color:${col}">${sc > 0 ? '+' : ''}${sc}% ${lbl}${conf}</span>
         </div>`;
       })() : ''}
-      <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:6px">
-        ${trendMomHtml}
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
         ${streakHtml(p)}
+        <span class="games-badge" style="margin-top:0">${p.games} games</span>
       </div>
-      <span class="games-badge">${p.games} games played</span>
-      ${wl}
     </div>`;
   }).join('');
 }
@@ -9881,7 +9948,9 @@ function renderProfile(name) {
       const logs = (() => { try { return JSON.parse(localStorage.getItem('aero_event_logs')||'{}'); } catch(e){ return {}; } })();
       const allGoals = [];
       Object.values(logs).forEach(log => { (log.events||[]).forEach(e => { if (e.event==='Goals' && e.player===name) allGoals.push(e); }); });
-      if (!allGoals.length) return '';
+      const ts = getPlayerEventStats(name);
+      const hasGk = ts && ts.gkSaveRate != null;
+      if (!allGoals.length && !hasGk) return '';
       const sx = allGoals.filter(e=>e.shotX!=null).map(e=>e.shotX);
       const sy = allGoals.filter(e=>e.shotX!=null&&e.shotY!=null).map(e=>e.shotY);
       const nx = allGoals.filter(e=>e.netX!=null).map(e=>e.netX);
@@ -9938,8 +10007,32 @@ function renderProfile(name) {
         const peak = i===peakIdx;
         return '<div style="flex:1;border-radius:2px 2px 0 0;height:'+h+'%;background:'+(peak?'var(--green)':'rgba(57,211,83,.2)')+'"></div>';
       }).join('');
+      // GK save-rate ring — small SVG arc, colour tiers matching the rest of the app's GK stats
+      const gkTileHtml = (() => {
+        if (!hasGk) return '<div style="padding:12px 8px;text-align:center">'
+          +'<div style="font-size:.5rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:8px">Save rate</div>'
+          +'<div style="width:44px;height:44px;margin:0 auto 5px;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:.7rem">–</div>'
+          +'<div style="font-size:.7rem;font-weight:600">no data</div>'
+          +'<div style="font-size:.58rem;color:var(--muted)">no time spent in goal</div>'
+          +'</div>';
+        const rate = ts.gkSaveRate;
+        const pct = Math.round(rate * 100);
+        const col = rate >= 0.8 ? 'var(--green)' : rate >= 0.6 ? 'var(--lime)' : 'var(--amber,#f59e0b)';
+        const r = 17, circ = 2 * Math.PI * r;
+        const offset = circ * (1 - rate);
+        return '<div style="padding:12px 8px;text-align:center">'
+          +'<div style="font-size:.5rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:8px">Save rate</div>'
+          +'<svg width="44" height="44" viewBox="0 0 44 44" style="display:block;margin:0 auto 5px">'
+          +'<circle cx="22" cy="22" r="'+r+'" fill="none" stroke="var(--border)" stroke-width="5"/>'
+          +'<circle cx="22" cy="22" r="'+r+'" fill="none" stroke="'+col+'" stroke-width="5" stroke-linecap="round" stroke-dasharray="'+circ.toFixed(1)+'" stroke-dashoffset="'+offset.toFixed(1)+'" transform="rotate(-90 22 22)"/>'
+          +'<text x="22" y="26" text-anchor="middle" font-size="11" font-weight="600" fill="var(--text)" font-family="Barlow Condensed, sans-serif">'+pct+'%</text>'
+          +'</svg>'
+          +'<div style="font-size:.7rem;font-weight:600">'+ts.gkSaves+' saves</div>'
+          +'<div style="font-size:.58rem;color:var(--muted)">'+ts.gkGoalsConceded+' conceded · '+ts.gkMinutes+' mins</div>'
+          +'</div>';
+      })();
       return '<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;margin-bottom:12px;overflow:hidden">'
-        +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr">'
+        +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr">'
         +'<div style="padding:12px 8px;text-align:center;border-right:1px solid var(--border)">'
         +'<div style="font-size:.5rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:8px">Shot zone</div>'
         +'<canvas id="'+uid+'_pitch" width="70" height="46" style="display:block;margin:0 auto 5px;border-radius:3px"></canvas>'
@@ -9961,12 +10054,13 @@ function renderProfile(name) {
         +'<div style="font-size:.7rem;font-weight:600">'+(domFoot||'–')+' foot</div>'
         +'<div style="font-size:.58rem;color:var(--muted)">'+(rPct!=null?rPct+'% right':tot+' recorded')+'</div>'
         +'</div>'
-        +'<div style="padding:12px 8px;text-align:center">'
+        +'<div style="padding:12px 8px;text-align:center;border-right:1px solid var(--border)">'
         +'<div style="font-size:.5rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:8px">Goals by time</div>'
         +'<div style="display:flex;align-items:flex-end;gap:2px;height:30px;width:52px;margin:0 auto 5px">'+timeBarsHtml+'</div>'
         +'<div style="font-size:.7rem;font-weight:600">'+peakLabel+'</div>'
         +'<div style="font-size:.58rem;color:var(--muted)">peak window</div>'
         +'</div>'
+        +gkTileHtml
         +'</div></div>'
         +'<div data-bd="'+uid+'" data-sx="'+avgSx+'" data-sy="'+avgSy+'" data-nx="'+avgNx+'" data-ny="'+avgNy+'" style="display:none"></div>';
     })()}
@@ -10167,8 +10261,64 @@ function renderProfile(name) {
       </div>`;
     })()}
 
-    <!-- ═══ RECENT MATCHES + HIGHLIGHTS (side by side) ═══ -->
-    <div style="display:grid;grid-template-columns:620px 1fr;gap:12px;margin-bottom:14px;align-items:stretch">
+    <!-- ═══ BEST PARTNERSHIP + CHEMISTRY LEADERS (side by side) ═══ -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;align-items:stretch">
+      ${(() => {
+        const partners = getPlayerPartnerships(name).slice(0, 3);
+        const rows = !partners.length
+          ? `<div style="text-align:center;font-size:.68rem;color:var(--muted);opacity:.7;padding:16px 0">No combos or key-pass chains recorded yet</div>`
+          : partners.map((p, i) => `
+            <div style="display:flex;align-items:center;gap:10px;padding:7px 4px${i>0?';border-top:1px solid var(--border)':''}">
+              <span style="width:22px;height:22px;border-radius:50%;background:rgba(57,211,83,.15);color:var(--green);font-family:'Bebas Neue',sans-serif;font-size:.85rem;display:flex;align-items:center;justify-content:center;flex-shrink:0">${i+1}</span>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:.78rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.partner}</div>
+                <div style="font-size:.58rem;color:var(--muted)">${p.matchCount} combo match${p.matchCount===1?'':'es'} together</div>
+              </div>
+              <div style="text-align:center;flex-shrink:0;width:36px">
+                <div style="font-family:'Bebas Neue',sans-serif;font-size:1rem;${p.goals>0?'color:var(--green)':'color:var(--muted);opacity:.35'}">${p.goals}</div>
+                <div style="font-size:.5rem;color:var(--muted)">GOALS</div>
+              </div>
+              <div style="text-align:center;flex-shrink:0;width:36px">
+                <div style="font-family:'Bebas Neue',sans-serif;font-size:1rem;${p.chains>0?'color:var(--lime)':'color:var(--muted);opacity:.35'}">${p.chains}</div>
+                <div style="font-size:.5rem;color:var(--muted)">KP CHAIN</div>
+              </div>
+            </div>`).join('');
+        return `<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 16px 12px">
+          <div style="font-size:.58rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:6px">Best Partnership</div>
+          <div style="font-size:.56rem;color:var(--muted);opacity:.6;margin-bottom:8px">Combos together + key pass → shot chains (10s window, needs imported events)</div>
+          ${rows}
+        </div>`;
+      })()}
+
+      ${(() => {
+        const chem = getPlayerChemistry(name).slice(0, 3);
+        const rows = !chem.length
+          ? `<div style="text-align:center;font-size:.68rem;color:var(--muted);opacity:.7;padding:16px 0">Not enough shared games yet</div>`
+          : chem.map((c, i) => {
+            const up = c.delta > 0;
+            const col = up ? 'var(--green)' : c.delta < 0 ? 'var(--red)' : 'var(--muted)';
+            return `
+            <div style="display:flex;align-items:center;gap:10px;padding:7px 4px${i>0?';border-top:1px solid var(--border)':''}">
+              <span style="width:22px;height:22px;border-radius:50%;background:rgba(240,192,64,.15);color:var(--gold);font-family:'Bebas Neue',sans-serif;font-size:.85rem;display:flex;align-items:center;justify-content:center;flex-shrink:0">${i+1}</span>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:.78rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.partner}</div>
+                <div style="font-size:.58rem;color:var(--muted)">${c.winRate}% win rate · ${c.games} games together</div>
+              </div>
+              <div style="text-align:right;flex-shrink:0">
+                <div style="font-family:'Bebas Neue',sans-serif;font-size:1.05rem;color:${col}">${c.delta>0?'+':''}${c.delta}%</div>
+              </div>
+            </div>`;
+          }).join('');
+        return `<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 16px 12px">
+          <div style="font-size:.58rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:6px">Chemistry Leaders</div>
+          <div style="font-size:.56rem;color:var(--muted);opacity:.6;margin-bottom:8px">Win rate together vs each player's own baseline</div>
+          ${rows}
+        </div>`;
+      })()}
+    </div>
+
+    <!-- ═══ RECENT MATCHES + HIGHLIGHTS + LOWLIGHTS (side by side) ═══ -->
+    <div style="display:grid;grid-template-columns:620px 1fr 1fr;gap:12px;margin-bottom:14px;align-items:stretch">
       <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 20px">
         <div style="font-size:.58rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:12px">Recent Matches</div>
         ${(() => {
@@ -10237,22 +10387,17 @@ function renderProfile(name) {
           </div>`;
         };
 
-        const listBody = !allHighlights.length
-          ? `<div style="display:flex;align-items:center;justify-content:center;height:100%;text-align:center;font-size:.68rem;color:var(--muted);opacity:.7;padding:20px">No highlights recorded yet</div>`
-          : `${highlights.length ? `
-              <div style="font-size:.52rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);padding:4px 6px;position:sticky;top:0;background:var(--card)">⭐ Highlights</div>
-              ${highlights.map(renderRow).join('')}` : ''}
-            ${lowlights.length ? `
-              <div style="font-size:.52rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);padding:10px 6px 4px;position:sticky;top:0;background:var(--card)">😬 Lowlights</div>
-              ${lowlights.map(renderRow).join('')}` : ''}`;
-
-        return `<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 16px 12px;display:flex;flex-direction:column;min-height:0">
-          <div style="font-size:.58rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:8px;flex-shrink:0">Highlights &amp; Lowlights</div>
+        const buildPanel = (title, items, emptyMsg, showHint) => `<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 16px 12px;display:flex;flex-direction:column;min-height:0">
+          <div style="font-size:.58rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:8px;flex-shrink:0">${title}</div>
           <div style="flex:1;min-height:0;overflow-y:auto;padding-right:4px">
-            ${listBody}
+            ${items.length ? items.map(renderRow).join('') : `<div style="display:flex;align-items:center;justify-content:center;height:100%;text-align:center;font-size:.68rem;color:var(--muted);opacity:.7;padding:20px">${emptyMsg}</div>`}
           </div>
-          ${allHighlights.length && !allHighlights.some(h=>h.ytId) ? `<div style="font-size:.55rem;color:var(--muted);margin-top:6px;opacity:.6;flex-shrink:0">Flag goals with ! and assists with * in the Goal Combos importer</div>` : ''}
+          ${showHint ? `<div style="font-size:.55rem;color:var(--muted);margin-top:6px;opacity:.6;flex-shrink:0">Flag goals with ! and assists with * in the Goal Combos importer</div>` : ''}
         </div>`;
+
+        const showHint = allHighlights.length && !allHighlights.some(h=>h.ytId);
+        return buildPanel('⭐ Highlights', highlights, 'No highlights recorded yet', showHint)
+          + buildPanel('😬 Lowlights', lowlights, 'No lowlights recorded', false);
       })()}
     </div>
 
@@ -13205,11 +13350,18 @@ function drawSpiderDual(canvasId, labels, v1, v2, c1, c2) {
     ctx.strokeStyle=col;ctx.lineWidth=2;ctx.stroke();
     vals.forEach((v,i)=>{const r=R*Math.min(v,1);ctx.beginPath();ctx.arc(cx+r*Math.cos(ang(i)),cy+r*Math.sin(ang(i)),3,0,Math.PI*2);ctx.fillStyle=col;ctx.fill();});
   });
-  ctx.fillStyle='#d4a0a0';ctx.font='11px Barlow,sans-serif';
+  ctx.font='11px Barlow,sans-serif';
   labels.forEach((lbl,i)=>{
     const r=R+18; const cosA=Math.cos(ang(i));
-    ctx.textAlign = cosA > 0.3 ? 'right' : cosA < -0.3 ? 'left' : 'center';
-    ctx.fillText(lbl,cx+r*cosA,cy+r*Math.sin(ang(i))+4);
+    const align = cosA > 0.3 ? 'right' : cosA < -0.3 ? 'left' : 'center';
+    const x = cx+r*cosA, y = cy+r*Math.sin(ang(i))+4;
+    const tw = ctx.measureText(lbl).width;
+    const bx = align === 'center' ? x - tw/2 - 3 : align === 'left' ? x - 3 : x - tw - 3;
+    ctx.fillStyle = 'rgba(11,20,13,.72)';
+    if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(bx, y-9, tw+6, 12, 3); ctx.fill(); } else ctx.fillRect(bx, y-9, tw+6, 12);
+    ctx.fillStyle='#d4a0a0';
+    ctx.textAlign = align;
+    ctx.fillText(lbl,x,y);
   });
 }
 
@@ -14177,11 +14329,18 @@ function printPlayerCard(name) {
   sv.values.forEach((v,i)=>{const r=R2*Math.min(v,1);i===0?ctx2.moveTo(cx2+r*Math.cos(ang2(i)),cy2+r*Math.sin(ang2(i))):ctx2.lineTo(cx2+r*Math.cos(ang2(i)),cy2+r*Math.sin(ang2(i)));});
   ctx2.closePath(); ctx2.fillStyle='rgba(57,211,83,0.2)'; ctx2.fill(); ctx2.strokeStyle='#39d353'; ctx2.lineWidth=2; ctx2.stroke();
   sv.values.forEach((v,i)=>{const r=R2*Math.min(v,1);ctx2.beginPath();ctx2.arc(cx2+r*Math.cos(ang2(i)),cy2+r*Math.sin(ang2(i)),3,0,Math.PI*2);ctx2.fillStyle='#39d353';ctx2.fill();});
-  ctx2.fillStyle='#9ab89c'; ctx2.font='10px Barlow,sans-serif';
+  ctx2.font='10px Barlow,sans-serif';
   sv.labels.forEach((lbl,i)=>{
     const r=R2+16; const cosA=Math.cos(ang2(i));
-    ctx2.textAlign = cosA > 0.3 ? 'right' : cosA < -0.3 ? 'left' : 'center';
-    ctx2.fillText(lbl,cx2+r*cosA,cy2+r*Math.sin(ang2(i))+3);
+    const align = cosA > 0.3 ? 'right' : cosA < -0.3 ? 'left' : 'center';
+    const x = cx2+r*cosA, y = cy2+r*Math.sin(ang2(i))+3;
+    const tw = ctx2.measureText(lbl).width;
+    const bx = align === 'center' ? x - tw/2 - 3 : align === 'left' ? x - 3 : x - tw - 3;
+    ctx2.fillStyle = 'rgba(11,20,13,.72)';
+    if (ctx2.roundRect) { ctx2.beginPath(); ctx2.roundRect(bx, y-9, tw+6, 12, 3); ctx2.fill(); } else ctx2.fillRect(bx, y-9, tw+6, 12);
+    ctx2.fillStyle='#9ab89c';
+    ctx2.textAlign = align;
+    ctx2.fillText(lbl,x,y);
   });
   const spiderDataUrl = spiderCanvas.toDataURL();
 
