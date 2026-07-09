@@ -10167,96 +10167,95 @@ function renderProfile(name) {
       </div>`;
     })()}
 
-    <!-- ═══ HIGHLIGHTS ═══ -->
-    ${(() => {
-      const allHighlights = getPlayerHighlights(name);
-      const highlights  = allHighlights.filter(h => h.type !== 'lowlight');
-      const lowlights   = allHighlights.filter(h => h.type === 'lowlight');
-      if (!allHighlights.length) return '';
-
-      const renderCard = (h) => {
-        const matchKey = h.mid.replace(/[#,]/g,'_');
-        const ytSecs = h.ytId && h.time ? timeToYtSeconds(h.time, h.half) : null;
-        const isGoal = h.type === 'goal', isAssist = h.type === 'assist';
-        const isSave = h.type === 'save', isMoment = h.type === 'moment', isLow = h.type === 'lowlight';
-        const col = isGoal ? 'var(--green)' : isAssist ? 'var(--lime)' : isSave ? '#60a5fa' : isLow ? '#f87171' : '#f59e0b';
-        const borderCol = isGoal ? 'rgba(57,211,83,.2)' : isAssist ? 'rgba(168,224,80,.2)' : isSave ? 'rgba(96,165,250,.2)' : isLow ? 'rgba(248,113,113,.2)' : 'rgba(245,158,11,.2)';
-        const icon = h.label || (isGoal ? '⚽' : isAssist ? '🎯' : isSave ? '🧤' : isLow ? '😬' : '⭐');
-        const mins = h.time ? String(h.time).split(':')[0].replace(/^0/,'') : '?';
-        return `<div style="background:var(--card2);border:1px solid ${borderCol};border-radius:8px;padding:8px 12px;min-width:110px;${ytSecs!==null?'cursor:pointer':''}"
-          ${ytSecs!==null ? `onclick="seekYtVideo('${matchKey}','${h.ytId}',${ytSecs})" title="▶ Watch"` : ''}>
-          <div style="display:flex;align-items:center;gap:5px;margin-bottom:3px">
-            <span style="font-size:.8rem">${icon}</span>
-            <span style="font-family:'Bebas Neue',sans-serif;font-size:1rem;color:${col}">${mins}'</span>
-            <span style="font-size:.58rem;color:var(--muted)">${h.half}</span>
-            ${ytSecs!==null ? `<span style="margin-left:auto;color:var(--amber);font-size:.75rem">▶</span>` : ''}
-          </div>
-          <div style="font-size:.72rem;font-weight:600">${h.scorer}</div>
-          ${h.assister ? `<div style="font-size:.6rem;color:var(--muted)">← ${h.assister}</div>` : ''}
-          <div style="font-size:.58rem;color:var(--muted);margin-top:3px;opacity:.7">${h.match.date}</div>
-        </div>`;
-      };
-
-      return `<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 20px;margin-bottom:12px">
-        ${highlights.length ? `
-          <div style="font-size:.58rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:12px">⭐ Highlights</div>
-          <div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:${lowlights.length?'16px':'0'}">
-            ${highlights.map(renderCard).join('')}
-          </div>` : ''}
-        ${lowlights.length ? `
-          <div style="font-size:.58rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:12px">😬 Lowlights</div>
-          <div style="display:flex;flex-wrap:wrap;gap:7px">
-            ${lowlights.map(renderCard).join('')}
-          </div>` : ''}
-        ${!allHighlights.some(h=>h.ytId) ? `<div style="font-size:.6rem;color:var(--muted);margin-top:8px;opacity:.6">Flag goals with ! and assists with * in the Goal Combos importer</div>` : ''}
-      </div>`;
-    })()}
-
-    <!-- ═══ RECENT MATCHES ═══ -->
-    <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 20px;margin-bottom:14px">
-      <div style="font-size:.58rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:12px">Recent Matches</div>
-      ${(() => {
-        // every stat gets its own fixed-width column so rows line up regardless of which
-        // stats happen to be non-zero that game (the old chip list re-flowed row to row)
-        const statCols = [
-          ['G','goals'], ['A','assists'], ['S','total_shots'], ['KP','key_passes'],
-          ['TK','tackles'], ['INT','interceptions'], ['BLK','blocks'], ['NM','nutmegs'], ['GK','goalkeeper_saves'],
-        ];
-        const rows = [...s.matches].sort((a,b)=>(b.match_date||'').localeCompare(a.match_date||'')).slice(0,10);
-        const header = '<div style="display:flex;align-items:center;gap:2px;padding:0 8px 6px 46px;border-bottom:1px solid var(--border);margin-bottom:2px">'
-          + statCols.map(([lbl])=>'<div style="width:26px;flex-shrink:0;text-align:center;font-size:.5rem;letter-spacing:.5px;color:var(--muted)">'+lbl+'</div>').join('')
-          + '<div style="flex:1"></div>'
-          + '<div style="width:48px;flex-shrink:0;text-align:right;font-size:.5rem;letter-spacing:.5px;color:var(--muted)">SCORE</div>'
-          + '</div>';
-        const body = rows.map(r => {
-          const m = matchList.find(x=>x.id===r.match_id);
-          const won = m && ((r.team==='A'&&m.goalsA>m.goalsB)||(r.team==='B'&&m.goalsB>m.goalsA));
-          const drew = m && m.goalsA===m.goalsB;
-          const res = won?'W':drew?'D':'L';
-          const resCol = won?'var(--green)':drew?'var(--amber)':'var(--red)';
-          const dateStr = r.match_date ? r.match_date.replace(/^(\d{4})-(\d{2})-(\d{2})$/,'$3/$2') : '';
-          const isMvp = m && ((m.mvp===r.player)||(m.mvp2===r.player)||(m.mvp3===r.player));
-          const cells = statCols.map(([,key]) => {
-            const v = n(r[key]);
-            return '<div style="width:26px;flex-shrink:0;text-align:center;font-family:\'Bebas Neue\',sans-serif;font-size:.78rem;'+(v>0?'color:var(--text)':'color:var(--muted);opacity:.35')+'">'+v+'</div>';
-          }).join('');
-          return '<div onclick="navToMatch(\''+r.match_id+'\')" style="display:flex;align-items:center;gap:2px;padding:7px 8px 7px 0;border-left:3px solid '+resCol+';border-radius:0 6px 6px 0;cursor:pointer;transition:background .12s" onmouseenter="this.style.background=\'var(--card2)\'" onmouseleave="this.style.background=\'transparent\'">'
-            + '<div style="width:43px;flex-shrink:0;padding-left:8px">'
-              + '<div style="font-size:.72rem;font-weight:700;color:'+resCol+'">'+res+'</div>'
-              + '<div style="font-size:.55rem;color:var(--muted)">'+dateStr+'</div>'
-            + '</div>'
-            + cells
+    <!-- ═══ RECENT MATCHES + HIGHLIGHTS (side by side) ═══ -->
+    <div style="display:grid;grid-template-columns:620px 1fr;gap:12px;margin-bottom:14px;align-items:stretch">
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 20px">
+        <div style="font-size:.58rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:12px">Recent Matches</div>
+        ${(() => {
+          const statCols = [
+            ['G','goals'], ['A','assists'], ['S','total_shots'], ['KP','key_passes'],
+            ['TK','tackles'], ['INT','interceptions'], ['BLK','blocks'], ['NM','nutmegs'], ['GK','goalkeeper_saves'],
+          ];
+          const rows = [...s.matches].sort((a,b)=>(b.match_date||'').localeCompare(a.match_date||'')).slice(0,10);
+          const header = '<div style="display:flex;align-items:center;gap:2px;padding:0 8px 6px 46px;border-bottom:1px solid var(--border);margin-bottom:2px">'
+            + statCols.map(([lbl])=>'<div style="width:26px;flex-shrink:0;text-align:center;font-size:.5rem;letter-spacing:.5px;color:var(--muted)">'+lbl+'</div>').join('')
             + '<div style="flex:1"></div>'
-            + '<div style="width:48px;flex-shrink:0;display:flex;align-items:center;justify-content:flex-end;gap:4px">'
-              + (isMvp?'<span style="font-size:.6rem;color:var(--gold)">👑</span>':'')
-              + '<span style="font-family:\'Bebas Neue\',sans-serif;font-size:.88rem;color:var(--muted)">'+(m?m.goalsA+'–'+m.goalsB:'–')+'</span>'
-            + '</div>'
+            + '<div style="width:48px;flex-shrink:0;text-align:right;font-size:.5rem;letter-spacing:.5px;color:var(--muted)">SCORE</div>'
             + '</div>';
-        }).join('');
-        return '<div style="overflow-x:auto"><div style="min-width:540px">'+header+body+'</div></div>'
-          + (s.matches.length > 10 ? '<div style="font-size:.68rem;color:var(--muted);text-align:center;padding:8px 0">'+(s.matches.length-10)+' more matches in career</div>' : '');
+          const body = rows.map(r => {
+            const m = matchList.find(x=>x.id===r.match_id);
+            const won = m && ((r.team==='A'&&m.goalsA>m.goalsB)||(r.team==='B'&&m.goalsB>m.goalsA));
+            const drew = m && m.goalsA===m.goalsB;
+            const res = won?'W':drew?'D':'L';
+            const resCol = won?'var(--green)':drew?'var(--amber)':'var(--red)';
+            const dateStr = r.match_date ? r.match_date.replace(/^(\d{4})-(\d{2})-(\d{2})$/,'$3/$2') : '';
+            const isMvp = m && ((m.mvp===r.player)||(m.mvp2===r.player)||(m.mvp3===r.player));
+            const cells = statCols.map(([,key]) => {
+              const v = n(r[key]);
+              return '<div style="width:26px;flex-shrink:0;text-align:center;font-family:\'Bebas Neue\',sans-serif;font-size:.78rem;'+(v>0?'color:var(--text)':'color:var(--muted);opacity:.35')+'">'+v+'</div>';
+            }).join('');
+            return '<div onclick="navToMatch(\''+r.match_id+'\')" style="display:flex;align-items:center;gap:2px;padding:7px 8px 7px 0;border-left:3px solid '+resCol+';border-radius:0 6px 6px 0;cursor:pointer;transition:background .12s" onmouseenter="this.style.background=\'var(--card2)\'" onmouseleave="this.style.background=\'transparent\'">'
+              + '<div style="width:43px;flex-shrink:0;padding-left:8px">'
+                + '<div style="font-size:.72rem;font-weight:700;color:'+resCol+'">'+res+'</div>'
+                + '<div style="font-size:.55rem;color:var(--muted)">'+dateStr+'</div>'
+              + '</div>'
+              + cells
+              + '<div style="flex:1"></div>'
+              + '<div style="width:48px;flex-shrink:0;display:flex;align-items:center;justify-content:flex-end;gap:4px">'
+                + (isMvp?'<span style="font-size:.6rem;color:var(--gold)">👑</span>':'')
+                + '<span style="font-family:\'Bebas Neue\',sans-serif;font-size:.88rem;color:var(--muted)">'+(m?m.goalsA+'–'+m.goalsB:'–')+'</span>'
+              + '</div>'
+              + '</div>';
+          }).join('');
+          return '<div style="overflow-x:auto"><div style="min-width:540px">'+header+body+'</div></div>'
+            + (s.matches.length > 10 ? '<div style="font-size:.68rem;color:var(--muted);text-align:center;padding:8px 0">'+(s.matches.length-10)+' more matches in career</div>' : '');
+        })()}
+      </div>
+
+      ${(() => {
+        const allHighlights = getPlayerHighlights(name);
+        const highlights  = allHighlights.filter(h => h.type !== 'lowlight');
+        const lowlights   = allHighlights.filter(h => h.type === 'lowlight');
+
+        const renderRow = (h) => {
+          const matchKey = h.mid.replace(/[#,]/g,'_');
+          const ytSecs = h.ytId && h.time ? timeToYtSeconds(h.time, h.half) : null;
+          const isGoal = h.type === 'goal', isAssist = h.type === 'assist';
+          const isSave = h.type === 'save', isLow = h.type === 'lowlight';
+          const col = isGoal ? 'var(--green)' : isAssist ? 'var(--lime)' : isSave ? '#60a5fa' : isLow ? '#f87171' : '#f59e0b';
+          const icon = h.label || (isGoal ? '⚽' : isAssist ? '🎯' : isSave ? '🧤' : isLow ? '😬' : '⭐');
+          const mins = h.time ? String(h.time).split(':')[0].replace(/^0/,'') : '?';
+          return `<div ${ytSecs!==null ? `onclick="seekYtVideo('${matchKey}','${h.ytId}',${ytSecs})" title="▶ Watch" style="cursor:pointer"` : ''}
+            style="display:flex;align-items:center;gap:8px;padding:6px 6px;border-radius:6px;transition:background .12s" onmouseenter="this.style.background='var(--card2)'" onmouseleave="this.style.background='transparent'">
+            <span style="font-size:.7rem;flex-shrink:0">${icon}</span>
+            <span style="font-family:'Bebas Neue',sans-serif;font-size:.82rem;color:${col};width:26px;flex-shrink:0">${mins}'</span>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:.66rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${h.scorer}${h.assister ? ' ← '+h.assister : ''}</div>
+              <div style="font-size:.54rem;color:var(--muted)">${h.match.date}${h.half ? ' · '+h.half : ''}</div>
+            </div>
+            ${ytSecs!==null ? `<span style="color:var(--amber);font-size:.65rem;flex-shrink:0">▶</span>` : ''}
+          </div>`;
+        };
+
+        const listBody = !allHighlights.length
+          ? `<div style="display:flex;align-items:center;justify-content:center;height:100%;text-align:center;font-size:.68rem;color:var(--muted);opacity:.7;padding:20px">No highlights recorded yet</div>`
+          : `${highlights.length ? `
+              <div style="font-size:.52rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);padding:4px 6px;position:sticky;top:0;background:var(--card)">⭐ Highlights</div>
+              ${highlights.map(renderRow).join('')}` : ''}
+            ${lowlights.length ? `
+              <div style="font-size:.52rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);padding:10px 6px 4px;position:sticky;top:0;background:var(--card)">😬 Lowlights</div>
+              ${lowlights.map(renderRow).join('')}` : ''}`;
+
+        return `<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 16px 12px;display:flex;flex-direction:column;min-height:0">
+          <div style="font-size:.58rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:8px;flex-shrink:0">Highlights &amp; Lowlights</div>
+          <div style="flex:1;min-height:0;overflow-y:auto;padding-right:4px">
+            ${listBody}
+          </div>
+          ${allHighlights.length && !allHighlights.some(h=>h.ytId) ? `<div style="font-size:.55rem;color:var(--muted);margin-top:6px;opacity:.6;flex-shrink:0">Flag goals with ! and assists with * in the Goal Combos importer</div>` : ''}
+        </div>`;
       })()}
     </div>
+
 
     <!-- ═══ GK TIME GRAPH ═══ -->
     <div id="profile-gk-timeline"></div>
