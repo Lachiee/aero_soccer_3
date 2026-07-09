@@ -10215,26 +10215,47 @@ function renderProfile(name) {
     <!-- ═══ RECENT MATCHES ═══ -->
     <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 20px;margin-bottom:14px">
       <div style="font-size:.58rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:12px">Recent Matches</div>
-      <div style="display:flex;flex-direction:column">
-        ${[...s.matches].sort((a,b)=>(b.match_date||'').localeCompare(a.match_date||'')).slice(0,10).map(r => {
+      ${(() => {
+        // every stat gets its own fixed-width column so rows line up regardless of which
+        // stats happen to be non-zero that game (the old chip list re-flowed row to row)
+        const statCols = [
+          ['G','goals'], ['A','assists'], ['S','total_shots'], ['KP','key_passes'],
+          ['TK','tackles'], ['INT','interceptions'], ['BLK','blocks'], ['NM','nutmegs'], ['GK','goalkeeper_saves'],
+        ];
+        const rows = [...s.matches].sort((a,b)=>(b.match_date||'').localeCompare(a.match_date||'')).slice(0,10);
+        const header = '<div style="display:flex;align-items:center;gap:2px;padding:0 8px 6px 46px;border-bottom:1px solid var(--border);margin-bottom:2px">'
+          + statCols.map(([lbl])=>'<div style="width:26px;flex-shrink:0;text-align:center;font-size:.5rem;letter-spacing:.5px;color:var(--muted)">'+lbl+'</div>').join('')
+          + '<div style="flex:1"></div>'
+          + '<div style="width:48px;flex-shrink:0;text-align:right;font-size:.5rem;letter-spacing:.5px;color:var(--muted)">SCORE</div>'
+          + '</div>';
+        const body = rows.map(r => {
           const m = matchList.find(x=>x.id===r.match_id);
           const won = m && ((r.team==='A'&&m.goalsA>m.goalsB)||(r.team==='B'&&m.goalsB>m.goalsA));
           const drew = m && m.goalsA===m.goalsB;
           const res = won?'W':drew?'D':'L';
           const resCol = won?'var(--green)':drew?'var(--amber)':'var(--red)';
-          const resBg = won?'rgba(57,211,83,.1)':drew?'rgba(245,158,11,.1)':'rgba(248,113,113,.08)';
-          const dateStr = r.match_date ? r.match_date.replace(/^(\d{4})-(\d{2})-(\d{2})$/,'$3/$2/$1') : '';
+          const dateStr = r.match_date ? r.match_date.replace(/^(\d{4})-(\d{2})-(\d{2})$/,'$3/$2') : '';
           const isMvp = m && ((m.mvp===r.player)||(m.mvp2===r.player)||(m.mvp3===r.player));
-          const chips = [['⚽',n(r.goals)],['🎯',n(r.assists)],['🔫',n(r.total_shots)],['🔑',n(r.key_passes)],['✂',n(r.interceptions)]].filter(([,v])=>v>0).map(([ic,v])=>`<span style="font-size:.68rem;color:var(--muted)">${ic}<span style="color:var(--text);font-family:'Bebas Neue',sans-serif;font-size:.82rem"> ${v}</span></span>`).join('');
-          return `<div onclick="navToMatch('${r.match_id}')" style="display:grid;grid-template-columns:64px 50px 1fr auto;align-items:center;gap:10px;padding:9px 8px;border-radius:7px;cursor:pointer;transition:background .12s;border-bottom:1px solid rgba(255,255,255,.03)" onmouseenter="this.style.background='var(--card2)'" onmouseleave="this.style.background='transparent'">
-            <div style="font-size:.68rem;color:var(--muted)">${dateStr}</div>
-            <div style="display:flex;align-items:center;gap:5px"><span style="width:20px;height:20px;border-radius:50%;background:${resBg};border:1px solid ${resCol};color:${resCol};font-family:'Bebas Neue',sans-serif;font-size:.68rem;display:flex;align-items:center;justify-content:center;flex-shrink:0">${res}</span><span style="font-size:.62rem;color:var(--muted)">T${r.team}</span></div>
-            <div style="display:flex;gap:9px;flex-wrap:wrap">${chips}</div>
-            <div style="display:flex;align-items:center;gap:5px;flex-shrink:0">${isMvp?'<span style="font-size:.6rem;color:var(--gold)">👑</span>':''}<span style="font-family:'Bebas Neue',sans-serif;font-size:.88rem;color:var(--muted)">${m?m.goalsA+'–'+m.goalsB:'–'}</span></div>
-          </div>`;
-        }).join('')}
-        ${s.matches.length > 10 ? `<div style="font-size:.68rem;color:var(--muted);text-align:center;padding:8px 0">${s.matches.length-10} more matches in career</div>` : ''}
-      </div>
+          const cells = statCols.map(([,key]) => {
+            const v = n(r[key]);
+            return '<div style="width:26px;flex-shrink:0;text-align:center;font-family:\'Bebas Neue\',sans-serif;font-size:.78rem;'+(v>0?'color:var(--text)':'color:var(--muted);opacity:.35')+'">'+v+'</div>';
+          }).join('');
+          return '<div onclick="navToMatch(\''+r.match_id+'\')" style="display:flex;align-items:center;gap:2px;padding:7px 8px 7px 0;border-left:3px solid '+resCol+';border-radius:0 6px 6px 0;cursor:pointer;transition:background .12s" onmouseenter="this.style.background=\'var(--card2)\'" onmouseleave="this.style.background=\'transparent\'">'
+            + '<div style="width:43px;flex-shrink:0;padding-left:8px">'
+              + '<div style="font-size:.72rem;font-weight:700;color:'+resCol+'">'+res+'</div>'
+              + '<div style="font-size:.55rem;color:var(--muted)">'+dateStr+'</div>'
+            + '</div>'
+            + cells
+            + '<div style="flex:1"></div>'
+            + '<div style="width:48px;flex-shrink:0;display:flex;align-items:center;justify-content:flex-end;gap:4px">'
+              + (isMvp?'<span style="font-size:.6rem;color:var(--gold)">👑</span>':'')
+              + '<span style="font-family:\'Bebas Neue\',sans-serif;font-size:.88rem;color:var(--muted)">'+(m?m.goalsA+'–'+m.goalsB:'–')+'</span>'
+            + '</div>'
+            + '</div>';
+        }).join('');
+        return '<div style="overflow-x:auto"><div style="min-width:540px">'+header+body+'</div></div>'
+          + (s.matches.length > 10 ? '<div style="font-size:.68rem;color:var(--muted);text-align:center;padding:8px 0">'+(s.matches.length-10)+' more matches in career</div>' : '');
+      })()}
     </div>
 
     <!-- ═══ GK TIME GRAPH ═══ -->
