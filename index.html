@@ -6865,13 +6865,15 @@ function drawSpiderWithSquad(canvasId, labels, playerValues, squadValues, player
     ctx.fill();
   });
 
-  // Labels
+  // Labels — align dynamically based on position so labels near the left/right edges
+  // (e.g. "NUTMEGS", "KEY PASS") extend inward instead of running off the canvas.
   ctx.fillStyle = '#9ab89c';
   ctx.font = '10px Barlow Condensed, sans-serif';
-  ctx.textAlign = 'center';
   labels.forEach((lbl, i) => {
     const r = R + 18;
-    ctx.fillText(lbl.toUpperCase(), cx + r * Math.cos(angle(i)), cy + r * Math.sin(angle(i)) + 4);
+    const cosA = Math.cos(angle(i));
+    ctx.textAlign = cosA > 0.3 ? 'right' : cosA < -0.3 ? 'left' : 'center';
+    ctx.fillText(lbl.toUpperCase(), cx + r * cosA, cy + r * Math.sin(angle(i)) + 4);
   });
 }
 
@@ -6943,13 +6945,14 @@ function drawSpider(canvasId, labels, values, color) {
     ctx.fill();
   });
 
-  // Labels
+  // Labels — align dynamically so labels near the left/right edges don't get clipped
   ctx.fillStyle = '#9ab89c';
   ctx.font = '11px Barlow, sans-serif';
-  ctx.textAlign = 'center';
   labels.forEach((lbl, i) => {
     const r = R + 18;
-    const x = cx + r * Math.cos(angle(i));
+    const cosA = Math.cos(angle(i));
+    ctx.textAlign = cosA > 0.3 ? 'right' : cosA < -0.3 ? 'left' : 'center';
+    const x = cx + r * cosA;
     const y = cy + r * Math.sin(angle(i)) + 4;
     ctx.fillText(lbl, x, y);
   });
@@ -9972,7 +9975,7 @@ function renderProfile(name) {
     ${bestGameHtml}
     ${(() => {
       if (!s.matches.length) return '';
-      const nv = v => (v==null||v===undefined||isNaN(v)) ? '\u2013' : v;
+      const nv = v => (v==null||v===undefined||(typeof v==='number'&&isNaN(v))) ? '\u2013' : v;
       // best row (and value) for a given stat key, sourced straight from the season match rows
       // (data.csv), not the localStorage event log — every row already carries match_id/match_date.
       const bestOf = key => s.matches.reduce((b, r) => n(r[key]) > n((b||{})[key] || 0) ? r : b, null);
@@ -13182,8 +13185,12 @@ function drawSpiderDual(canvasId, labels, v1, v2, c1, c2) {
     ctx.strokeStyle=col;ctx.lineWidth=2;ctx.stroke();
     vals.forEach((v,i)=>{const r=R*Math.min(v,1);ctx.beginPath();ctx.arc(cx+r*Math.cos(ang(i)),cy+r*Math.sin(ang(i)),3,0,Math.PI*2);ctx.fillStyle=col;ctx.fill();});
   });
-  ctx.fillStyle='#d4a0a0';ctx.font='11px Barlow,sans-serif';ctx.textAlign='center';
-  labels.forEach((lbl,i)=>{const r=R+18;ctx.fillText(lbl,cx+r*Math.cos(ang(i)),cy+r*Math.sin(ang(i))+4);});
+  ctx.fillStyle='#d4a0a0';ctx.font='11px Barlow,sans-serif';
+  labels.forEach((lbl,i)=>{
+    const r=R+18; const cosA=Math.cos(ang(i));
+    ctx.textAlign = cosA > 0.3 ? 'right' : cosA < -0.3 ? 'left' : 'center';
+    ctx.fillText(lbl,cx+r*cosA,cy+r*Math.sin(ang(i))+4);
+  });
 }
 
 // =====================================================================
@@ -14150,8 +14157,12 @@ function printPlayerCard(name) {
   sv.values.forEach((v,i)=>{const r=R2*Math.min(v,1);i===0?ctx2.moveTo(cx2+r*Math.cos(ang2(i)),cy2+r*Math.sin(ang2(i))):ctx2.lineTo(cx2+r*Math.cos(ang2(i)),cy2+r*Math.sin(ang2(i)));});
   ctx2.closePath(); ctx2.fillStyle='rgba(57,211,83,0.2)'; ctx2.fill(); ctx2.strokeStyle='#39d353'; ctx2.lineWidth=2; ctx2.stroke();
   sv.values.forEach((v,i)=>{const r=R2*Math.min(v,1);ctx2.beginPath();ctx2.arc(cx2+r*Math.cos(ang2(i)),cy2+r*Math.sin(ang2(i)),3,0,Math.PI*2);ctx2.fillStyle='#39d353';ctx2.fill();});
-  ctx2.fillStyle='#9ab89c'; ctx2.font='10px Barlow,sans-serif'; ctx2.textAlign='center';
-  sv.labels.forEach((lbl,i)=>{const r=R2+16;ctx2.fillText(lbl,cx2+r*Math.cos(ang2(i)),cy2+r*Math.sin(ang2(i))+3);});
+  ctx2.fillStyle='#9ab89c'; ctx2.font='10px Barlow,sans-serif';
+  sv.labels.forEach((lbl,i)=>{
+    const r=R2+16; const cosA=Math.cos(ang2(i));
+    ctx2.textAlign = cosA > 0.3 ? 'right' : cosA < -0.3 ? 'left' : 'center';
+    ctx2.fillText(lbl,cx2+r*cosA,cy2+r*Math.sin(ang2(i))+3);
+  });
   const spiderDataUrl = spiderCanvas.toDataURL();
 
   const html = `
