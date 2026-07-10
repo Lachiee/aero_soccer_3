@@ -181,7 +181,7 @@ body::after{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;opac
   padding:5px 10px;cursor:pointer;font-size:.75rem;font-family:'Barlow',sans-serif}
 
 /* ===== LEADERBOARD ===== */
-.lb-controls{display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap}
+.lb-controls{display:flex;flex-direction:column;gap:8px;margin-bottom:18px}
 .stat-btn{background:var(--card);border:1px solid var(--border);color:var(--muted);
   padding:6px 14px;border-radius:6px;cursor:pointer;font-size:.8rem;font-family:'Barlow Condensed',sans-serif;
   letter-spacing:.5px;transition:all .15s}
@@ -8591,48 +8591,12 @@ function renderProfileTimeStats(name) {
       `${ts.leadStats.leading} stats while leading, ${ts.leadStats.trailing} trailing, ${ts.leadStats.level} level`));
   }
 
-  // GK section (only shown if they've played in goal)
-  const gkSection = ts.gkMatches > 0 ? `
-    <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
-      <div style="font-family:'Barlow Condensed',sans-serif;font-size:.68rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:8px">🧤 Goalkeeper Record</div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px;margin-bottom:10px">
-        ${statPill('Avg Time in Goal', `${Math.round(ts.gkMinutes / Math.max(ts.gkMatches,1))}'`,
-          `across ${ts.gkMatches} match${ts.gkMatches>1?'es':''}`,
-          'Average minutes per match played as goalkeeper — derived from GK On/Off rotation events')}
-        ${ts.gkSaves != null ? statPill('Saves', ts.gkSaves.toString(),
-          ts.gkSavesPer90 != null ? `${ts.gkSavesPer90.toFixed(1)} per 55 min` : '',
-          'Saves made while in goal — attributed by timestamp to the correct keeper, not split evenly across the match') : ''}
-        ${adminMode ? statPill('Goals conceded', ts.gkGoalsConceded.toString(),
-          ts.gkConcededPer90 != null ? `${ts.gkConcededPer90.toFixed(1)} per 55 min` : '',
-          'Goals conceded while this player was in goal — matched by timestamp to their specific rotation spell') : ''}
-        ${ts.gkSaveRate != null ? statPill('Save rate',
-          `${Math.round(ts.gkSaveRate * 100)}%`,
-          `${ts.gkSaves} saves${adminMode ? ' · '+ts.gkGoalsConceded+' let in' : ''}`,
-          'Proportion of shot attempts kept out — saves / (saves + goals conceded) while in goal') : ''}
-      </div>
-      ${ts.gkSpellHistory?.length ? `
-        <div style="font-size:.68rem;color:var(--muted);margin-bottom:6px;letter-spacing:.5px">ROTATION HISTORY</div>
-        <div style="display:flex;flex-direction:column;gap:3px">
-          ${ts.gkSpellHistory.map(sp => {
-            const saveRateRaw = (sp.saves + (sp.conceded||0)) > 0 ? sp.saves / (sp.saves + (sp.conceded||0)) : null;
-            const srCol = saveRateRaw == null ? 'var(--muted)' : saveRateRaw >= 0.8 ? 'var(--green)' : saveRateRaw >= 0.6 ? 'var(--lime)' : 'var(--amber,#f59e0b)';
-            return `<div style="display:flex;align-items:center;gap:8px;padding:4px 8px;background:var(--card2);border-radius:5px;font-size:.72rem">
-              <span style="color:var(--muted);min-width:72px">${sp.date || ''}</span>
-              <span style="color:var(--muted);min-width:18px">${sp.half}</span>
-              <span style="color:var(--text2)">${sp.fromMins}'–${sp.toMins}' <span style="color:var(--muted)">(${sp.durMins} min)</span></span>
-              <span style="margin-left:auto;color:var(--green)">${sp.saves} saves</span>
-            </div>`;
-          }).join('')}
-        </div>` : ''}
-    </div>` : '';
-
-  el.innerHTML = pills.length || gkSection ? `
+  el.innerHTML = pills.length ? `
     <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:14px">
       <div style="font-family:'Barlow Condensed',sans-serif;font-size:.7rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:12px">⏱ Time-Based Stats</div>
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px">
         ${pills.join('')}
       </div>
-      ${gkSection}
     </div>` : '';
 }
 
@@ -10435,8 +10399,9 @@ function renderProfile(name) {
 
     <!-- ═══ RECENT MATCHES + HIGHLIGHTS + LOWLIGHTS (side by side) ═══ -->
     <div style="display:grid;grid-template-columns:620px 1fr 1fr;gap:12px;margin-bottom:14px;align-items:stretch">
-      <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 20px">
-        <div style="font-size:.58rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:12px">Recent Matches</div>
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 20px;height:480px;display:flex;flex-direction:column">
+        <div style="font-size:.58rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:12px;flex-shrink:0">Recent Matches</div>
+        <div style="overflow-y:auto;flex:1;min-height:0">
         ${(() => {
           const statCols = [
             ['G','goals'], ['A','assists'], ['S','total_shots'], ['KP','key_passes'],
@@ -10476,6 +10441,7 @@ function renderProfile(name) {
           return '<div style="overflow-x:auto"><div style="min-width:540px">'+header+body+'</div></div>'
             + (s.matches.length > 10 ? '<div style="font-size:.68rem;color:var(--muted);text-align:center;padding:8px 0">'+(s.matches.length-10)+' more matches in career</div>' : '');
         })()}
+        </div>
       </div>
 
       ${(() => {
@@ -10503,7 +10469,7 @@ function renderProfile(name) {
           </div>`;
         };
 
-        const buildPanel = (title, items, emptyMsg, showHint) => `<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 16px 12px;display:flex;flex-direction:column;min-height:0">
+        const buildPanel = (title, items, emptyMsg, showHint) => `<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 16px 12px;height:480px;display:flex;flex-direction:column;min-height:0">
           <div style="font-size:.58rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:8px;flex-shrink:0">${title}</div>
           <div style="flex:1;min-height:0;overflow-y:auto;padding-right:4px">
             ${items.length ? items.map(renderRow).join('') : `<div style="display:flex;align-items:center;justify-content:center;height:100%;text-align:center;font-size:.68rem;color:var(--muted);opacity:.7;padding:20px">${emptyMsg}</div>`}
@@ -10665,14 +10631,26 @@ function saveCustomStat(player, key, val) {
 // LEADERBOARD
 // =====================================================================
 const LB_STATS = [
-  ['rating','Rating'],['goals','Goals'],['assists','Assists'],['combo_assists','🤝 Goal Combos'],
+  ['rating','Rating'],
+  // Attacking
+  ['goals','Goals'],['assists','Assists'],['combo_assists','🤝 Goal Combos'],['key_passes','Key Passes'],
   ['total_shots','Shots'],['shot_accuracy','Shot Accuracy %'],['shot_conversion','Shot Conv %'],
-  ['tackles','Tackles'],['interceptions','Intercepts'],
-  ['nutmegs','Nutmegs'],['key_passes','Key Passes'],['blocks','Blocks'],
-  ['goalkeeper_saves','GK Saves'],['wins','Wins / Win %'],['mvps','MVPs 👑'],
-  ['gd','Goal Difference'],['attendance','Attendance %'],
-  ['goals_left','🦶 Left Foot'],['goals_right','👟 Right Foot'],['goals_header','🤕 Headers'],
+  // Defending
+  ['tackles','Tackles'],['interceptions','Intercepts'],['blocks','Blocks'],['goalkeeper_saves','GK Saves'],
+  ['save_rate','Save Rate %'],['def_sparks','Defensive Sparks'],
+  // Flair & Style
+  ['nutmegs','Nutmegs'],['goals_left','🦶 Left Foot'],['goals_right','👟 Right Foot'],['goals_header','🤕 Headers'],['post','Posts Hit'],
+  // Team
+  ['wins','Wins / Win %'],['gd','Goal Difference'],['mvps','MVPs 👑'],['attendance','Attendance %'],
+  ['games','Games Played'],['longestWinStreak','Longest Win Streak'],['clutch','Clutch Actions'],
 ];
+const LB_CATEGORIES = [
+  ['attacking', 'Attacking', ['goals','assists','combo_assists','key_passes','total_shots','shot_accuracy','shot_conversion']],
+  ['defending', 'Defending', ['tackles','interceptions','blocks','goalkeeper_saves','save_rate','def_sparks']],
+  ['flair', 'Flair & Style', ['nutmegs','goals_left','goals_right','goals_header','post']],
+  ['team', 'Team', ['wins','gd','mvps','attendance','games','longestWinStreak','clutch']],
+];
+let lbCategory = 'attacking';
 let lbStat = 'goals';
 let lbPerGame = true;
 let lbActiveOnly = true;
@@ -10695,12 +10673,21 @@ function renderLeaderboard() {
         title="Show only players active in the last 2 months of the selected season">
         ${lbActiveOnly ? '● Active' : '○ Active'}
       </button>
+      ${adminMode ? `<button class="stat-btn ${lbStat==='rating'?'active':''}" onclick="setLbStat('rating')" style="margin-left:auto">⭐ Rating</button>` : ''}
     </div>
-    <div style="display:flex;flex-wrap:wrap;gap:4px">
-      ${LB_STATS.filter(([k]) => k !== 'rating' || adminMode).filter(([k]) => k !== 'win_rate').map(([k,l]) => {
-        const isActive = k === lbStat || (k === 'wins' && lbStat === 'win_rate');
-        const label = k === 'wins' ? (lbStat === 'win_rate' ? 'Win % ↺' : 'Wins / Win %') : l;
-        return `<button class="stat-btn ${isActive?'active':''}" onclick="setLbStat('${k}')">${label}</button>`;
+    <div style="display:inline-flex;background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:3px;gap:2px;margin-bottom:10px;flex-wrap:wrap">
+      ${LB_CATEGORIES.map(([key,label]) => `<button onclick="setLbCategory('${key}')"
+        style="padding:7px 16px;border:none;border-radius:6px;cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-size:.76rem;letter-spacing:.6px;text-transform:uppercase;transition:all .15s;
+        background:${lbCategory===key?'var(--green)':'transparent'};color:${lbCategory===key?'#071009':'var(--muted)'};font-weight:${lbCategory===key?700:500}">${label}</button>`).join('')}
+    </div>
+    <div style="background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:10px;display:flex;flex-wrap:wrap;gap:4px">
+      ${(LB_CATEGORIES.find(c => c[0] === lbCategory)?.[2] || []).map(k => {
+        const entry = LB_STATS.find(s => s[0] === k);
+        if (!entry) return '';
+        const [key, l] = entry;
+        const isActive = key === lbStat || (key === 'wins' && lbStat === 'win_rate');
+        const label = key === 'wins' ? (lbStat === 'win_rate' ? 'Win % ↺' : 'Wins / Win %') : l;
+        return `<button class="stat-btn ${isActive?'active':''}" onclick="setLbStat('${key}')">${label}</button>`;
       }).join('')}
     </div>`;
 
@@ -10737,9 +10724,14 @@ function renderLeaderboard() {
     }
   }
 
+  // Stats that don't divide by games (counts of a max/streak, or already a rate/percentage)
+  const noPerGame = ['wins','losses','draws','mvps','mvp2s','mvp3s','rating','shot_conversion','shot_accuracy','win_rate','gd','attendance','games','longestWinStreak'];
+
   const getVal = p => {
     const g = Math.max(p.games, 1);
     if (lbStat === 'rating') return p.rating;
+    if (lbStat === 'games') return p.games || 0;
+    if (lbStat === 'longestWinStreak') return p.longestWinStreak ?? 0;
     if (lbStat === 'combo_assists') {
       const lb = getAssistLeaderboard();
       const entry = lb.find(e => e.name === p.player);
@@ -10756,6 +10748,23 @@ function renderLeaderboard() {
       return total >= 3 ? parseFloat(((p.wins||0) / total * 100).toFixed(1)) : -1;
     }
     if (lbStat === 'attendance') return p.attendanceRate ?? 0;
+    // Event-log dependent — only exists for matches where the full events.csv was imported,
+    // so a lot of players won't have a value at all here. Return null (not 0) so they render
+    // as a dash instead of looking like they scored zero.
+    if (lbStat === 'save_rate') {
+      const ts = getPlayerEventStats(p.player);
+      return (ts && ts.gkSaveRate != null) ? Math.round(ts.gkSaveRate * 100) : null;
+    }
+    if (lbStat === 'def_sparks') {
+      const ts = getPlayerEventStats(p.player);
+      if (!ts || !ts.defChains) return null;
+      return lbPerGame ? parseFloat(ts.defChainsPerMatch.toFixed(2)) : ts.defChains;
+    }
+    if (lbStat === 'clutch') {
+      const ts = getPlayerEventStats(p.player);
+      if (!ts || !ts.clutchTotal) return null;
+      return lbPerGame ? parseFloat(ts.clutchPerMatch.toFixed(2)) : ts.clutchTotal;
+    }
     if (['goals_left','goals_right','goals_header'].includes(lbStat)) {
       const foot = lbStat.replace('goals_','');
       const { counts } = getPlayerGoalFootData(p.player);
@@ -10763,13 +10772,15 @@ function renderLeaderboard() {
       if (total === 0) return -1;
       return parseFloat(((counts[foot]||0) / total * 100).toFixed(1));
     }
-    const noPerGame = ['wins','losses','draws','mvps','mvp2s','mvp3s','rating','shot_conversion','shot_accuracy','win_rate','gd','attendance'];
     const raw = p[lbStat] ?? 0;
     if (lbPerGame && !noPerGame.includes(lbStat)) return parseFloat((raw / g).toFixed(2));
     return raw;
   };
-  players.sort((a, b) => getVal(b) - getVal(a));
-  const max = players.length ? getVal(players[0]) || 1 : 1;
+  // Treat "no data" (null) as sorting last, without treating it as a real zero
+  const cmp = v => v == null ? -Infinity : v;
+  players.sort((a, b) => cmp(getVal(b)) - cmp(getVal(a)));
+  const firstVal = players.length ? getVal(players[0]) : null;
+  const max = firstVal ? firstVal : 1;
 
   // Special segmented view for MVPs
   if (lbStat === 'mvps') {
@@ -10812,46 +10823,67 @@ function renderLeaderboard() {
   allTimeStats.forEach(p => {
     const g = Math.max(p.games, 1);
     if (lbStat === 'gd') allTimeVals[p.player] = p.gd ?? 0;
+    else if (lbStat === 'games') allTimeVals[p.player] = p.games || 0;
+    else if (lbStat === 'longestWinStreak') allTimeVals[p.player] = p.longestWinStreak ?? 0;
     else if (lbStat === 'combo_assists') { const lb=getAssistLeaderboard(); const e=lb.find(x=>x.name===p.player); allTimeVals[p.player]=e?e.assists:0; }
     else if (lbStat === 'attendance') allTimeVals[p.player] = p.attendanceRate ?? 0;
     else if (lbStat === 'shot_conversion') allTimeVals[p.player] = p.total_shots > 0 ? parseFloat((p.goals/p.total_shots*100).toFixed(1)) : 0;
     else if (lbStat === 'shot_accuracy') allTimeVals[p.player] = p.total_shots > 0 ? parseFloat((p.shots_on_target/p.total_shots*100).toFixed(1)) : 0;
     else if (lbStat === 'rating') allTimeVals[p.player] = p.rating || 0;
-    else { const raw = p[lbStat] ?? 0; allTimeVals[p.player] = lbPerGame && !['wins','losses','draws','mvps','rating','shot_conversion','shot_accuracy','gd','attendance'].includes(lbStat) ? raw/g : raw; }
+    else if (lbStat === 'save_rate') { const ts = getPlayerEventStats(p.player); allTimeVals[p.player] = (ts && ts.gkSaveRate != null) ? Math.round(ts.gkSaveRate*100) : null; }
+    else if (lbStat === 'def_sparks') { const ts = getPlayerEventStats(p.player); allTimeVals[p.player] = (ts && ts.defChains) ? (lbPerGame ? ts.defChainsPerMatch : ts.defChains) : null; }
+    else if (lbStat === 'clutch') { const ts = getPlayerEventStats(p.player); allTimeVals[p.player] = (ts && ts.clutchTotal) ? (lbPerGame ? ts.clutchPerMatch : ts.clutchTotal) : null; }
+    else { const raw = p[lbStat] ?? 0; allTimeVals[p.player] = lbPerGame && !noPerGame.includes(lbStat) ? raw/g : raw; }
   });
-  const allTimeSorted = Object.entries(allTimeVals).sort((a,b) => b[1]-a[1]).map(([name],i) => ({name, rank: i+1}));
+  const allTimeSorted = Object.entries(allTimeVals).filter(([,v]) => v != null).sort((a,b) => b[1]-a[1]).map(([name],i) => ({name, rank: i+1}));
   const allTimeRankMap = Object.fromEntries(allTimeSorted.map(x => [x.name, x.rank]));
 
   list.innerHTML = players.map((p, i) => {
     const v = getVal(p);
+    const noData = v == null;
     const rankCls = i===0?'r1':i===1?'r2':i===2?'r3':'';
+    const initials = (p.player||'?').slice(0,1).toUpperCase();
     const streak = p.currentStreak >= 3 && p.streakType === 'W'
-      ? `<span title="${p.currentStreak} win streak" style="font-size:.8rem;margin-left:4px">🔥</span>` : '';
-    const leaderBadges = getLeaderTags(p.player).map(t =>
-      `<span data-tip="${t.tip}" style="font-size:.65rem;color:var(--gold);opacity:.8;cursor:help;margin-left:5px;white-space:nowrap">${t.label}</span>`
-    ).join('');
+      ? `<span title="${p.currentStreak} win streak" style="font-size:.75rem">🔥</span>` : '';
+    const leaders = getLeaderTags(p.player);
+    const leaderBadge = leaders.length
+      ? `<span data-tip="${leaders[0].tip}" style="font-size:.62rem;color:var(--gold);opacity:.85;cursor:help;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${leaders[0].label}</span>` : '';
     // Trend arrow: compare current filtered rank (i+1) vs all-time rank
     const atRank = allTimeRankMap[p.player];
     let trendArrow = '';
     if (atRank && globalFilter !== 'all' && seasonFilter === 'all') {
       const diff = atRank - (i+1); // positive = improved (was lower, now higher)
-      if (diff >= 2) trendArrow = `<span style="font-size:.7rem;color:var(--green);margin-left:4px" title="Up ${diff} from all-time rank">▲${diff}</span>`;
-      else if (diff <= -2) trendArrow = `<span style="font-size:.7rem;color:var(--red);margin-left:4px" title="Down ${Math.abs(diff)} from all-time rank">▼${Math.abs(diff)}</span>`;
+      if (diff >= 2) trendArrow = `<span style="font-size:.65rem;color:var(--green)" title="Up ${diff} from all-time rank">▲${diff}</span>`;
+      else if (diff <= -2) trendArrow = `<span style="font-size:.65rem;color:var(--red)" title="Down ${Math.abs(diff)} from all-time rank">▼${Math.abs(diff)}</span>`;
     }
-    return `<div class="lb-row">
-      <div class="lb-rank ${rankCls}">${i+1}</div>
-      <div class="lb-name" onclick="nav('profile','${p.player}')">${p.player}${streak}${trendArrow}${leaderBadges}</div>
-      <div class="lb-tags">${renderTags(p._tags)}</div>
-      <div class="lb-bar-wrap"><div class="lb-bar" style="width:${(v/max*100).toFixed(1)}%"></div></div>
-      <div class="lb-val">${
-        (lbStat==='shot_conversion'||lbStat==='shot_accuracy'||lbStat==='attendance') ? v+'%' :
-        lbStat==='win_rate' ? v+'% <span style="font-size:.65rem;opacity:.6">('+((p.wins||0)+(p.losses||0)+(p.draws||0))+'g)</span>' :
-        lbStat==='gd' ? (v>0?'+':'')+v :
-        ['goals_left','goals_right','goals_header'].includes(lbStat) ? v+'%' :
-        v
-      }</div>
+    const barPct = noData ? 0 : (max ? (v/max*100) : 0);
+    const displayVal = noData ? '–' :
+      (lbStat==='shot_conversion'||lbStat==='shot_accuracy'||lbStat==='attendance'||lbStat==='save_rate') ? v+'%' :
+      lbStat==='win_rate' ? v+'% <span style="font-size:.6rem;opacity:.6">('+((p.wins||0)+(p.losses||0)+(p.draws||0))+'g)</span>' :
+      lbStat==='gd' ? (v>0?'+':'')+v :
+      ['goals_left','goals_right','goals_header'].includes(lbStat) ? v+'%' :
+      v;
+    return `<div class="lb-row" style="align-items:center;height:44px;gap:12px">
+      <div class="lb-rank ${rankCls}" style="min-width:20px">${i+1}</div>
+      <div style="width:28px;height:28px;border-radius:50%;background:var(--card2);color:var(--lime);display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:600;flex-shrink:0">${initials}</div>
+      <div style="flex:1;min-width:0;display:flex;align-items:baseline;gap:8px;overflow:hidden">
+        <span class="lb-name" onclick="nav('profile','${p.player}')" style="flex:none;white-space:nowrap">${p.player}</span>
+        ${streak}${trendArrow}${leaderBadge}
+      </div>
+      <div class="lb-bar-wrap" style="flex:none;width:110px;opacity:${noData?0.3:1}">
+        <div class="lb-bar" style="width:${barPct.toFixed(1)}%"></div>
+      </div>
+      <div class="lb-val" style="${noData?'color:var(--muted)':''}">${displayVal}</div>
     </div>`;
   }).join('');
+}
+
+function setLbCategory(c) {
+  lbCategory = c;
+  const cat = LB_CATEGORIES.find(x => x[0] === c);
+  const inCat = cat && (cat[2].includes(lbStat) || (lbStat === 'win_rate' && cat[2].includes('wins')));
+  if (cat && cat[2].length && !inCat) lbStat = cat[2][0];
+  renderLeaderboard();
 }
 
 function setLbStat(s) {
