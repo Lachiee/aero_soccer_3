@@ -6544,6 +6544,55 @@ function getPlayerMilestones(name, topOthers = 5) {
   return goalsEntry ? [goalsEntry, ...others] : others;
 }
 
+// Favourite Matchup / Nemesis — for a given player, which opponent they've faced most
+// successfully vs least successfully (by win rate), requiring a minimum number of shared
+// matches so a fluke 1-0 record doesn't get crowned. "Faced" means on the opposing team in
+// a match — reuses matchList's team rosters, same source as the Chemistry pairwise data.
+// Also computes this player's own per-game stat averages specifically in matches against
+// that one opponent, so a low win rate can be told apart from a personal off-form patch —
+// e.g. still scoring well against your nemesis, just losing anyway as a team.
+function getPlayerOpponentRecords(name, minGames = 3) {
+  const ps = playerStats[name];
+  if (!ps || !ps.matches || !ps.matches.length) return { favourite: null, nemesis: null };
+  const opp = {};
+  ps.matches.forEach(r => {
+    const m = matchList.find(x => x.id === r.match_id);
+    if (!m) return;
+    const oppTeam = r.team === 'A' ? m.teamB : m.teamA;
+    if (!oppTeam || !oppTeam.length) return;
+    const won = m.winnerTeam === r.team;
+    const drew = m.winnerTeam === 'draw';
+    oppTeam.forEach(row => {
+      const opName = row.player;
+      if (!opName || opName === name) return;
+      if (!opp[opName]) opp[opName] = { games: new Set(), wins:0, draws:0, losses:0,
+        goals:0, assists:0, total_shots:0, goalkeeper_saves:0, blocks:0, tackles:0, interceptions:0 };
+      const o = opp[opName];
+      if (o.games.has(r.match_id)) return; // guard against duplicate rows for the same match
+      o.games.add(r.match_id);
+      if (won) o.wins++; else if (drew) o.draws++; else o.losses++;
+      o.goals += n(r.goals); o.assists += n(r.assists); o.total_shots += n(r.total_shots);
+      o.goalkeeper_saves += n(r.goalkeeper_saves); o.blocks += n(r.blocks);
+      o.tackles += n(r.tackles); o.interceptions += n(r.interceptions);
+    });
+  });
+
+  const qualifying = Object.entries(opp).map(([opponent, o]) => {
+    const g = o.games.size;
+    return {
+      opponent, games: g, wins: o.wins, draws: o.draws, losses: o.losses,
+      winRate: Math.round(o.wins / g * 100),
+      goalsPg: o.goals / g, assistsPg: o.assists / g, savesPg: o.goalkeeper_saves / g,
+      blocksPg: o.blocks / g, tacklesPg: o.tackles / g, interceptionsPg: o.interceptions / g,
+      shotConv: o.total_shots > 0 ? Math.round(o.goals / o.total_shots * 100) : null,
+    };
+  }).filter(o => o.games >= minGames);
+
+  if (qualifying.length < 2) return { favourite: null, nemesis: null };
+  const sorted = [...qualifying].sort((a,b) => b.winRate - a.winRate);
+  return { favourite: sorted[0], nemesis: sorted[sorted.length - 1] };
+}
+
 function renderComboLeaderboard() {
   const stats = getComboStats();
   if (!stats.length) return '<div style="color:var(--muted);font-size:.8rem">No combination data yet.</div>';
@@ -10177,27 +10226,6 @@ function renderProfile(name) {
         +'</div>';
     })()}
 
-    <!-- ═══ MILESTONES ═══ -->
-    ${(() => {
-      const milestones = getPlayerMilestones(name, 5);
-      if (!milestones.length) return '';
-      const tiles = milestones.map((m, i) => {
-        const dateStr = m.matchRow?.match_date || '';
-        const clickable = !!m.matchRow?.match_id;
-        const onclickAttr = clickable ? ` onclick="navToMatch('${m.matchRow.match_id}')"` : '';
-        return `<div${onclickAttr} style="flex:1;min-width:0;text-align:center;padding:12px 6px;${i>0?'border-left:1px solid var(--border);':''}${clickable?'cursor:pointer;':''}transition:background .12s" onmouseenter="this.style.background='var(--card2)'" onmouseleave="this.style.background='transparent'">
-          <div style="font-size:1.3rem">${m.icon}</div>
-          <div style="font-family:'Bebas Neue',sans-serif;font-size:1.05rem;color:var(--green);margin-top:4px">${m.rung}</div>
-          <div style="font-size:.6rem;color:var(--muted)">${m.label}</div>
-          <div style="font-size:.5rem;color:var(--muted);opacity:.65;margin-top:2px">${dateStr ? 'Reached '+dateStr : ''}</div>
-        </div>`;
-      }).join('');
-      return `<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;margin-bottom:12px;overflow:hidden">
-        <div style="padding:14px 16px 0;font-size:.55rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted)">Milestones</div>
-        <div style="display:flex">${tiles}</div>
-      </div>`;
-    })()}
-
     <!-- ═══ STATS (compact 2-col) ═══ -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
       <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px 16px">
@@ -10489,10 +10517,62 @@ function renderProfile(name) {
       })()}
     </div>
 
+    <!-- ═══ MORE DETAILS ═══ -->
+    ${(() => {
+      const milestones = getPlayerMilestones(name, 5);
+      const hasTimeStats = !!getPlayerEventStats(name);
+      const { favourite, nemesis } = getPlayerOpponentRecords(name, 3);
+      if (!milestones.length && !hasTimeStats && !favourite) return '';
+      const milestonesHtml = !milestones.length ? '' : (() => {
+        const tiles = milestones.map((m, i) => {
+          const dateStr = m.matchRow?.match_date || '';
+          const clickable = !!m.matchRow?.match_id;
+          const onclickAttr = clickable ? ` onclick="navToMatch('${m.matchRow.match_id}')"` : '';
+          return `<div${onclickAttr} style="flex:1;min-width:0;text-align:center;padding:12px 6px;${i>0?'border-left:1px solid var(--border);':''}${clickable?'cursor:pointer;':''}transition:background .12s" onmouseenter="this.style.background='var(--card2)'" onmouseleave="this.style.background='transparent'">
+            <div style="font-size:1.3rem">${m.icon}</div>
+            <div style="font-family:'Bebas Neue',sans-serif;font-size:1.05rem;color:var(--green);margin-top:4px">${m.rung}</div>
+            <div style="font-size:.6rem;color:var(--muted)">${m.label}</div>
+            <div style="font-size:.5rem;color:var(--muted);opacity:.65;margin-top:2px">${dateStr ? 'Reached '+dateStr : ''}</div>
+          </div>`;
+        }).join('');
+        return `<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:14px">
+          <div style="padding:14px 16px 0;font-size:.55rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted)">Milestones</div>
+          <div style="display:flex">${tiles}</div>
+        </div>`;
+      })();
+      const matchupHtml = !favourite ? '' : (() => {
+        const statRow = o => `<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding-top:10px;border-top:1px solid var(--border)">
+          <div style="text-align:center"><div style="font-family:'Bebas Neue',sans-serif;font-size:.95rem">${o.goalsPg.toFixed(2)}</div><div style="font-size:.5rem;color:var(--muted)">G/g</div></div>
+          <div style="text-align:center"><div style="font-family:'Bebas Neue',sans-serif;font-size:.95rem">${o.assistsPg.toFixed(2)}</div><div style="font-size:.5rem;color:var(--muted)">A/g</div></div>
+          <div style="text-align:center"><div style="font-family:'Bebas Neue',sans-serif;font-size:.95rem">${o.savesPg.toFixed(1)}</div><div style="font-size:.5rem;color:var(--muted)">SV/g</div></div>
+          <div style="text-align:center"><div style="font-family:'Bebas Neue',sans-serif;font-size:.95rem">${o.blocksPg.toFixed(1)}</div><div style="font-size:.5rem;color:var(--muted)">BLK/g</div></div>
+          <div style="text-align:center"><div style="font-family:'Bebas Neue',sans-serif;font-size:.95rem">${o.tacklesPg.toFixed(1)}</div><div style="font-size:.5rem;color:var(--muted)">TK/g</div></div>
+          <div style="text-align:center"><div style="font-family:'Bebas Neue',sans-serif;font-size:.95rem">${o.interceptionsPg.toFixed(1)}</div><div style="font-size:.5rem;color:var(--muted)">INT/g</div></div>
+          <div style="text-align:center"><div style="font-family:'Bebas Neue',sans-serif;font-size:.95rem">${o.shotConv!=null?o.shotConv+'%':'–'}</div><div style="font-size:.5rem;color:var(--muted)">CONV</div></div>
+        </div>`;
+        const card = (o, label, accentVar, valCol) => `<div style="background:var(--card);border:1px solid var(--border);border-left:3px solid ${accentVar};border-radius:12px;padding:14px 16px">
+          <div style="font-size:.55rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:8px">${label}</div>
+          <div style="font-size:.85rem;font-weight:600;margin-bottom:4px">vs ${o.opponent}</div>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;color:${valCol}">${o.winRate}% <span style="font-size:.62rem;color:var(--muted);font-family:'Barlow Condensed',sans-serif">win rate</span></div>
+          <div style="font-size:.6rem;color:var(--muted);margin-bottom:10px">${o.wins}W ${o.draws}D ${o.losses}L · ${o.games} matches faced</div>
+          ${statRow(o)}
+        </div>`;
+        return `<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+          ${card(favourite, 'Favourite matchup', 'var(--green)', 'var(--green)')}
+          ${card(nemesis, 'Nemesis', 'var(--red)', 'var(--red)')}
+        </div>`;
+      })();
+      return `<details style="margin-bottom:14px" onclick="event.stopPropagation()">
+        <summary style="cursor:pointer;font-size:.68rem;color:var(--muted);font-family:'Barlow Condensed',sans-serif;letter-spacing:.5px;list-style:none;display:inline-flex;align-items:center;gap:4px;padding:6px 12px;background:var(--card);border:1px solid var(--border);border-radius:8px;user-select:none">▶ More details</summary>
+        <div style="margin-top:10px">
+          ${milestonesHtml}
+          ${matchupHtml}
+          <div id="profile-time-stats"></div>
+        </div>
+      </details>`;
+    })()}
 
     <!-- ═══ STRIKE PARTNERSHIPS removed ═══ -->
-
-    <div id="profile-time-stats" style="display:none"></div>
 `;
 
 
@@ -10511,6 +10591,7 @@ function renderProfile(name) {
   // Draw charts after DOM paint
   setTimeout(() => {
     renderProfileHeatmap(name, window._hmapType||'shot');
+    renderProfileTimeStats(name);
 
     // Init interactive shot map
     (() => {
