@@ -9947,10 +9947,14 @@ function renderProfile(name) {
     ${(() => {
       const logs = (() => { try { return JSON.parse(localStorage.getItem('aero_event_logs')||'{}'); } catch(e){ return {}; } })();
       const allGoals = [];
-      Object.values(logs).forEach(log => { (log.events||[]).forEach(e => { if (e.event==='Goals' && e.player===name) allGoals.push(e); }); });
+      const allAssists = [];
+      Object.values(logs).forEach(log => { (log.events||[]).forEach(e => {
+        if (e.event==='Goals' && e.player===name) allGoals.push(e);
+        if (e.event==='Goals' && e.assistBy===name) allAssists.push(e);
+      }); });
       const ts = getPlayerEventStats(name);
       const hasGk = ts && ts.gkSaveRate != null;
-      if (!allGoals.length && !hasGk) return '';
+      if (!allGoals.length && !allAssists.length && !hasGk) return '';
       const sx = allGoals.filter(e=>e.shotX!=null).map(e=>e.shotX);
       const sy = allGoals.filter(e=>e.shotX!=null&&e.shotY!=null).map(e=>e.shotY);
       const nx = allGoals.filter(e=>e.netX!=null).map(e=>e.netX);
@@ -9964,6 +9968,10 @@ function renderProfile(name) {
       allGoals.forEach(e => { const m=(e.tsSecsRaw||0)/60; timeBuckets[Math.min(4,Math.floor(m/10))]++; });
       const peakIdx = timeBuckets.indexOf(Math.max(...timeBuckets));
       const peakLabel = ["0–10'","10–20'","20–30'","30–40'","40+'"][peakIdx];
+      const assistTimeBuckets = [0,0,0,0,0];
+      allAssists.forEach(e => { const m=(e.tsSecsRaw||0)/60; assistTimeBuckets[Math.min(4,Math.floor(m/10))]++; });
+      const assistPeakIdx = assistTimeBuckets.indexOf(Math.max(...assistTimeBuckets));
+      const assistPeakLabel = ["0–10'","10–20'","20–30'","30–40'","40+'"][assistPeakIdx];
       const uid = 'bd_' + name.replace(/[^a-z0-9]/gi,'_');
       // Shot zone / net zone — MODE zone (bucket every shot, label = most-frequent bucket),
       // NOT the average X/Y. Averaging a bimodal spread (e.g. lots of left-angle + lots of
@@ -10007,6 +10015,11 @@ function renderProfile(name) {
         const peak = i===peakIdx;
         return '<div style="flex:1;border-radius:2px 2px 0 0;height:'+h+'%;background:'+(peak?'var(--green)':'rgba(57,211,83,.2)')+'"></div>';
       }).join('');
+      const assistTimeBarsHtml = assistTimeBuckets.map((v,i) => {
+        const h = Math.max(...assistTimeBuckets)>0 ? Math.max(8,Math.round(v/Math.max(...assistTimeBuckets)*100)) : 8;
+        const peak = i===assistPeakIdx;
+        return '<div style="flex:1;border-radius:2px 2px 0 0;height:'+h+'%;background:'+(peak?'#60a5fa':'rgba(96,165,250,.2)')+'"></div>';
+      }).join('');
       // GK save-rate ring — small SVG arc, colour tiers matching the rest of the app's GK stats
       const gkTileHtml = (() => {
         if (!hasGk) return '<div style="padding:12px 8px;text-align:center">'
@@ -10032,7 +10045,7 @@ function renderProfile(name) {
           +'</div>';
       })();
       return '<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;margin-bottom:12px;overflow:hidden">'
-        +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr">'
+        +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr 1fr">'
         +'<div style="padding:12px 8px;text-align:center;border-right:1px solid var(--border)">'
         +'<div style="font-size:.5rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:8px">Shot zone</div>'
         +'<canvas id="'+uid+'_pitch" width="70" height="46" style="display:block;margin:0 auto 5px;border-radius:3px"></canvas>'
@@ -10059,6 +10072,12 @@ function renderProfile(name) {
         +'<div style="display:flex;align-items:flex-end;gap:2px;height:30px;width:52px;margin:0 auto 5px">'+timeBarsHtml+'</div>'
         +'<div style="font-size:.7rem;font-weight:600">'+peakLabel+'</div>'
         +'<div style="font-size:.58rem;color:var(--muted)">peak window</div>'
+        +'</div>'
+        +'<div style="padding:12px 8px;text-align:center;border-right:1px solid var(--border)">'
+        +'<div style="font-size:.5rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:8px">Assists by time</div>'
+        +'<div style="display:flex;align-items:flex-end;gap:2px;height:30px;width:52px;margin:0 auto 5px">'+(allAssists.length?assistTimeBarsHtml:'<div style="width:100%;text-align:center;color:var(--muted);font-size:.65rem;align-self:center">–</div>')+'</div>'
+        +'<div style="font-size:.7rem;font-weight:600">'+(allAssists.length?assistPeakLabel:'no data')+'</div>'
+        +'<div style="font-size:.58rem;color:var(--muted)">'+(allAssists.length?'peak window':'no assists recorded')+'</div>'
         +'</div>'
         +gkTileHtml
         +'</div></div>'
@@ -10402,9 +10421,6 @@ function renderProfile(name) {
     </div>
 
 
-    <!-- ═══ GK TIME GRAPH ═══ -->
-    <div id="profile-gk-timeline"></div>
-
     <!-- ═══ STRIKE PARTNERSHIPS removed ═══ -->
 
     <div id="profile-time-stats" style="display:none"></div>
@@ -10426,7 +10442,6 @@ function renderProfile(name) {
   // Draw charts after DOM paint
   setTimeout(() => {
     renderProfileHeatmap(name, window._hmapType||'shot');
-    renderProfileGkTimeline(name);
 
     // Init interactive shot map
     (() => {
