@@ -6496,44 +6496,52 @@ function getPlayerChemistry(name) {
     .sort((a,b) => b.delta - a.delta);
 }
 
-// Milestone — rather than a fixed "goals" milestone for everyone (meaningless for a low-scoring
-// defender or keeper), pick whichever stat category this player ranks highest in relative to the
-// rest of the squad (career totals, all-time — not affected by season/last10 filters), then find
-// the highest round-number "rung" they've crossed in that one category. A single shared ladder is
-// used across all categories on purpose: it's what lets a keeper's saves milestone and a striker's
-// goals milestone both surface naturally without needing hand-tuned per-stat thresholds.
+// Milestones — rather than a fixed "goals" milestone for everyone (meaningless for a low-scoring
+// defender or keeper), rank every stat category by where this player sits relative to the rest of
+// the squad (career totals, all-time — not affected by season/last10 filters), and surface their
+// top 5 categories, each with the highest round-number "rung" they've crossed in it. A single shared
+// ladder is used across all categories on purpose: it's what lets a keeper's saves milestone and a
+// striker's goals milestone both surface naturally without needing hand-tuned per-stat thresholds.
 const MILESTONE_LADDER = [10,25,50,75,100,150,200,250,300,400,500,600,700,800,900,1000,1250,1500,1750,2000,2500,3000,3500,4000,5000];
 const MILESTONE_CATEGORIES = [
   ['goals', 'Goals', '⚽'], ['assists', 'Assists', '🎯'], ['total_shots', 'Shots', '🔫'],
   ['key_passes', 'Key Passes', '🔑'], ['tackles', 'Tackles', '💪'], ['interceptions', 'Interceptions', '✂️'],
   ['blocks', 'Blocks', '🛡️'], ['nutmegs', 'Nutmegs', '🪄'], ['goalkeeper_saves', 'GK Saves', '🧤'],
 ];
-function getPlayerMilestone(name) {
+function getPlayerMilestones(name, topOthers = 5) {
   const ps = playerStats[name];
-  if (!ps || !ps.matches || !ps.matches.length) return null;
+  if (!ps || !ps.matches || !ps.matches.length) return [];
   const highestRung = total => { let best = null; for (const t of MILESTONE_LADDER) { if (total >= t) best = t; else break; } return best; };
+  const sortedMatches = [...ps.matches].sort((a,b) => (a.match_date||'').localeCompare(b.match_date||''));
 
-  let best = null;
-  MILESTONE_CATEGORIES.forEach(([key, label, icon]) => {
+  const buildEntry = ([key, label, icon]) => {
     const mine = n(ps[key]);
-    if (!mine) return;
+    if (!mine) return null;
+    const rung = highestRung(mine);
+    if (!rung) return null; // hasn't crossed even the first rung — not milestone-worthy yet
     const allVals = Object.values(playerStats).map(p => n(p[key]));
     const atOrBelow = allVals.filter(v => v <= mine).length;
     const percentile = allVals.length ? atOrBelow / allVals.length : 0;
-    if (!best || percentile > best.percentile) best = { key, label, icon, total: mine, percentile };
-  });
-  if (!best) return null;
-  const rung = highestRung(best.total);
-  if (!rung) return null;
+    let cum = 0, matchRow = null;
+    for (const r of sortedMatches) {
+      cum += n(r[key]);
+      if (cum >= rung) { matchRow = r; break; }
+    }
+    return { key, label, icon, total: mine, percentile, rung, matchRow };
+  };
 
-  // Which match pushed the cumulative total over this rung, for the date + click-through
-  const sorted = [...ps.matches].sort((a,b) => (a.match_date||'').localeCompare(b.match_date||''));
-  let cum = 0, matchRow = null;
-  for (const r of sorted) {
-    cum += n(r[best.key]);
-    if (cum >= rung) { matchRow = r; break; }
-  }
-  return { ...best, rung, matchRow };
+  // Goals always leads, regardless of percentile — it's the marquee stat people expect to see.
+  // The rest of the slots are whichever other categories this player ranks highest in.
+  const goalsCat = MILESTONE_CATEGORIES.find(c => c[0] === 'goals');
+  const goalsEntry = buildEntry(goalsCat);
+  const others = MILESTONE_CATEGORIES
+    .filter(c => c[0] !== 'goals')
+    .map(buildEntry)
+    .filter(Boolean)
+    .sort((a,b) => b.percentile - a.percentile)
+    .slice(0, topOthers);
+
+  return goalsEntry ? [goalsEntry, ...others] : others;
 }
 
 function renderComboLeaderboard() {
@@ -10169,19 +10177,24 @@ function renderProfile(name) {
         +'</div>';
     })()}
 
-    <!-- ═══ MILESTONE ═══ -->
+    <!-- ═══ MILESTONES ═══ -->
     ${(() => {
-      const m = getPlayerMilestone(name);
-      if (!m) return '';
-      const dateStr = m.matchRow?.match_date || '';
-      const clickAttr = m.matchRow?.match_id ? ` onclick="navToMatch('${m.matchRow.match_id}')" style="cursor:pointer"` : '';
-      return `<div${clickAttr} style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:12px;display:flex;align-items:center;gap:14px">
-        <div style="font-size:1.8rem;flex-shrink:0">${m.icon}</div>
-        <div style="flex:1;min-width:0">
-          <div style="font-size:.55rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:2px">Milestone</div>
-          <div style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;color:var(--green)">${m.rung} ${m.label}</div>
-          <div style="font-size:.62rem;color:var(--muted)">${dateStr ? 'Reached ' + dateStr : 'Career total: ' + m.total}</div>
-        </div>
+      const milestones = getPlayerMilestones(name, 5);
+      if (!milestones.length) return '';
+      const tiles = milestones.map((m, i) => {
+        const dateStr = m.matchRow?.match_date || '';
+        const clickable = !!m.matchRow?.match_id;
+        const onclickAttr = clickable ? ` onclick="navToMatch('${m.matchRow.match_id}')"` : '';
+        return `<div${onclickAttr} style="flex:1;min-width:0;text-align:center;padding:12px 6px;${i>0?'border-left:1px solid var(--border);':''}${clickable?'cursor:pointer;':''}transition:background .12s" onmouseenter="this.style.background='var(--card2)'" onmouseleave="this.style.background='transparent'">
+          <div style="font-size:1.3rem">${m.icon}</div>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:1.05rem;color:var(--green);margin-top:4px">${m.rung}</div>
+          <div style="font-size:.6rem;color:var(--muted)">${m.label}</div>
+          <div style="font-size:.5rem;color:var(--muted);opacity:.65;margin-top:2px">${dateStr ? 'Reached '+dateStr : ''}</div>
+        </div>`;
+      }).join('');
+      return `<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;margin-bottom:12px;overflow:hidden">
+        <div style="padding:14px 16px 0;font-size:.55rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted)">Milestones</div>
+        <div style="display:flex">${tiles}</div>
       </div>`;
     })()}
 
