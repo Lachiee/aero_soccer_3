@@ -4788,7 +4788,7 @@ function drawBreakdownCanvases(uid, shotX, shotY, netX, netY) {
   function drawPitchMini(canvasId, sx, sy) {
     const cv = document.getElementById(canvasId); if (!cv) return;
     const dpr = window.devicePixelRatio || 1;
-    const W = 70, H = 46;
+    const W = 92, H = 60;
     cv.width = W*dpr; cv.height = H*dpr;
     cv.style.width = W+'px'; cv.style.height = H+'px';
     const ctx = cv.getContext('2d'); ctx.scale(dpr, dpr);
@@ -4818,7 +4818,7 @@ function drawBreakdownCanvases(uid, shotX, shotY, netX, netY) {
   function drawNetMini(canvasId, nx, ny) {
     const cv = document.getElementById(canvasId); if (!cv) return;
     const dpr = window.devicePixelRatio || 1;
-    const W = 52, H = 36;
+    const W = 68, H = 46;
     cv.width = W*dpr; cv.height = H*dpr;
     cv.style.width = W+'px'; cv.style.height = H+'px';
     const ctx = cv.getContext('2d'); ctx.scale(dpr, dpr);
@@ -10145,13 +10145,13 @@ function renderProfile(name) {
         +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr 1fr">'
         +'<div style="padding:12px 8px;text-align:center;border-right:1px solid var(--border)">'
         +'<div style="font-size:.5rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:8px">Shot zone</div>'
-        +'<canvas id="'+uid+'_pitch" width="70" height="46" style="display:block;margin:0 auto 5px;border-radius:3px"></canvas>'
+        +'<canvas id="'+uid+'_pitch" width="92" height="60" style="display:block;margin:0 auto 5px;border-radius:3px"></canvas>'
         +'<div style="font-size:.7rem;font-weight:600">'+shotLabel+'</div>'
         +'<div style="font-size:.58rem;color:var(--muted)">'+(avgSx!=='null'?sx.length+' goals mapped':'no data')+'</div>'
         +'</div>'
         +'<div style="padding:12px 8px;text-align:center;border-right:1px solid var(--border)">'
         +'<div style="font-size:.5rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:8px">Net zone</div>'
-        +'<canvas id="'+uid+'_net" width="52" height="36" style="display:block;margin:0 auto 5px;border-radius:2px"></canvas>'
+        +'<canvas id="'+uid+'_net" width="68" height="46" style="display:block;margin:0 auto 5px;border-radius:2px"></canvas>'
         +'<div style="font-size:.7rem;font-weight:600">'+netLabel+'</div>'
         +'<div style="font-size:.58rem;color:var(--muted)">'+(avgNx!=='null'?nx.length+' goals mapped':'no data')+'</div>'
         +'</div>'
