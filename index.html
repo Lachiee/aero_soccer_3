@@ -10348,20 +10348,24 @@ function renderProfile(name) {
         const rows = !partners.length
           ? `<div style="text-align:center;font-size:.68rem;color:var(--muted);opacity:.7;padding:16px 0">No combos or key-pass chains recorded yet</div>`
           : partners.map((p, i) => {
-            const lines = [];
-            if (p.asScorer > 0) lines.push(`<div><span style="color:var(--green);font-weight:600">${p.asScorer}</span> <span style="color:var(--muted)">goal${p.asScorer===1?'':'s'} from ${p.partner}'s assists</span></div>`);
-            if (p.asAssister > 0) lines.push(`<div><span style="color:var(--lime);font-weight:600">${p.asAssister}</span> <span style="color:var(--muted)">you set up for ${p.partner}</span></div>`);
-            if (p.kpFor > 0) lines.push(`<div><span style="color:var(--green);font-weight:600">${p.kpFor}</span> <span style="color:var(--muted)">key pass${p.kpFor===1?'':'es'} to ${p.partner}</span></div>`);
-            if (p.kpFrom > 0) lines.push(`<div><span style="color:var(--lime);font-weight:600">${p.kpFrom}</span> <span style="color:var(--muted)">key pass${p.kpFrom===1?'':'es'} from ${p.partner}</span></div>`);
+            const cell = (v, col) => `<div style="font-family:'Bebas Neue',sans-serif;font-size:.82rem;${v>0?'color:'+col:'color:var(--muted);opacity:.35'}">${v}</div>`;
             return `
-            <div style="display:flex;align-items:center;gap:10px;padding:9px 4px${i>0?';border-top:1px solid var(--border)':''}">
+            <div style="display:flex;align-items:center;gap:10px;padding:8px 4px${i>0?';border-top:1px solid var(--border)':''}">
               <span style="width:22px;height:22px;border-radius:50%;background:rgba(57,211,83,.15);color:var(--green);font-family:'Bebas Neue',sans-serif;font-size:.85rem;display:flex;align-items:center;justify-content:center;flex-shrink:0">${i+1}</span>
               <div style="flex:1;min-width:0">
                 <div style="font-size:.78rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.partner}</div>
                 <div style="font-size:.58rem;color:var(--muted)">${p.matchCount} combo match${p.matchCount===1?'':'es'} together</div>
               </div>
-              <div style="text-align:right;flex-shrink:0;font-size:.62rem;line-height:1.5">
-                ${lines.join('')}
+              <div data-tip="Them = what ${p.partner} created for you · You = what you created for ${p.partner}" style="cursor:help;display:grid;grid-template-columns:26px 26px 26px;gap:2px 4px;text-align:center;flex-shrink:0">
+                <div></div>
+                <div style="font-size:.48rem;color:var(--muted);letter-spacing:.3px">THEM</div>
+                <div style="font-size:.48rem;color:var(--muted);letter-spacing:.3px">YOU</div>
+                <div style="font-size:.5rem;color:var(--muted);text-align:left">G</div>
+                ${cell(p.asScorer, 'var(--lime)')}
+                ${cell(p.asAssister, 'var(--green)')}
+                <div style="font-size:.5rem;color:var(--muted);text-align:left">KP</div>
+                ${cell(p.kpFrom, 'var(--lime)')}
+                ${cell(p.kpFor, 'var(--green)')}
               </div>
             </div>`;
           }).join('');
