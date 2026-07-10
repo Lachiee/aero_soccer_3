@@ -6489,9 +6489,9 @@ function getPlayerPartnerships(name) {
 // Chemistry Leaders — reuses the existing window._chemistry pairwise data (win rate together
 // vs each player's individual baseline win rate) to find which teammates this player's team
 // performs best with, regardless of goals/assists.
-function getPlayerChemistry(name) {
+function getPlayerChemistry(name, minGames = 5) {
   return (window._filteredChemistry || window._chemistry || [])
-    .filter(c => (c.p1 === name || c.p2 === name) && c.games >= 2)
+    .filter(c => (c.p1 === name || c.p2 === name) && c.games >= minGames)
     .map(c => ({ partner: c.p1 === name ? c.p2 : c.p1, games: c.games, winRate: c.winRate, delta: c.delta }))
     .sort((a,b) => b.delta - a.delta);
 }
@@ -10347,22 +10347,24 @@ function renderProfile(name) {
         const partners = getPlayerPartnerships(name).slice(0, 3);
         const rows = !partners.length
           ? `<div style="text-align:center;font-size:.68rem;color:var(--muted);opacity:.7;padding:16px 0">No combos or key-pass chains recorded yet</div>`
-          : partners.map((p, i) => `
-            <div style="display:flex;align-items:center;gap:10px;padding:7px 4px${i>0?';border-top:1px solid var(--border)':''}">
+          : partners.map((p, i) => {
+            const lines = [];
+            if (p.asScorer > 0) lines.push(`<div><span style="color:var(--green);font-weight:600">${p.asScorer}</span> <span style="color:var(--muted)">goal${p.asScorer===1?'':'s'} from ${p.partner}'s assists</span></div>`);
+            if (p.asAssister > 0) lines.push(`<div><span style="color:var(--lime);font-weight:600">${p.asAssister}</span> <span style="color:var(--muted)">you set up for ${p.partner}</span></div>`);
+            if (p.kpFor > 0) lines.push(`<div><span style="color:var(--green);font-weight:600">${p.kpFor}</span> <span style="color:var(--muted)">key pass${p.kpFor===1?'':'es'} to ${p.partner}</span></div>`);
+            if (p.kpFrom > 0) lines.push(`<div><span style="color:var(--lime);font-weight:600">${p.kpFrom}</span> <span style="color:var(--muted)">key pass${p.kpFrom===1?'':'es'} from ${p.partner}</span></div>`);
+            return `
+            <div style="display:flex;align-items:center;gap:10px;padding:9px 4px${i>0?';border-top:1px solid var(--border)':''}">
               <span style="width:22px;height:22px;border-radius:50%;background:rgba(57,211,83,.15);color:var(--green);font-family:'Bebas Neue',sans-serif;font-size:.85rem;display:flex;align-items:center;justify-content:center;flex-shrink:0">${i+1}</span>
               <div style="flex:1;min-width:0">
                 <div style="font-size:.78rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.partner}</div>
                 <div style="font-size:.58rem;color:var(--muted)">${p.matchCount} combo match${p.matchCount===1?'':'es'} together</div>
               </div>
-              <div style="text-align:center;flex-shrink:0;width:36px">
-                <div style="font-family:'Bebas Neue',sans-serif;font-size:1rem;${p.goals>0?'color:var(--green)':'color:var(--muted);opacity:.35'}">${p.goals}</div>
-                <div style="font-size:.5rem;color:var(--muted)">GOALS</div>
+              <div style="text-align:right;flex-shrink:0;font-size:.62rem;line-height:1.5">
+                ${lines.join('')}
               </div>
-              <div style="text-align:center;flex-shrink:0;width:36px">
-                <div style="font-family:'Bebas Neue',sans-serif;font-size:1rem;${p.chains>0?'color:var(--lime)':'color:var(--muted);opacity:.35'}">${p.chains}</div>
-                <div style="font-size:.5rem;color:var(--muted)">KP CHAIN</div>
-              </div>
-            </div>`).join('');
+            </div>`;
+          }).join('');
         return `<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 16px 12px">
           <div style="font-size:.58rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:6px">Best Partnership</div>
           <div style="font-size:.56rem;color:var(--muted);opacity:.6;margin-bottom:8px">Combos together + key pass → shot chains (10s window, needs imported events)</div>
