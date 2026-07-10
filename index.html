@@ -13314,8 +13314,22 @@ function navToMatch(matchId) {
     const safeId = matchId.replace(/[#]/g,'__');
     const panel = document.getElementById('md-' + safeId);
     if (panel) {
+      panel.classList.add('open');
       panel.style.display = 'block';
       panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      // Draw score worm — delay allows the panel to paint and the canvas to get
+      // its correct offsetWidth (same fix already used by toggleMatchDetail;
+      // navToMatch was skipping this entirely, which is why the graph only ever
+      // appeared after manually toggling Momentum/Score worm afterwards)
+      setTimeout(() => {
+        panel.querySelectorAll('canvas[id^="timeline-"]').forEach(c => {
+          const rawId = c.id.replace('timeline-', '');
+          const mid = Object.keys(window._wormData || {}).find(k =>
+            k.replace(/[#,]/g, '_') === rawId
+          );
+          if (mid) drawMomentumGraph(c.id, mid);
+        });
+      }, 200);
     }
   }, 80);
 }
