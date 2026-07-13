@@ -4262,24 +4262,40 @@ function renderSeasonSummary() {
     best(p => p.gd||0,                 '⚖ Best Goal Diff',     v => (v>0?'+':'')+Math.round(v)),
   ];
 
-  // Most improved: within season, compare first half vs second half of games
+  // Most improved: compare previous season vs current season (not early/late split within one season)
   const mostImproved = (() => {
+    // Resolve which two seasons to compare. If a specific season is selected, compare it against
+    // the season immediately before it. If "All Seasons" is selected, fall back to the most recent
+    // two seasons in the data, since there's no single "current season" to anchor to otherwise.
+    const allYears = [...new Set(matchList.map(m => m.date.slice(0,4)))].sort();
+    let curYear, prevYear;
+    if (seasonFilter !== 'all') {
+      curYear = seasonFilter;
+      const idx = allYears.indexOf(curYear);
+      prevYear = idx > 0 ? allYears[idx - 1] : null;
+    } else if (allYears.length >= 2) {
+      curYear = allYears[allYears.length - 1];
+      prevYear = allYears[allYears.length - 2];
+    }
+
     let bestPlayer = null, bestDelta = -Infinity;
-    sPool.forEach(sp => {
-      const allMatches = matchList
-        .filter(m => inSeason(m.date) && [...m.teamA,...m.teamB].some(r=>r.player===sp.player))
-        .sort((a,b)=>a.date.localeCompare(b.date));
-      if (allMatches.length < 8) return;
-      const scoreMatch = m => {
-        const r = [...m.teamA,...m.teamB].find(x=>x.player===sp.player);
+    if (curYear && prevYear) {
+      const scoreMatch = (m, playerName) => {
+        const r = [...m.teamA,...m.teamB].find(x=>x.player===playerName);
         return r ? n(r.goals)*4+n(r.assists)*3+n(r.key_passes)*0.4+n(r.tackles)*0.3 : 0;
       };
-      const half = Math.floor(allMatches.length/2);
-      const early = allMatches.slice(0,half).reduce((s,m)=>s+scoreMatch(m),0)/half;
-      const late  = allMatches.slice(-half).reduce((s,m)=>s+scoreMatch(m),0)/half;
-      if (late - early > bestDelta) { bestDelta = late - early; bestPlayer = sp.player; }
-    });
-    return { player: bestPlayer || '–', val: bestDelta > 0 ? '+'+bestDelta.toFixed(1)+' pts/g' : '–', label: '📈 Most Improved' };
+      const allPlayerNames = [...new Set(matchList.flatMap(m => [...m.teamA,...m.teamB].map(r=>r.player)))];
+      allPlayerNames.forEach(playerName => {
+        const prevMatches = matchList.filter(m => m.date.startsWith(prevYear) && [...m.teamA,...m.teamB].some(r=>r.player===playerName));
+        const curMatches  = matchList.filter(m => m.date.startsWith(curYear)  && [...m.teamA,...m.teamB].some(r=>r.player===playerName));
+        // Require a reasonable sample in both seasons so the delta isn't noise from 1-2 games
+        if (prevMatches.length < 4 || curMatches.length < 4) return;
+        const prevAvg = prevMatches.reduce((s,m)=>s+scoreMatch(m,playerName),0)/prevMatches.length;
+        const curAvg  = curMatches.reduce((s,m)=>s+scoreMatch(m,playerName),0)/curMatches.length;
+        if (curAvg - prevAvg > bestDelta) { bestDelta = curAvg - prevAvg; bestPlayer = playerName; }
+      });
+    }
+    return { player: bestPlayer || '–', val: bestDelta > -Infinity && bestDelta > 0 ? '+'+bestDelta.toFixed(1)+' pts/g' : '–', label: '📈 Most Improved' };
   })();
   awards.push(mostImproved);
 
@@ -4325,14 +4341,30 @@ function renderSeasonSummary() {
 
   const mvpScore  = p => (p.goals/gf(p))*4 + (p.assists/gf(p))*3 + (p.key_passes/gf(p))*0.5 + (p.wins/(p.wins+p.losses+(p.draws||0)||1))*3;
   const dpoyScore = p => ((p.interceptions+p.tackles+p.blocks)/gf(p)) + (p.goalkeeper_saves/gf(p))*0.5;
-  const mipScore  = p => { // most improved: late vs early half of season matches
-    const allM = matchList.filter(m => inSeason(m.date) && [...m.teamA,...m.teamB].some(r=>r.player===p.player)).sort((a,b)=>a.date.localeCompare(b.date));
-    if (allM.length < 6) return -Infinity;
-    const h = Math.floor(allM.length/2);
+
+  // MIP comparison seasons: previous season vs the season the page is currently showing. If
+  // "All Seasons" is selected there's no single current season to anchor to, so fall back to the
+  // two most recent seasons in the data.
+  const mipYears = (() => {
+    const allYears = [...new Set(matchList.map(m => m.date.slice(0,4)))].sort();
+    if (seasonFilter !== 'all') {
+      const idx = allYears.indexOf(seasonFilter);
+      return { curYear: seasonFilter, prevYear: idx > 0 ? allYears[idx - 1] : null };
+    }
+    return allYears.length >= 2
+      ? { curYear: allYears[allYears.length - 1], prevYear: allYears[allYears.length - 2] }
+      : { curYear: null, prevYear: null };
+  })();
+  const mipScore  = p => { // most improved: previous season vs current season, per-game
+    const { curYear, prevYear } = mipYears;
+    if (!curYear || !prevYear) return -Infinity;
     const score = m => { const r=[...m.teamA,...m.teamB].find(x=>x.player===p.player); return r?n(r.goals)*4+n(r.assists)*3+n(r.key_passes)*0.4+n(r.tackles)*0.3:0; };
-    const early = allM.slice(0,h).reduce((s,m)=>s+score(m),0)/h;
-    const late  = allM.slice(-h).reduce((s,m)=>s+score(m),0)/h;
-    return late - early;
+    const prevM = matchList.filter(m => m.date.startsWith(prevYear) && [...m.teamA,...m.teamB].some(r=>r.player===p.player));
+    const curM  = matchList.filter(m => m.date.startsWith(curYear)  && [...m.teamA,...m.teamB].some(r=>r.player===p.player));
+    if (prevM.length < 4 || curM.length < 4) return -Infinity;
+    const prevAvg = prevM.reduce((s,m)=>s+score(m),0)/prevM.length;
+    const curAvg  = curM.reduce((s,m)=>s+score(m),0)/curM.length;
+    return curAvg - prevAvg;
   };
   const gpgScore     = p => p.goals/gf(p);
   const appgScore    = p => p.assists/gf(p);
@@ -4431,7 +4463,7 @@ function renderSeasonSummary() {
   const awardRaces = [
     { label:'🏆 MVP Race',               desc:'Goals × 4, assists × 3, key passes × 0.5, win rate × 3', fn: mvpScore,          fmt: v => v.toFixed(1)+' pts' },
     { label:'🛡 Defensive Player (DPOY)', desc:'Tackles + ints + blocks per game, saves × 0.5',          fn: dpoyScore,         fmt: v => v.toFixed(1)+'/g' },
-    { label:'📈 Most Improved (MIP)',     desc:'Performance score: early season vs late season',           fn: mipScore,          fmt: v => (v>0?'+':'')+v.toFixed(1)+' pts/g', min: 8 },
+    { label:'📈 Most Improved (MIP)',     desc:'Performance score: previous season vs current season',     fn: mipScore,          fmt: v => (v>0?'+':'')+v.toFixed(1)+' pts/g', min: 4 },
     { label:'⚽ Golden Boot Race',        desc:'Goals per game',                                           fn: gpgScore,          fmt: v => v.toFixed(2)+' gpg' },
     { label:'🎯 Playmaker Race',          desc:'Assists + key passes per game',                            fn: creatorScore,      fmt: v => v.toFixed(2)+'/g' },
     { label:'🧤 Best Goalkeeper Race',    desc:'Saves per 55 min in goal — only players with event log GK data',
