@@ -4895,7 +4895,7 @@ function drawMomentumGraph(canvasId, matchId) {
     ctx.fillText('Import goal times or the events CSV to see momentum & score worm', W / 2, H / 2 + 12);
     return;
   }
-  const { matchDur, htSecs, fA, fB, ytId } = data;
+  const { matchDur, htSecs, fA, fB, ytId, gameDividerSecs } = data;
 
   // Try event log for shot-pressure momentum
   let evLog = null;
@@ -5010,6 +5010,17 @@ function drawMomentumGraph(canvasId, matchId) {
     ctx.strokeStyle = 'rgba(255,255,255,0.2)'; ctx.lineWidth = 1; ctx.setLineDash([3, 3]);
     ctx.beginPath(); ctx.moveTo(hx, pad.t); ctx.lineTo(hx, H - pad.b); ctx.stroke();
     ctx.setLineDash([]);
+  }
+
+  // Firm game divider — marks where a combined "two separate games" chart switches
+  // from Game 1 to Game 2. Solid and bright, unlike the subtle dashed halftime line,
+  // since this is a genuine reset (score restarts at 0), not a pause mid-match.
+  if (gameDividerSecs) {
+    const gx = toX(gameDividerSecs);
+    ctx.strokeStyle = 'rgba(255,255,255,0.55)'; ctx.lineWidth = 2; ctx.setLineDash([]);
+    ctx.beginPath(); ctx.moveTo(gx, pad.t); ctx.lineTo(gx, H - pad.b); ctx.stroke();
+    ctx.font = 'bold 9px Barlow Condensed, sans-serif'; ctx.fillStyle = 'rgba(255,255,255,0.65)'; ctx.textAlign = 'center';
+    ctx.fillText('GAME 2 →', gx, pad.t - 6);
   }
 
   // Score worm
@@ -7624,7 +7635,144 @@ function setMatchFilter(f) {
   renderMatches();
 }
 
+// ── "Two separate games" pairing helpers ──────────────────────────────
+// Matches created via the "Two separate games" import option share a date and a
+// common ID base (e.g. 2026-05-22#1 / 2026-05-22#2), and each is flagged `singleHalf`
+// in its stored event log. We group such pairs into one combined match card.
+function gameIdBase(id) { return String(id).replace(/#\d+$/, ''); }
+
+function isSingleHalfMatch(matchId) {
+  try {
+    const logs = JSON.parse(localStorage.getItem('aero_event_logs') || '{}');
+    return !!logs[matchId]?.singleHalf;
+  } catch(e) { return false; }
+}
+
+// Groups a match list into { type:'pair', m1, m2 } and { type:'single', m } items,
+// preserving the original order (pair takes the position of its first member).
+function groupTwoGamePairs(list) {
+  const used = new Set();
+  const items = [];
+  for (let i = 0; i < list.length; i++) {
+    const m = list[i];
+    if (used.has(m.id)) continue;
+    if (isSingleHalfMatch(m.id)) {
+      const base = gameIdBase(m.id);
+      const partner = list.find(o =>
+        o.id !== m.id && !used.has(o.id) && o.date === m.date &&
+        gameIdBase(o.id) === base && isSingleHalfMatch(o.id)
+      );
+      if (partner) {
+        used.add(m.id); used.add(partner.id);
+        // Order by numeric suffix so "Game 1" is always the earlier-numbered match
+        const suffix = id => parseInt((id.match(/#(\d+)$/) || [,'0'])[1], 10);
+        const [g1, g2] = suffix(m.id) <= suffix(partner.id) ? [m, partner] : [partner, m];
+        items.push({ type: 'pair', m1: g1, m2: g2 });
+        continue;
+      }
+    }
+    used.add(m.id);
+    items.push({ type: 'single', m });
+  }
+  return items;
+}
+
+// Extracts goal-event rows, final score, and real duration for a single match —
+// mirrors the per-match goal-timeline logic used in the main card renderer, but as a
+// standalone function so it can be reused to build a COMBINED chart for game pairs.
+function extractMatchGoalRows(m) {
+  const combos = goalCombos[m.id];
+  let all = [];
+  if (combos) {
+    all = [
+      ...(combos.h1||[]).map(p=>({...p,half:'1H'})),
+      ...(combos.h2||[]).map(p=>({...p,half:'2H'}))
+    ].filter(p=>p.time && !p.isOG);
+  }
+  try {
+    const logs = JSON.parse(localStorage.getItem('aero_event_logs') || '{}');
+    const log = logs[m.id];
+    if (log?.events) {
+      const tsToSecs = t => { if (!t) return 0; const p=String(t).split(':'); return p.length===3?parseInt(p[0])*60+parseInt(p[1])+parseFloat(p[2])/100:parseInt(p[0])*60+parseFloat(p[1]||0); };
+      log.events.filter(e => e.event === 'Goals' || e.event === 'OG').forEach(e => {
+        const eSecs = tsToSecs(e.ts);
+        const already = all.find(g => Math.abs(tsToSecs(g.time) - eSecs) < 3 && !g.isOG && e.event !== 'OG');
+        if (!already) all.push({ scorer: e.player, assister: e.assistBy||'', time: e.ts, half: e.half, isOG: e.event==='OG' });
+      });
+    }
+  } catch(ex) {}
+  if (!all.length) {
+    try {
+      const logs = JSON.parse(localStorage.getItem('aero_event_logs') || '{}');
+      const log = logs[m.id];
+      if (log?.events) {
+        log.events.filter(e => e.event === 'Goals' || e.event === 'OG').forEach(e => {
+          all.push({ scorer: e.player, assister: e.assistBy||'', time: e.ts, half: e.half, isOG: e.event==='OG' });
+        });
+      }
+    } catch(ex) {}
+  }
+
+  const toSecs = time => { if (!time) return 0; const [min,sec]=time.split(':').map(Number); return min*60+(sec||0); };
+  const scorerTeam = {};
+  [...m.teamA,...m.teamB].forEach(r=>{ scorerTeam[r.player]=r.team; });
+  const events = all.map(p=>({
+    ...p, secs:toSecs(p.time), team:resolveGoalTeam(p,scorerTeam,m.swappedPlayers,p.half)
+  })).sort((a,b)=>a.secs-b.secs);
+  let sA=0,sB=0;
+  const rows = events.map(e=>{ if(e.team==='A') sA++; else sB++; return {...e,scoreA:sA,scoreB:sB}; });
+  const fA=sA, fB=sB;
+
+  let totalDurSecs = null;
+  try {
+    const logs = JSON.parse(localStorage.getItem('aero_event_logs') || '{}');
+    const log = logs[m.id];
+    if (log?.singleHalf) {
+      totalDurSecs = log?.timeStats?.halfDur?.['1H'] || null;
+    } else if (log?.timeStats?.halfDur) {
+      const ht = log.timeStats.halfDur['1H'] || null;
+      const h2End = log.timeStats.halfDur['2H'] || null;
+      if (ht && h2End) totalDurSecs = h2End;
+      else if (ht) totalDurSecs = ht * 2;
+    }
+  } catch(e) {}
+  const matchDurFinal = totalDurSecs || Math.max(...all.map(p=>toSecs(p.time)), 50*60) + 60;
+
+  rows.forEach(r => { r.absSecs = r.secs; });
+  rows.sort((a,b) => a.absSecs - b.absSecs);
+
+  return { rows, fA, fB, matchDurFinal, ytId: matchVideos[m.id]||'' };
+}
+
+// Builds ONE combined momentum/worm chart spanning both games of a "two separate games"
+// pair, with a firm divider where Game 2 begins. Game 2's score line resets to 0 at that
+// point (it's a genuinely separate game), while its timeline continues right after Game 1's.
+function buildCombinedWormSection(m1, m2) {
+  const d1 = extractMatchGoalRows(m1);
+  const d2 = extractMatchGoalRows(m2);
+  const dividerSecs = d1.matchDurFinal;
+  const rows2Shifted = d2.rows.map(r => ({ ...r, secs: r.secs + dividerSecs, absSecs: r.absSecs + dividerSecs }));
+  const combinedRows = [...d1.rows, ...rows2Shifted];
+  const combinedDur = d1.matchDurFinal + d2.matchDurFinal;
+  const pairId = m1.id + '__' + m2.id;
+  const canvasId = 'timeline-' + pairId.replace(/[#,]/g,'_');
+  window._wormData = window._wormData || {};
+  window._wormData[pairId] = {
+    rows: combinedRows, fA: d2.fA, fB: d2.fB, matchDur: combinedDur,
+    htSecs: null, ytId: d1.ytId || d2.ytId, gameDividerSecs: dividerSecs,
+  };
+
+  return `<div style="margin-bottom:14px">
+    <div style="font-size:.62rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);font-family:'Barlow Condensed',sans-serif;margin-bottom:6px">Momentum — Game 1 → Game 2</div>
+    <div style="position:relative;width:100%;overflow:visible">
+      <canvas id="${canvasId}" style="width:100%;height:380px;display:block;border-radius:8px"></canvas>
+    </div>
+  </div>`;
+}
+
 function renderMatches() {
+
+
   const q = (document.getElementById('match-search')?.value || '').toLowerCase();
   const sort = document.getElementById('match-sort')?.value || 'desc';
   let list = [...matchList];
@@ -7654,7 +7802,14 @@ function renderMatches() {
   document.getElementById('match-count').textContent = list.length + ' matches';
   const el = document.getElementById('matches-list');
   if (!el) return;
-  el.innerHTML = list.map(m => {
+  const groups = groupTwoGamePairs(list);
+  el.innerHTML = groups.map(item => item.type === 'pair'
+    ? buildTwoGameCardHtml(item.m1, item.m2)
+    : buildSingleMatchCardHtml(item.m)
+  ).join('');
+}
+
+function buildSingleMatchCardHtml(m) {
     const goalsA = m.goalsA;
     const goalsB = m.goalsB;
     const ogList = [...m.teamA,...m.teamB].filter(r=>n(r.own_goals)>0).map(r=>`${r.player} (OG)`);
@@ -8225,7 +8380,50 @@ function renderMatches() {
         </div>
       </div>
     </div>`;
-  }).join('');
+}
+
+function buildTwoGameCardHtml(m1, m2) {
+  const wormSection = buildCombinedWormSection(m1, m2);
+  const gameSection = (m, label) => {
+    const oldCard = buildSingleMatchCardHtml(m);
+    // Pull everything from the stats table onward (table, mobile cards, DNP/swap note,
+    // video section, and the print/report/edit/delete buttons) out of the normal
+    // single-match card — we only skip its own Goal Timeline/momentum chart, since the
+    // pair card supplies ONE combined chart above instead. Strip the two outer closing
+    // </div> tags (match-detail-panel, match-card) that belonged to that standalone card,
+    // since this content is being nested inside the pair card's own wrappers instead.
+    const startMarker = '<!-- Desktop stats table -->';
+    const startIdx = oldCard.indexOf(startMarker);
+    let tablesHtml = startIdx >= 0 ? oldCard.slice(startIdx) : '';
+    tablesHtml = tablesHtml.replace(/\s*<\/div>\s*<\/div>\s*$/, '');
+    return `<div style="margin-top:18px;padding-top:14px;border-top:1px solid var(--border)">
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:.9rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--lime);margin-bottom:10px">${label} — ${m.date}${m.swappedPlayers?.length ? ` <span style="font-size:.68rem;background:rgba(96,165,250,.12);border:1px solid rgba(96,165,250,.3);color:#60a5fa;border-radius:4px;padding:1px 7px;margin-left:6px">🔄 SWAP</span>` : ''}</div>
+      ${tablesHtml}
+    </div>`;
+  };
+
+  const toggleId = m1.id.replace(/[#]/g,'__');
+  const outcomeLabel1 = m1.goalsA > m1.goalsB ? '🟢' : m1.goalsB > m1.goalsA ? '🔵' : '🟡';
+  const outcomeLabel2 = m2.goalsA > m2.goalsB ? '🟢' : m2.goalsB > m2.goalsA ? '🔵' : '🟡';
+
+  return `
+    <div class="match-card" onclick="toggleMatchDetail('${toggleId}')">
+      <div class="match-card-header">
+        <div class="match-date-badge">📅 ${m1.date}</div>
+        <div style="flex:1;display:flex;flex-wrap:wrap;gap:8px;padding:0 12px;align-items:center">
+          <span style="font-size:.68rem;background:rgba(240,192,64,.12);border:1px solid rgba(240,192,64,.3);color:var(--amber);border-radius:4px;padding:2px 8px;font-family:'Barlow Condensed',sans-serif;letter-spacing:.5px">🔀 2 GAMES</span>
+        </div>
+        <div class="match-score" style="display:flex;flex-direction:column;gap:2px;align-items:flex-end">
+          <span style="font-size:.78rem;font-family:'Barlow Condensed',sans-serif;color:var(--muted)">${outcomeLabel1} G1: <span style="color:var(--text);font-weight:700">${m1.goalsA}–${m1.goalsB}</span></span>
+          <span style="font-size:.78rem;font-family:'Barlow Condensed',sans-serif;color:var(--muted)">${outcomeLabel2} G2: <span style="color:var(--text);font-weight:700">${m2.goalsA}–${m2.goalsB}</span></span>
+        </div>
+      </div>
+      <div class="match-detail-panel" id="md-${toggleId}" onclick="event.stopPropagation()">
+        ${wormSection}
+        ${gameSection(m1, 'GAME 1')}
+        ${gameSection(m2, 'GAME 2')}
+      </div>
+    </div>`;
 }
 
 function editMatchDate(matchId, currentDate) {
