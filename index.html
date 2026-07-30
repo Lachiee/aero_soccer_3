@@ -2963,7 +2963,9 @@ function computeWinLoss(playerMap, matches) {
     m.unbalanced = m.teamA.length !== m.teamB.length;
 
     // Compute MVP using balanced formula
-    const allPlayers = [...m.teamA, ...m.teamB];
+    // Use each player's combined full-match totals (not split half rows) so a swapped
+    // player is scored once on their whole-match contribution, never occupying two medal slots.
+    const allPlayers = m.rows.filter(r => r.half === 'FULL' && r.team !== 'DNP' && r.team !== '-');
     const w = mvpWeights;
     const scored = allPlayers.map(r => {
       const raw =
@@ -4262,40 +4264,24 @@ function renderSeasonSummary() {
     best(p => p.gd||0,                 '⚖ Best Goal Diff',     v => (v>0?'+':'')+Math.round(v)),
   ];
 
-  // Most improved: compare previous season vs current season (not early/late split within one season)
+  // Most improved: within season, compare first half vs second half of games
   const mostImproved = (() => {
-    // Resolve which two seasons to compare. If a specific season is selected, compare it against
-    // the season immediately before it. If "All Seasons" is selected, fall back to the most recent
-    // two seasons in the data, since there's no single "current season" to anchor to otherwise.
-    const allYears = [...new Set(matchList.map(m => m.date.slice(0,4)))].sort();
-    let curYear, prevYear;
-    if (seasonFilter !== 'all') {
-      curYear = seasonFilter;
-      const idx = allYears.indexOf(curYear);
-      prevYear = idx > 0 ? allYears[idx - 1] : null;
-    } else if (allYears.length >= 2) {
-      curYear = allYears[allYears.length - 1];
-      prevYear = allYears[allYears.length - 2];
-    }
-
     let bestPlayer = null, bestDelta = -Infinity;
-    if (curYear && prevYear) {
-      const scoreMatch = (m, playerName) => {
-        const r = [...m.teamA,...m.teamB].find(x=>x.player===playerName);
+    sPool.forEach(sp => {
+      const allMatches = matchList
+        .filter(m => inSeason(m.date) && [...m.teamA,...m.teamB].some(r=>r.player===sp.player))
+        .sort((a,b)=>a.date.localeCompare(b.date));
+      if (allMatches.length < 8) return;
+      const scoreMatch = m => {
+        const r = [...m.teamA,...m.teamB].find(x=>x.player===sp.player);
         return r ? n(r.goals)*4+n(r.assists)*3+n(r.key_passes)*0.4+n(r.tackles)*0.3 : 0;
       };
-      const allPlayerNames = [...new Set(matchList.flatMap(m => [...m.teamA,...m.teamB].map(r=>r.player)))];
-      allPlayerNames.forEach(playerName => {
-        const prevMatches = matchList.filter(m => m.date.startsWith(prevYear) && [...m.teamA,...m.teamB].some(r=>r.player===playerName));
-        const curMatches  = matchList.filter(m => m.date.startsWith(curYear)  && [...m.teamA,...m.teamB].some(r=>r.player===playerName));
-        // Require a reasonable sample in both seasons so the delta isn't noise from 1-2 games
-        if (prevMatches.length < 4 || curMatches.length < 4) return;
-        const prevAvg = prevMatches.reduce((s,m)=>s+scoreMatch(m,playerName),0)/prevMatches.length;
-        const curAvg  = curMatches.reduce((s,m)=>s+scoreMatch(m,playerName),0)/curMatches.length;
-        if (curAvg - prevAvg > bestDelta) { bestDelta = curAvg - prevAvg; bestPlayer = playerName; }
-      });
-    }
-    return { player: bestPlayer || '–', val: bestDelta > -Infinity && bestDelta > 0 ? '+'+bestDelta.toFixed(1)+' pts/g' : '–', label: '📈 Most Improved' };
+      const half = Math.floor(allMatches.length/2);
+      const early = allMatches.slice(0,half).reduce((s,m)=>s+scoreMatch(m),0)/half;
+      const late  = allMatches.slice(-half).reduce((s,m)=>s+scoreMatch(m),0)/half;
+      if (late - early > bestDelta) { bestDelta = late - early; bestPlayer = sp.player; }
+    });
+    return { player: bestPlayer || '–', val: bestDelta > 0 ? '+'+bestDelta.toFixed(1)+' pts/g' : '–', label: '📈 Most Improved' };
   })();
   awards.push(mostImproved);
 
@@ -4341,30 +4327,14 @@ function renderSeasonSummary() {
 
   const mvpScore  = p => (p.goals/gf(p))*4 + (p.assists/gf(p))*3 + (p.key_passes/gf(p))*0.5 + (p.wins/(p.wins+p.losses+(p.draws||0)||1))*3;
   const dpoyScore = p => ((p.interceptions+p.tackles+p.blocks)/gf(p)) + (p.goalkeeper_saves/gf(p))*0.5;
-
-  // MIP comparison seasons: previous season vs the season the page is currently showing. If
-  // "All Seasons" is selected there's no single current season to anchor to, so fall back to the
-  // two most recent seasons in the data.
-  const mipYears = (() => {
-    const allYears = [...new Set(matchList.map(m => m.date.slice(0,4)))].sort();
-    if (seasonFilter !== 'all') {
-      const idx = allYears.indexOf(seasonFilter);
-      return { curYear: seasonFilter, prevYear: idx > 0 ? allYears[idx - 1] : null };
-    }
-    return allYears.length >= 2
-      ? { curYear: allYears[allYears.length - 1], prevYear: allYears[allYears.length - 2] }
-      : { curYear: null, prevYear: null };
-  })();
-  const mipScore  = p => { // most improved: previous season vs current season, per-game
-    const { curYear, prevYear } = mipYears;
-    if (!curYear || !prevYear) return -Infinity;
+  const mipScore  = p => { // most improved: late vs early half of season matches
+    const allM = matchList.filter(m => inSeason(m.date) && [...m.teamA,...m.teamB].some(r=>r.player===p.player)).sort((a,b)=>a.date.localeCompare(b.date));
+    if (allM.length < 6) return -Infinity;
+    const h = Math.floor(allM.length/2);
     const score = m => { const r=[...m.teamA,...m.teamB].find(x=>x.player===p.player); return r?n(r.goals)*4+n(r.assists)*3+n(r.key_passes)*0.4+n(r.tackles)*0.3:0; };
-    const prevM = matchList.filter(m => m.date.startsWith(prevYear) && [...m.teamA,...m.teamB].some(r=>r.player===p.player));
-    const curM  = matchList.filter(m => m.date.startsWith(curYear)  && [...m.teamA,...m.teamB].some(r=>r.player===p.player));
-    if (prevM.length < 4 || curM.length < 4) return -Infinity;
-    const prevAvg = prevM.reduce((s,m)=>s+score(m),0)/prevM.length;
-    const curAvg  = curM.reduce((s,m)=>s+score(m),0)/curM.length;
-    return curAvg - prevAvg;
+    const early = allM.slice(0,h).reduce((s,m)=>s+score(m),0)/h;
+    const late  = allM.slice(-h).reduce((s,m)=>s+score(m),0)/h;
+    return late - early;
   };
   const gpgScore     = p => p.goals/gf(p);
   const appgScore    = p => p.assists/gf(p);
@@ -4463,7 +4433,7 @@ function renderSeasonSummary() {
   const awardRaces = [
     { label:'🏆 MVP Race',               desc:'Goals × 4, assists × 3, key passes × 0.5, win rate × 3', fn: mvpScore,          fmt: v => v.toFixed(1)+' pts' },
     { label:'🛡 Defensive Player (DPOY)', desc:'Tackles + ints + blocks per game, saves × 0.5',          fn: dpoyScore,         fmt: v => v.toFixed(1)+'/g' },
-    { label:'📈 Most Improved (MIP)',     desc:'Performance score: previous season vs current season',     fn: mipScore,          fmt: v => (v>0?'+':'')+v.toFixed(1)+' pts/g', min: 4 },
+    { label:'📈 Most Improved (MIP)',     desc:'Performance score: early season vs late season',           fn: mipScore,          fmt: v => (v>0?'+':'')+v.toFixed(1)+' pts/g', min: 8 },
     { label:'⚽ Golden Boot Race',        desc:'Goals per game',                                           fn: gpgScore,          fmt: v => v.toFixed(2)+' gpg' },
     { label:'🎯 Playmaker Race',          desc:'Assists + key passes per game',                            fn: creatorScore,      fmt: v => v.toFixed(2)+'/g' },
     { label:'🧤 Best Goalkeeper Race',    desc:'Saves per 55 min in goal — only players with event log GK data',
@@ -5426,7 +5396,7 @@ function drawWormCanvas(canvasId, matchId) {
   const canvas = document.getElementById(canvasId);
   const data = window._wormData[matchId];
   if (!canvas || !data) return;
-  const { rows, fA, fB, matchDur, htSecs, ytId } = data;
+  const { rows, fA, fB, matchDur, htSecs, ytId, noHalfLine } = data;
 
   const dpr = window.devicePixelRatio || 1;
   // Walk up to find the actual available width — subtract the 200px stats panel + gap
@@ -5465,15 +5435,18 @@ function drawWormCanvas(canvasId, matchId) {
     ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(pad.left+cW, y); ctx.stroke();
   }
 
-  // Half-time dashed line — use actual 1H end time if known, else midpoint
+  // Half-time dashed line — use actual 1H end time if known, else midpoint.
+  // Skipped entirely for matches split from "two separate games" — there's no real halftime.
   const htTimeSecs = htSecs || (matchDur / 2);
-  const htX = toX(htTimeSecs);
-  ctx.strokeStyle = 'rgba(255,255,255,.3)'; ctx.lineWidth = 1.5; ctx.setLineDash([5,5]);
-  ctx.beginPath(); ctx.moveTo(htX, pad.top); ctx.lineTo(htX, pad.top+cH); ctx.stroke();
-  ctx.setLineDash([]);
-  // HT label
-  ctx.font = '9px Barlow Condensed, sans-serif'; ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.textAlign = 'center';
-  ctx.fillText('HT ' + Math.round(htTimeSecs/60) + "'", htX, pad.top - 4);
+  if (!noHalfLine) {
+    const htX = toX(htTimeSecs);
+    ctx.strokeStyle = 'rgba(255,255,255,.3)'; ctx.lineWidth = 1.5; ctx.setLineDash([5,5]);
+    ctx.beginPath(); ctx.moveTo(htX, pad.top); ctx.lineTo(htX, pad.top+cH); ctx.stroke();
+    ctx.setLineDash([]);
+    // HT label
+    ctx.font = '9px Barlow Condensed, sans-serif'; ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.textAlign = 'center';
+    ctx.fillText('HT ' + Math.round(htTimeSecs/60) + "'", htX, pad.top - 4);
+  }
 
   // X axis time labels + vertical guides
   const totalMins = Math.round(matchDur / 60);
@@ -5488,13 +5461,15 @@ function drawWormCanvas(canvasId, matchId) {
     }
   }
 
-  // Watermark half labels
-  ctx.save();
-  ctx.font = 'bold ' + Math.round(cH * 0.6) + 'px Barlow Condensed, sans-serif';
-  ctx.fillStyle = 'rgba(255,255,255,.025)'; ctx.textAlign = 'center';
-  ctx.fillText('1H', pad.left + cW * 0.25, pad.top + cH * 0.75);
-  ctx.fillText('2H', pad.left + cW * 0.75, pad.top + cH * 0.75);
-  ctx.restore();
+  // Watermark half labels — not shown for matches split from "two separate games"
+  if (!noHalfLine) {
+    ctx.save();
+    ctx.font = 'bold ' + Math.round(cH * 0.6) + 'px Barlow Condensed, sans-serif';
+    ctx.fillStyle = 'rgba(255,255,255,.025)'; ctx.textAlign = 'center';
+    ctx.fillText('1H', pad.left + cW * 0.25, pad.top + cH * 0.75);
+    ctx.fillText('2H', pad.left + cW * 0.75, pad.top + cH * 0.75);
+    ctx.restore();
+  }
 
   // Title + subtitle
   ctx.fillStyle = 'rgba(255,255,255,.75)'; ctx.font = 'bold 11px Barlow Condensed, sans-serif'; ctx.textAlign = 'left';
@@ -5526,7 +5501,7 @@ function drawWormCanvas(canvasId, matchId) {
   // Store pts and rows on canvas for hover
   canvas._wormPts  = pts;
   canvas._wormRows = rows;
-  canvas._wormMeta = { pad, cW, cH, matchDur, htSecs: htTimeSecs, toX, toY, fA, fB, W, H, maxLead, yRange };
+  canvas._wormMeta = { pad, cW, cH, matchDur, htSecs: htTimeSecs, toX, toY, fA, fB, W, H, maxLead, yRange, noHalfLine };
 
   // Goal dots — coloured by team
   const dotData = [];
@@ -5614,7 +5589,7 @@ function drawWormCanvas(canvasId, matchId) {
       // Build tooltip content
       const mins = Math.floor(curSecs / 60), secs2 = Math.round(curSecs % 60);
       const timeStr = mins + "'" + (secs2 ? String(secs2).padStart(2,'0') + '"' : '');
-      const half = curSecs <= htTimeSecs2 ? '1st half' : '2nd half';
+      const half = canvas._wormMeta.noHalfLine ? null : (curSecs <= htTimeSecs2 ? '1st half' : '2nd half');
       const lead = sA > sB ? '<span style="color:#4ade80">A leading</span>' :
                    sB > sA ? '<span style="color:#60a5fa">B leading</span>' :
                    '<span style="color:rgba(255,255,255,.5)">Level</span>';
@@ -5627,7 +5602,7 @@ function drawWormCanvas(canvasId, matchId) {
         ? `<div style="margin-top:4px;font-size:.7rem;color:rgba(255,255,255,.4)">Click to watch ▶</div>` : '';
 
       ttEl.innerHTML = `
-        <div style="font-size:.68rem;color:rgba(255,255,255,.4);margin-bottom:4px;letter-spacing:.5px">${timeStr} · ${half}</div>
+        <div style="font-size:.68rem;color:rgba(255,255,255,.4);margin-bottom:4px;letter-spacing:.5px">${timeStr}${half ? ' · ' + half : ''}</div>
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:2px">
           <span style="font-family:'Bebas Neue',sans-serif;font-size:1.6rem;color:#4ade80;line-height:1">${sA}</span>
           <span style="font-size:.75rem;color:rgba(255,255,255,.3)">—</span>
@@ -7721,7 +7696,7 @@ function renderMatches() {
         </tr>
         <tr>
           <th style="${oCol}">Goals</th><th style="${oCol}">Assists</th><th style="${oCol}">Key Passes</th><th style="${oCol}">Shots</th><th style="${oCol}">Shot Conv %</th><th style="${oCol}">On Target</th><th style="${oCol}">Post</th><th style="${oCol}">Own Goals</th>
-          <th style="${dCol}">Blocks</th><th style="${dCol}">Tackles</th><th style="${dCol}">Interceptions</th><th style="${dCol}">GK Saves</th>
+          <th style="${dCol}">Tackles</th><th style="${dCol}">Interceptions</th><th style="${dCol}">Blocks</th><th style="${dCol}">GK Saves</th>
           <th style="${bCol}">Nutmegs</th>
         </tr>
       </thead>`;
@@ -7748,12 +7723,10 @@ function renderMatches() {
       <td style="${oCol}">${n(r.shots_on_target)||0}</td>
       <td style="${oCol}">${n(r.post)||0}</td>
       <td style="${oCol}">${n(r.own_goals)>0?`<span style="color:var(--red);font-weight:700">${n(r.own_goals)}</span>`:'0'}</td>
-      <td style="${dCol}">${n(r.blocks)||0}</td>
       <td style="${dCol}">${n(r.tackles)||0}</td>
       <td style="${dCol}">${n(r.interceptions)||0}</td>
+      <td style="${dCol}">${n(r.blocks)||0}</td>
       <td style="${dCol}">${gkSaves>0?gkSaves:'—'}</td>
-      <td style="${dCol};color:var(--muted)">—</td>
-      <td style="${dCol};color:var(--muted)">—</td>
       <td style="${bCol}">${n(r.nutmegs)||0}</td>`;
     };
 
@@ -7785,12 +7758,10 @@ function renderMatches() {
         <td style="${tStyle};${oCol}">${sum('shots_on_target')}</td>
         <td style="${tStyle};${oCol}">${sum('post')}</td>
         <td style="${tStyle};${oCol}">${sum('own_goals')>0?`<span style="color:var(--red)">${sum('own_goals')}</span>`:'0'}</td>
-        <td style="${tStyle};${dCol}">${sum('blocks')}</td>
         <td style="${tStyle};${dCol}">${sum('tackles')}</td>
         <td style="${tStyle};${dCol}">${sum('interceptions')}</td>
+        <td style="${tStyle};${dCol}">${sum('blocks')}</td>
         <td style="${tStyle};${dCol}">${sum('goalkeeper_saves')||0}</td>
-        <td style="${tStyle};${dCol};color:var(--muted)">—</td>
-        <td style="${tStyle};${dCol};color:var(--muted)">—</td>
         <td style="${tStyle};${bCol}">${sum('nutmegs')}</td>
       </tr>`;
     };
@@ -7894,11 +7865,17 @@ function renderMatches() {
           const canvasId = 'timeline-'+mid.replace(/[#,]/g,'_');
           window._wormData = window._wormData||{};
 
-          let htSecs = null, totalDurSecs = null;
+          let htSecs = null, totalDurSecs = null, noHalfLine = false;
           try {
             const logs = JSON.parse(localStorage.getItem('aero_event_logs') || '{}');
             const log = logs[mid];
-            if (log?.timeStats?.halfDur) {
+            if (log?.singleHalf) {
+              // This match came from a "two separate games" split — it's a complete
+              // standalone match on its own, not one half of a bigger game, so there's
+              // no real halftime to mark and no second-half duration to add.
+              noHalfLine = true;
+              totalDurSecs = log?.timeStats?.halfDur?.['1H'] || null;
+            } else if (log?.timeStats?.halfDur) {
               htSecs       = log.timeStats.halfDur['1H'] || null;   // actual 1H end in raw secs
               const h2End  = log.timeStats.halfDur['2H'] || null;   // actual 2H end in raw secs
               if (htSecs && h2End) totalDurSecs = h2End;
@@ -7916,7 +7893,7 @@ function renderMatches() {
           });
           // Sort by absolute time (already sorted by secs, but ensure correct order)
           rows.sort((a, b) => a.absSecs - b.absSecs);
-          window._wormData[mid] = { rows, fA, fB, matchDur: matchDurFinal, htSecs, ytId };
+          window._wormData[mid] = { rows, fA, fB, matchDur: matchDurFinal, htSecs, ytId, noHalfLine };
 
           const insights=[];
           runs.forEach(r=>insights.push({col:'var(--amber)',text:'⚡ Team '+r.team+' scored '+r.cnt+' in '+r.span+' mins ('+r.from+'–'+r.to+')'}));
@@ -7997,6 +7974,13 @@ function renderMatches() {
           <table class="detail-table" style="min-width:700px">
             ${(() => {
               const allRows = [...m.teamA, ...m.teamB];
+              // Each player's true combined match total (both halves summed), from their FULL row.
+              // Used so a swapped player's records are checked against their whole-match contribution,
+              // not just whichever half is currently being displayed.
+              const fullRowByPlayer = {};
+              m.rows.filter(r => r.half === 'FULL' && r.team !== 'DNP' && r.team !== '-').forEach(r => {
+                fullRowByPlayer[r.player] = r;
+              });
 
               // ── Per-player personal bests (excluding this match) ──────────
               const pbKeys = ['goals','assists','key_passes','total_shots','shots_on_target','post','blocks','tackles','interceptions','goalkeeper_saves','nutmegs'];
@@ -8021,13 +8005,16 @@ function renderMatches() {
                 allTimeRecord[key] = best;
               });
 
-              // ── Match-best: highest value in THIS match per stat ──────────
+              // ── Match-best: highest COMBINED match total in THIS match per stat ──
+              // Uses full-match totals (not half-split rows) so swapped players are compared
+              // fairly against players who played the whole match on one team.
+              const matchRows = Object.values(fullRowByPlayer);
               const matchBest = {};
               pbKeys.forEach(key => {
-                matchBest[key] = Math.max(...allRows.map(r => n(r[key])), 0);
+                matchBest[key] = Math.max(...matchRows.map(r => n(r[key])), 0);
               });
               // Shot conversion match best (min 3 shots to qualify)
-              const matchBestConv = Math.max(...allRows
+              const matchBestConv = Math.max(...matchRows
                 .filter(r => n(r.total_shots) >= 3)
                 .map(r => n(r.total_shots) > 0 ? n(r.goals)/n(r.total_shots) : 0), 0);
 
@@ -8051,18 +8038,26 @@ function renderMatches() {
               const isAT = (key, val) => val > 0 && val >= allTimeRecord[key] && allTimeRecord[key] > 0;
               const isMB = (key, val) => val > 0 && val >= matchBest[key] && matchBest[key] > 0;
 
-              // Build suffix badges: match-best badge, then ★ PB or 💎 all-time
+              // Build suffix badges: match-best badge, then ★ PB or 💎 all-time.
+              // Record checks always use the player's combined full-match total (fullRowByPlayer),
+              // so a swapped player's badges reflect their whole-match performance. If the cell's own
+              // half value differs from that combined total, show the combined total in brackets too,
+              // so the badge on a split row is understandable at a glance.
               const badges = (player, key, val) => {
-                if (!val || val === 0) return '';
+                const combinedVal = fullRowByPlayer[player] ? n(fullRowByPlayer[player][key]) : val;
+                if (!combinedVal || combinedVal === 0) return '';
                 let s = '';
-                const mb = isMB(key, val);
-                const pb = isPB(player, key, val);
-                const at = isAT(key, val);
+                const mb = isMB(key, combinedVal);
+                const pb = isPB(player, key, combinedVal);
+                const at = isAT(key, combinedVal);
+                if (!mb && !pb && !at) return '';
+                if (combinedVal !== val) s += `<span style="opacity:.6;font-size:.6rem;margin-left:2px">(${combinedVal})</span>`;
                 if (mb && MATCH_BADGE[key]) s += `<span title="Match best" style="font-size:.6rem;margin-left:2px;opacity:.85">${MATCH_BADGE[key]}</span>`;
                 if (at) s += `<span title="All-time record!" style="color:#a78bfa;font-size:.65rem;margin-left:1px">💎</span>`;
                 else if (pb) s += `<span title="Personal best!" style="color:var(--amber);font-size:.65rem;margin-left:1px">★</span>`;
                 return s;
               };
+
 
               const teamHeader = (label, color, goals) => {
                 const bg  = color === 'var(--green)' ? 'rgba(57,211,83,.1)'  : 'rgba(96,165,250,.1)';
@@ -8079,8 +8074,14 @@ function renderMatches() {
                 const p    = r.player;
                 const shots = n(r.total_shots), goals = n(r.goals);
                 const conv  = shots > 0 ? (goals/shots*100).toFixed(1)+'%' : '0%';
-                const convRate = shots >= 3 ? goals/shots : 0;
-                const convBadge = convRate > 0 && matchBestConv > 0 && convRate >= matchBestConv
+                const fullR = fullRowByPlayer[p];
+                const combinedShots = fullR ? n(fullR.total_shots) : shots;
+                const combinedGoals = fullR ? n(fullR.goals) : goals;
+                const combinedConvRate = combinedShots >= 3 ? combinedGoals/combinedShots : 0;
+                const combinedConvPct = combinedShots > 0 ? (combinedGoals/combinedShots*100).toFixed(1)+'%' : '0%';
+                const convBracket = combinedConvPct !== conv
+                  ? `<span style="opacity:.6;font-size:.6rem;margin-left:2px">(${combinedConvPct})</span>` : '';
+                const convBadge = combinedConvRate > 0 && matchBestConv > 0 && combinedConvRate >= matchBestConv
                   ? `<span title="Match best conversion" style="font-size:.6rem;margin-left:2px">🔥</span>` : '';
                 const gkS   = n(r.goalkeeper_saves);
                 const mvpScore = mvpEntry ? `<span style="font-size:.6rem;color:var(--muted);margin-left:3px">${mvpEntry.score}pts</span>` : '';
@@ -8092,13 +8093,13 @@ function renderMatches() {
                   <td style="${oCol}">${v('assists',n(r.assists)||0)}</td>
                   <td style="${oCol}">${v('key_passes',n(r.key_passes)||0)}</td>
                   <td style="${oCol}">${v('total_shots',shots)}</td>
-                  <td style="${oCol}">${conv}${convBadge}</td>
+                  <td style="${oCol}">${conv}${convBracket}${convBadge}</td>
                   <td style="${oCol}">${v('shots_on_target',n(r.shots_on_target)||0)}</td>
                   <td style="${oCol}">${v('post',n(r.post)||0)}</td>
                   <td style="${oCol}">${n(r.own_goals)>0?`<span style="color:var(--red);font-weight:700">${n(r.own_goals)}</span>`:'0'}</td>
-                  <td style="${dCol}">${v('blocks',n(r.blocks)||0)}</td>
                   <td style="${dCol}">${v('tackles',n(r.tackles)||0)}</td>
                   <td style="${dCol}">${v('interceptions',n(r.interceptions)||0)}</td>
+                  <td style="${dCol}">${v('blocks',n(r.blocks)||0)}</td>
                   <td style="${dCol}">${gkS>0?v('goalkeeper_saves',gkS):'—'}</td>
                   <td style="${bCol}">${v('nutmegs',n(r.nutmegs)||0)}</td>
                 </tr>`;
@@ -8112,7 +8113,7 @@ function renderMatches() {
                 const tStyle = `padding:5px 8px;font-size:.72rem;font-weight:700;border-top:2px solid rgba(255,255,255,.1);background:rgba(0,0,0,.2)`;
                 return `<tr>
                   <td style="${tStyle};color:${nameColor}">TOTAL</td>
-                  <td style="${tStyle};${oCol};color:${nameColor}">${tG}${oppOwnGoals>0?`<span style="color:var(--red);font-size:.6rem;margin-left:2px" title="Includes ${oppOwnGoals} own goal(s) by opponents">+${oppOwnGoals}OG</span>`:''}</td>
+                  <td style="${tStyle};${oCol};color:${nameColor}">${tG}${oppOwnGoals>0?`<span style="color:var(--red);font-size:.6rem;margin-left:2px" title="Includes ${oppOwnGoals} own goal(s) by opponents">(+${oppOwnGoals} OG)</span>`:''}</td>
                   <td style="${tStyle};${oCol}">${sum('assists')}</td>
                   <td style="${tStyle};${oCol}">${sum('key_passes')}</td>
                   <td style="${tStyle};${oCol}">${tS}</td>
@@ -8120,9 +8121,9 @@ function renderMatches() {
                   <td style="${tStyle};${oCol}">${sum('shots_on_target')}</td>
                   <td style="${tStyle};${oCol}">${sum('post')}</td>
                   <td style="${tStyle};${oCol}">${sum('own_goals')>0?`<span style="color:var(--red)">${sum('own_goals')}</span>`:'0'}</td>
-                  <td style="${tStyle};${dCol}">${sum('blocks')}</td>
                   <td style="${tStyle};${dCol}">${sum('tackles')}</td>
                   <td style="${tStyle};${dCol}">${sum('interceptions')}</td>
+                  <td style="${tStyle};${dCol}">${sum('blocks')}</td>
                   <td style="${tStyle};${dCol}">${sum('goalkeeper_saves')||0}</td>
                   <td style="${tStyle};${bCol}">${sum('nutmegs')}</td>
                 </tr>`;
@@ -15613,6 +15614,48 @@ function newSetAllTeam(team) {
   renderNewTeamAssignments();
 }
 
+// When "Two separate games" is used, the 1H/2H event log (goal times, GK rotation,
+// time-based stats) needs to be split into two fully independent, self-contained logs —
+// one per generated match ID — rather than staying combined under a single match ID.
+// Game 2's timestamps are re-based to start at 0 so its own timeline/worm chart reads
+// correctly as a standalone match rather than continuing from game 1's clock.
+function splitTwoGameEventLog(parsed) {
+  const { eventRows, gkRotation, h2OffsetSecs } = parsed;
+  const secsToMMSS = s => {
+    const total = Math.max(0, Math.round(s));
+    const mm = Math.floor(total / 60), ss = total % 60;
+    return `${mm}:${String(ss).padStart(2,'0')}`;
+  };
+
+  // Game 1 — everything originally tagged 1H, already 0-based, unchanged.
+  const events1 = eventRows.filter(r => r.half === '1H');
+  const gkRotation1 = { '1H': gkRotation['1H'] || [], '2H': [] };
+  const goalEvents1 = events1.filter(r => r.event === 'Goals');
+  const timeStats1 = computeTimeStats(events1, goalEvents1, gkRotation1, 0);
+
+  // Game 2 — everything originally tagged 2H, remapped to its own 0-based "1H" timeline.
+  const offset = h2OffsetSecs || 0;
+  const events2 = eventRows.filter(r => r.half === '2H').map(r => {
+    const secs = Math.max(0, r.tsSecsRaw - offset);
+    return { ...r, half: '1H', tsSecsRaw: secs, tsSecsNorm: secs, ts: secsToMMSS(secs) };
+  });
+  const gkRotation2 = {
+    '1H': (gkRotation['2H'] || []).map(seg => ({
+      ...seg,
+      fromSecs: Math.max(0, seg.fromSecs - offset),
+      toSecs: seg.toSecs === 9999 ? 9999 : Math.max(0, seg.toSecs - offset),
+    })),
+    '2H': [],
+  };
+  const goalEvents2 = events2.filter(r => r.event === 'Goals');
+  const timeStats2 = computeTimeStats(events2, goalEvents2, gkRotation2, 0);
+
+  return {
+    log1: { events: events1, gkRotation: gkRotation1, timeStats: timeStats1, singleHalf: true },
+    log2: { events: events2, gkRotation: gkRotation2, timeStats: timeStats2, singleHalf: true },
+  };
+}
+
 function generateNewFormatCSV() {
   if (!_newFormatParsed) return;
   const dateVal = document.getElementById('new-weekly-date').value;
@@ -15715,15 +15758,25 @@ function generateNewFormatCSV() {
     }
   });
 
-  // Store event log in localStorage keyed by matchId
+  // Store event log in localStorage keyed by matchId — split into two independent
+  // logs when this is "two separate games" so each match's timeline/worm chart is
+  // self-contained instead of sharing one blended event log.
   try {
     const stored = JSON.parse(localStorage.getItem('aero_event_logs') || '{}');
-    stored[matchId] = {
-      date: matchDate,
-      events: _newFormatParsed.eventRows,
-      gkRotation,
-      timeStats: _newFormatParsed.timeStats,
-    };
+    if (twoGames) {
+      const id1 = (matchIdInput || matchDate).replace(/#\d+$/, '') + '#1';
+      const id2 = (matchIdInput || matchDate).replace(/#\d+$/, '') + '#2';
+      const { log1, log2 } = splitTwoGameEventLog(_newFormatParsed);
+      if (log1.events.length) stored[id1] = { date: matchDate, ...log1 };
+      if (log2.events.length) stored[id2] = { date: matchDate, ...log2 };
+    } else {
+      stored[matchId] = {
+        date: matchDate,
+        events: _newFormatParsed.eventRows,
+        gkRotation,
+        timeStats: _newFormatParsed.timeStats,
+      };
+    }
     localStorage.setItem('aero_event_logs', JSON.stringify(stored));
   } catch(e) { console.warn('Event log storage failed:', e); }
 
