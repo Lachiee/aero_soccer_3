@@ -213,6 +213,17 @@ body::after{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;opac
 .pchip .cr{font-family:'Bebas Neue',sans-serif;font-size:.95rem;opacity:.6}
 .pchip .inj{font-size:.65rem;background:rgba(240,160,48,.2);color:var(--amber);
   border-radius:3px;padding:0 4px;margin-left:2px}
+.pchip .lock-icon{font-size:.72rem;opacity:.35;cursor:pointer;padding:1px 2px;border-radius:3px;line-height:1;transition:opacity .15s}
+.pchip .lock-icon:hover{opacity:.9}
+.pchip .lock-icon.lock-a{opacity:1;color:var(--green)}
+.pchip .lock-icon.lock-b{opacity:1;color:var(--blue)}
+#advanced-panel[open] summary .adv-caret{transform:rotate(90deg)}
+#advanced-panel summary::-webkit-details-marker{display:none}
+#advanced-panel summary::marker{content:''}
+#advanced-panel summary:hover{color:var(--text2)}
+.chem-pairs-details[open] summary .chem-caret{transform:rotate(90deg)}
+.chem-pairs-details summary::-webkit-details-marker{display:none}
+.chem-pairs-details summary::marker{content:''}
 .team-box{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:18px;transition:border-color .15s,background .15s}
 .team-box.ta{border-top:3px solid var(--green)}
 .team-box.tb{border-top:3px solid var(--blue)}
@@ -623,12 +634,17 @@ canvas.spider{display:block;margin:0 auto}
 <div class="page" id="page-teams">
   <div class="section-hd"><h2>Team Builder</h2><span>Select players · Auto-balance by ability &amp; role · Drag to adjust</span></div>
 
+  <!-- Player pool -->
   <div style="margin-bottom:14px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:8px">
-      <div style="font-size:.8rem;color:var(--muted);font-family:'Barlow Condensed',sans-serif;letter-spacing:1px;text-transform:uppercase">Available Players — click to select<span id="team-player-count" style="color:var(--lime)"></span></div>
-      <button onclick="openCustomPlayerModal()" style="padding:5px 12px;border-radius:7px;cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-size:.78rem;letter-spacing:.5px;text-transform:uppercase;border:1px solid var(--amber);background:rgba(240,160,48,.1);color:var(--amber)">+ Custom Player</button>
+      <div style="font-size:.8rem;color:var(--muted);font-family:'Barlow Condensed',sans-serif;letter-spacing:1px;text-transform:uppercase">Players<span id="team-player-count" style="color:var(--lime)"></span></div>
+      <div style="display:flex;gap:6px">
+        <button class="btn-secondary" onclick="selectRegulars()" title="Select the usual regulars" style="padding:5px 12px;font-size:.78rem">⭐ Regulars</button>
+        <button onclick="openCustomPlayerModal()" style="padding:5px 12px;border-radius:7px;cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-size:.78rem;letter-spacing:.5px;text-transform:uppercase;border:1px solid var(--amber);background:rgba(240,160,48,.1);color:var(--amber)">+ Custom</button>
+      </div>
     </div>
     <div class="avail-pool" id="avail-pool"></div>
+    <div style="font-size:.68rem;color:var(--muted);margin-top:6px">Tap a player to select · tap the lock icon to pin them to Team A or B before balancing</div>
   </div>
 
   <!-- Custom Player Modal -->
@@ -651,63 +667,77 @@ canvas.spider{display:block;margin:0 auto}
     </div>
   </div>
 
-  <div class="notes-section" id="notes-section" style="display:none">
-    <div class="notes-title" style="display:flex;align-items:center;justify-content:space-between">
-      <span>Player Notes &amp; Buffs</span>
-      <span style="font-size:.68rem;color:var(--muted);font-family:'Barlow',sans-serif;text-transform:none;letter-spacing:0;font-weight:400">Buff adjusts rating for balancing only</span>
-    </div>
-    <div id="notes-rows"></div>
-  </div>
-
-  <div style="display:flex;gap:10px;margin-bottom:8px;flex-wrap:wrap;align-items:center">
+  <!-- Primary actions — always visible, minimal -->
+  <div style="display:flex;gap:10px;margin-bottom:10px;flex-wrap:wrap;align-items:center">
     <button class="btn-primary" onclick="autoBalance()">⚖ Smart Balance</button>
     <button class="btn-secondary" onclick="shuffleTeams()" title="Randomly redistribute selected players into two equal teams">🔀 Shuffle</button>
     <button class="btn-secondary" onclick="clearTeams()">Clear</button>
-    <button class="btn-secondary" onclick="selectRegulars()" title="Select the usual regulars">⭐ Regulars</button>
-    <button id="streak-aug-btn" onclick="toggleStreakAugment()"
-      style="padding:6px 14px;border-radius:7px;cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-size:.82rem;letter-spacing:.5px;text-transform:uppercase;border:1px solid var(--border);background:transparent;color:var(--muted);transition:all .15s"
-      title="Adjusts player ratings based on win rate — high win rate gets a small nerf, low win rate gets a small buff">
-      ⚖ Win Rate Balance: OFF
-    </button>
-    <div id="winrate-strength-wrap" style="display:flex;align-items:center;gap:6px;font-family:'Barlow Condensed',sans-serif;font-size:.78rem;color:var(--muted)">
-      <span style="white-space:nowrap">Strength</span>
-      <input type="range" min="0.05" max="0.40" step="0.05" value="0.20"
-        oninput="winRateAugStrength=parseFloat(this.value);document.getElementById('winrate-strength-val').textContent=Math.round(this.value*100)+'%';if(teamA.length||teamB.length)renderTeamResult(teamA,teamB)"
-        style="width:70px;accent-color:var(--lime)">
-      <span id="winrate-strength-val" style="color:var(--lime);min-width:28px">20%</span>
-    </div>
-    <div style="font-size:.78rem;color:var(--muted);margin-left:4px">Balance considers attacking, defensive &amp; playmaking roles</div>
   </div>
 
-  <!-- Shuffle options -->
-  <div id="shuffle-options" style="background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:12px 16px;margin-bottom:12px">
-    <div style="font-family:'Barlow Condensed',sans-serif;font-size:.72rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:10px">🔀 Shuffle Options</div>
-    <div style="display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start">
-      <!-- Enforcer threshold -->
-      <div style="display:flex;align-items:center;gap:8px;font-family:'Barlow Condensed',sans-serif;font-size:.8rem;color:var(--muted)">
-        <span>🛡 Max enforcer gap</span>
-        <input type="range" id="enf-threshold" min="1" max="15" step="1" value="3"
-          oninput="document.getElementById('enf-threshold-val').textContent=this.value"
-          style="width:80px;accent-color:var(--amber)">
-        <span id="enf-threshold-val" style="color:var(--amber);min-width:20px;font-size:.9rem">3</span>
-      </div>
-      <!-- Keep apart -->
-      <div style="flex:1;min-width:200px">
-        <div style="font-family:'Barlow Condensed',sans-serif;font-size:.75rem;color:var(--muted);margin-bottom:5px">⛔ Keep on opposite teams</div>
-        <div id="keep-apart-list" style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px"></div>
-        <div style="display:flex;gap:6px;align-items:center">
-          <select id="keep-apart-a" style="flex:1;background:var(--card);border:1px solid var(--border);border-radius:5px;color:var(--text);font-family:'Barlow Condensed',sans-serif;font-size:.78rem;padding:4px 6px">
-            <option value="">Player A…</option>
-          </select>
-          <span style="font-size:.7rem;color:var(--muted)">vs</span>
-          <select id="keep-apart-b" style="flex:1;background:var(--card);border:1px solid var(--border);border-radius:5px;color:var(--text);font-family:'Barlow Condensed',sans-serif;font-size:.78rem;padding:4px 6px">
-            <option value="">Player B…</option>
-          </select>
-          <button onclick="addKeepApart()" style="padding:4px 10px;border-radius:5px;border:1px solid var(--border);background:var(--card);color:var(--green);font-family:'Barlow Condensed',sans-serif;font-size:.8rem;cursor:pointer">+ Add</button>
+  <!-- Advanced settings — collapsed by default to keep the page uncluttered -->
+  <details id="advanced-panel" style="background:var(--card2);border:1px solid var(--border);border-radius:10px;margin-bottom:12px">
+    <summary style="cursor:pointer;padding:10px 14px;font-family:'Barlow Condensed',sans-serif;font-size:.78rem;letter-spacing:1px;text-transform:uppercase;color:var(--muted);list-style:none;display:flex;align-items:center;gap:6px;user-select:none">
+      <span style="display:inline-block;transition:transform .15s" class="adv-caret">▸</span> Advanced Settings
+    </summary>
+    <div style="padding:4px 14px 16px">
+
+      <!-- Win rate balance -->
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 0;border-bottom:1px solid var(--border)">
+        <button id="streak-aug-btn" onclick="toggleStreakAugment()"
+          style="padding:6px 14px;border-radius:7px;cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-size:.82rem;letter-spacing:.5px;text-transform:uppercase;border:1px solid var(--border);background:transparent;color:var(--muted);transition:all .15s"
+          title="Adjusts player ratings based on win rate — high win rate gets a small nerf, low win rate gets a small buff">
+          ⚖ Win Rate Balance: OFF
+        </button>
+        <div id="winrate-strength-wrap" style="display:flex;align-items:center;gap:6px;font-family:'Barlow Condensed',sans-serif;font-size:.78rem;color:var(--muted)">
+          <span style="white-space:nowrap">Strength</span>
+          <input type="range" min="0.05" max="0.40" step="0.05" value="0.20"
+            oninput="winRateAugStrength=parseFloat(this.value);document.getElementById('winrate-strength-val').textContent=Math.round(this.value*100)+'%';if(teamA.length||teamB.length)renderTeamResult(teamA,teamB)"
+            style="width:70px;accent-color:var(--lime)">
+          <span id="winrate-strength-val" style="color:var(--lime);min-width:28px">20%</span>
         </div>
       </div>
+
+      <!-- Shuffle options -->
+      <div style="padding:12px 0;border-bottom:1px solid var(--border)">
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:.72rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:10px">🔀 Shuffle Options</div>
+        <div style="display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start">
+          <!-- Enforcer threshold -->
+          <div style="display:flex;align-items:center;gap:8px;font-family:'Barlow Condensed',sans-serif;font-size:.8rem;color:var(--muted)">
+            <span>🛡 Max enforcer gap</span>
+            <input type="range" id="enf-threshold" min="1" max="15" step="1" value="3"
+              oninput="document.getElementById('enf-threshold-val').textContent=this.value"
+              style="width:80px;accent-color:var(--amber)">
+            <span id="enf-threshold-val" style="color:var(--amber);min-width:20px;font-size:.9rem">3</span>
+          </div>
+          <!-- Keep apart -->
+          <div style="flex:1;min-width:200px">
+            <div style="font-family:'Barlow Condensed',sans-serif;font-size:.75rem;color:var(--muted);margin-bottom:5px">⛔ Keep on opposite teams</div>
+            <div id="keep-apart-list" style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px"></div>
+            <div style="display:flex;gap:6px;align-items:center">
+              <select id="keep-apart-a" style="flex:1;background:var(--card);border:1px solid var(--border);border-radius:5px;color:var(--text);font-family:'Barlow Condensed',sans-serif;font-size:.78rem;padding:4px 6px">
+                <option value="">Player A…</option>
+              </select>
+              <span style="font-size:.7rem;color:var(--muted)">vs</span>
+              <select id="keep-apart-b" style="flex:1;background:var(--card);border:1px solid var(--border);border-radius:5px;color:var(--text);font-family:'Barlow Condensed',sans-serif;font-size:.78rem;padding:4px 6px">
+                <option value="">Player B…</option>
+              </select>
+              <button onclick="addKeepApart()" style="padding:4px 10px;border-radius:5px;border:1px solid var(--border);background:var(--card);color:var(--green);font-family:'Barlow Condensed',sans-serif;font-size:.8rem;cursor:pointer">+ Add</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Player Notes & Buffs -->
+      <div id="notes-section" style="display:none;padding-top:12px">
+        <div class="notes-title" style="display:flex;align-items:center;justify-content:space-between">
+          <span>Player Notes &amp; Buffs</span>
+          <span style="font-size:.68rem;color:var(--muted);font-family:'Barlow',sans-serif;text-transform:none;letter-spacing:0;font-weight:400">Buff adjusts rating for balancing only</span>
+        </div>
+        <div id="notes-rows"></div>
+      </div>
+
     </div>
-  </div>
+  </details>
 
   <div id="balance-msg-area"></div>
 
@@ -740,21 +770,22 @@ canvas.spider{display:block;margin:0 auto}
     </div>
   </div>
 
-  <!-- Drag hint -->
-  <div id="drag-hint" style="display:none;text-align:center;font-size:.78rem;color:var(--muted);margin-top:8px;padding:6px">
-    🤏 Drag any player card between teams to adjust
-  </div>
-
-  <!-- Team Synergy Breakdown -->
-  <div id="synergy-section" style="display:none;margin-top:16px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:18px">
-    <div style="font-family:'Barlow Condensed',sans-serif;font-size:.85rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:14px">🤝 Team Chemistry</div>
-    <div id="synergy-content"></div>
+  <!-- Drag hint + export -->
+  <div id="team-actions-row" style="display:none;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:10px;padding:6px 0">
+    <div style="font-size:.78rem;color:var(--muted)">🤏 Drag any player card between teams to adjust</div>
+    <button class="btn-secondary" onclick="downloadTeamsJpg()" title="Download a simple image of the two team lists">⬇ Download Teams</button>
   </div>
 
   <!-- Predicted Result -->
   <div id="predict-section" style="display:none;margin-top:16px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:18px">
     <div style="font-family:'Barlow Condensed',sans-serif;font-size:.85rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:14px">🔮 Predicted Result</div>
     <div id="predict-content"></div>
+  </div>
+
+  <!-- Team Synergy Breakdown -->
+  <div id="synergy-section" style="display:none;margin-top:16px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:18px">
+    <div style="font-family:'Barlow Condensed',sans-serif;font-size:.85rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:14px">🤝 Team Chemistry</div>
+    <div id="synergy-content"></div>
   </div>
 
   <!-- Attack combo predictions -->
@@ -2391,6 +2422,7 @@ let playerNotes = {};
 let playerBuffs = {}; // name → flat rating bonus (can be negative)
 let playerGifs = {};
 let selectedForTeams = new Set();
+let lockedTeam = {}; // playerName -> 'A' | 'B' — pins a player to a side before balancing/shuffling
 let teamA = [], teamB = [];
 let currentPage = 'matches';
 let currentProfileName = null; // track which profile is open for heatmap re-render
@@ -2645,6 +2677,11 @@ function updateAdminUI() {
   updateDraftBanner();
   // Re-render everything so ratings show/hide
   renderAll();
+  // If a team split is already on screen, re-render it too — admin-only sections
+  // (head-to-head counters, volatile chemistry) only show/hide on this call otherwise
+  if (currentPage === 'teams' && (teamA.length || teamB.length)) {
+    renderTeamResult(teamA, teamB);
+  }
 }
 
 // Returns a rating display string — blank if not admin
@@ -2823,6 +2860,14 @@ function parseCSV(csv) {
 
 function n(v) { return (v === null || v === undefined) ? 0 : Number(v) || 0; }
 
+// Chemistry "games together" can now be fractional (0.5 = one shared half,
+// e.g. when a player swaps sides at half-time). Round to the nearest 0.5
+// to kill float noise, then print without a trailing ".0".
+function fmtGames(v) {
+  const r = Math.round((v || 0) * 2) / 2;
+  return r % 1 === 0 ? String(r) : r.toFixed(1);
+}
+
 // =====================================================================
 // BUILD MATCH LIST
 // =====================================================================
@@ -2876,6 +2921,52 @@ function buildMatches(rows) {
   });
 
   return Object.values(matchMap).sort((a, b) => b.date.localeCompare(a.date));
+}
+
+// =====================================================================
+// HALF-AWARE TEAM SNAPSHOTS (for chemistry) — if a player swapped sides
+// at half-time, they should only get chemistry credit with the
+// teammates they actually shared a half with, not the whole match.
+// Returns an array of { players:[names], won:bool, weight:number }
+// covering both sides of both halves. For matches with real 1H/2H data,
+// each half is weighted 0.5 game; for matches with no half breakdown at
+// all, the whole match is weighted as 1 game (old behaviour preserved).
+// =====================================================================
+function getHalfTeamSnapshots(m) {
+  const halfRows = m.rows.filter(r => r.half === '1H' || r.half === '2H');
+  const winnerTeam = m.winnerTeam;
+
+  if (!halfRows.length) {
+    // No half data at all — fall back to full-match rosters, full weight
+    return [
+      { players: m.teamA.map(r => r.player), won: winnerTeam === 'A', weight: 1 },
+      { players: m.teamB.map(r => r.player), won: winnerTeam === 'B', weight: 1 },
+    ];
+  }
+
+  // Determine each player's team for each half. Prefer an explicit
+  // half-row's team; if a player has no row logged for a given half
+  // (e.g. stats only tracked as FULL for that player), fall back to
+  // their FULL-row team so they still count for both halves of their match.
+  const fullTeamOf = {};
+  [...m.teamA, ...m.teamB].forEach(r => { fullTeamOf[r.player] = r.team === 'A' ? 'A' : 'B'; });
+
+  const halfTeamOf = { '1H': {}, '2H': {} };
+  halfRows.forEach(r => { halfTeamOf[r.half][r.player] = r.team; });
+
+  const allPlayers = new Set([...Object.keys(fullTeamOf), ...halfRows.map(r => r.player)]);
+
+  const roster = (half, team) => [...allPlayers].filter(p => {
+    const t = halfTeamOf[half][p] || fullTeamOf[p];
+    return t === team;
+  });
+
+  return [
+    { players: roster('1H', 'A'), won: winnerTeam === 'A', weight: 0.5 },
+    { players: roster('1H', 'B'), won: winnerTeam === 'B', weight: 0.5 },
+    { players: roster('2H', 'A'), won: winnerTeam === 'A', weight: 0.5 },
+    { players: roster('2H', 'B'), won: winnerTeam === 'B', weight: 0.5 },
+  ];
 }
 
 // =====================================================================
@@ -5007,7 +5098,7 @@ function drawMomentumGraph(canvasId, matchId) {
   // Halftime
   if (htSecs) {
     const hx = toX(htSecs);
-    ctx.strokeStyle = 'rgba(255,255,255,0.2)'; ctx.lineWidth = 1; ctx.setLineDash([3, 3]);
+    ctx.strokeStyle = 'rgba(255,255,255,0.55)'; ctx.lineWidth = 2; ctx.setLineDash([]);
     ctx.beginPath(); ctx.moveTo(hx, pad.t); ctx.lineTo(hx, H - pad.b); ctx.stroke();
     ctx.setLineDash([]);
   }
@@ -6562,6 +6653,30 @@ function getPlayerMilestones(name, topOthers = 5) {
   return goalsEntry ? [goalsEntry, ...others] : others;
 }
 
+// Head-to-head record for one SPECIFIC pair of players when they were on opposing
+// teams (as opposed to getPlayerOpponentRecords, which finds a player's single best/
+// worst opponent). Used for "counters" — does player A have a real historical edge
+// over player B specifically, regardless of who else was on the pitch.
+function getHeadToHeadRecord(nameA, nameB, minGames = 3) {
+  const ps = playerStats[nameA];
+  if (!ps || !ps.matches || !ps.matches.length) return null;
+  const seen = new Set();
+  let wins = 0, draws = 0, losses = 0;
+  ps.matches.forEach(r => {
+    const m = matchList.find(x => x.id === r.match_id);
+    if (!m || seen.has(r.match_id)) return;
+    const oppTeam = r.team === 'A' ? m.teamB : m.teamA;
+    if (!oppTeam || !oppTeam.some(row => row.player === nameB)) return;
+    seen.add(r.match_id);
+    if (m.winnerTeam === r.team) wins++;
+    else if (m.winnerTeam === 'draw') draws++;
+    else losses++;
+  });
+  const games = wins + draws + losses;
+  if (games < minGames) return null;
+  return { games, wins, draws, losses, winRate: Math.round(wins / games * 100) };
+}
+
 // Favourite Matchup / Nemesis — for a given player, which opponent they've faced most
 // successfully vs least successfully (by win rate), requiring a minimum number of shared
 // matches so a fluke 1-0 record doesn't get crowned. "Faced" means on the opposing team in
@@ -7388,15 +7503,17 @@ function computeFilteredStats() {
 
   const filtChemMap = {};
   filteredMatches.forEach(m => {
-    [m.teamA, m.teamB].forEach(team => {
-      const names = team.map(r => r.player);
-      const won = m.winnerTeam === (team === m.teamA ? 'A' : 'B');
+    // Half-aware, same as main chemistry builder — swapped players only
+    // get credit with the teammates they actually shared a half with.
+    getHalfTeamSnapshots(m).forEach(snap => {
+      const names = snap.players;
+      const won = snap.won;
       for (let i = 0; i < names.length; i++) {
         for (let j = i+1; j < names.length; j++) {
           const key = [names[i], names[j]].sort().join('|||');
           if (!filtChemMap[key]) filtChemMap[key] = { p1: names[i], p2: names[j], games: 0, wins: 0 };
-          filtChemMap[key].games++;
-          if (won) filtChemMap[key].wins++;
+          filtChemMap[key].games += snap.weight;
+          if (won) filtChemMap[key].wins += snap.weight;
         }
       }
     });
@@ -8129,6 +8246,10 @@ function buildSingleMatchCardHtml(m) {
           <table class="detail-table" style="min-width:700px">
             ${(() => {
               const allRows = [...m.teamA, ...m.teamB];
+              // Players who swapped teams at half-time — used so we always show the
+              // match-total bracket on both of their half-rows, not just the one that
+              // happens to differ from the combined total.
+              const swappedPlayerSet = new Set((m.swappedPlayers || []).map(s => s.player));
               // Each player's true combined match total (both halves summed), from their FULL row.
               // Used so a swapped player's records are checked against their whole-match contribution,
               // not just whichever half is currently being displayed.
@@ -8194,10 +8315,7 @@ function buildSingleMatchCardHtml(m) {
               const isMB = (key, val) => val > 0 && val >= matchBest[key] && matchBest[key] > 0;
 
               // Build suffix badges: match-best badge, then ★ PB or 💎 all-time.
-              // Record checks always use the player's combined full-match total (fullRowByPlayer),
-              // so a swapped player's badges reflect their whole-match performance. If the cell's own
-              // half value differs from that combined total, show the combined total in brackets too,
-              // so the badge on a split row is understandable at a glance.
+              // Record checks always use the player's combined full-match total (fullRowByPlayer).
               const badges = (player, key, val) => {
                 const combinedVal = fullRowByPlayer[player] ? n(fullRowByPlayer[player][key]) : val;
                 if (!combinedVal || combinedVal === 0) return '';
@@ -8206,11 +8324,21 @@ function buildSingleMatchCardHtml(m) {
                 const pb = isPB(player, key, combinedVal);
                 const at = isAT(key, combinedVal);
                 if (!mb && !pb && !at) return '';
-                if (combinedVal !== val) s += `<span style="opacity:.6;font-size:.6rem;margin-left:2px">(${combinedVal})</span>`;
                 if (mb && MATCH_BADGE[key]) s += `<span title="Match best" style="font-size:.6rem;margin-left:2px;opacity:.85">${MATCH_BADGE[key]}</span>`;
                 if (at) s += `<span title="All-time record!" style="color:#a78bfa;font-size:.65rem;margin-left:1px">💎</span>`;
                 else if (pb) s += `<span title="Personal best!" style="color:var(--amber);font-size:.65rem;margin-left:1px">★</span>`;
                 return s;
+              };
+
+              // Show the match total next to EVERY stat for a swapped player, on both of
+              // their half-rows — not just the row whose own value happens to differ from
+              // the total. This keeps the "total" bracket consistently present for anyone
+              // who played a split match, regardless of which half a given stat landed in.
+              const matchTotalTag = (player, key) => {
+                if (!fullRowByPlayer[player] || !swappedPlayerSet.has(player)) return '';
+                const combinedVal = n(fullRowByPlayer[player][key]);
+                if (combinedVal === 0) return '';
+                return `<span style="opacity:.6;font-size:.6rem;margin-left:2px" title="Match total (both halves)">(${combinedVal} total)</span>`;
               };
 
 
@@ -8234,28 +8362,28 @@ function buildSingleMatchCardHtml(m) {
                 const combinedGoals = fullR ? n(fullR.goals) : goals;
                 const combinedConvRate = combinedShots >= 3 ? combinedGoals/combinedShots : 0;
                 const combinedConvPct = combinedShots > 0 ? (combinedGoals/combinedShots*100).toFixed(1)+'%' : '0%';
-                const convBracket = combinedConvPct !== conv
-                  ? `<span style="opacity:.6;font-size:.6rem;margin-left:2px">(${combinedConvPct})</span>` : '';
+                const convBracket = (swappedPlayerSet.has(p) && combinedShots > 0)
+                  ? `<span style="opacity:.6;font-size:.6rem;margin-left:2px" title="Match total conversion (both halves)">(${combinedConvPct} total)</span>` : '';
                 const convBadge = combinedConvRate > 0 && matchBestConv > 0 && combinedConvRate >= matchBestConv
                   ? `<span title="Match best conversion" style="font-size:.6rem;margin-left:2px">🔥</span>` : '';
                 const gkS   = n(r.goalkeeper_saves);
                 const mvpScore = mvpEntry ? `<span style="font-size:.6rem;color:var(--muted);margin-left:3px">${mvpEntry.score}pts</span>` : '';
                 const rs   = rowStyle(r);
-                const v    = (key, val) => `${val}${badges(p, key, val)}`;
+                const v    = (key, val) => `${val}${matchTotalTag(p, key)}${badges(p, key, val)}`;
                 return `<tr ${rs}>
                   <td class="${r.team==='A'?'team-a-cell':'team-b-cell'}" onclick="event.stopPropagation();nav('profile','${p}')" style="cursor:pointer">${medalSpan}${p}${halfTag}${mvpScore}</td>
-                  <td style="${oCol}"><b>${goals}</b>${badges(p,'goals',goals)}</td>
+                  <td style="${oCol}"><b>${goals}</b>${matchTotalTag(p,'goals')}${badges(p,'goals',goals)}</td>
                   <td style="${oCol}">${v('assists',n(r.assists)||0)}</td>
                   <td style="${oCol}">${v('key_passes',n(r.key_passes)||0)}</td>
                   <td style="${oCol}">${v('total_shots',shots)}</td>
                   <td style="${oCol}">${conv}${convBracket}${convBadge}</td>
                   <td style="${oCol}">${v('shots_on_target',n(r.shots_on_target)||0)}</td>
                   <td style="${oCol}">${v('post',n(r.post)||0)}</td>
-                  <td style="${oCol}">${n(r.own_goals)>0?`<span style="color:var(--red);font-weight:700">${n(r.own_goals)}</span>`:'0'}</td>
+                  <td style="${oCol}">${n(r.own_goals)>0?`<span style="color:var(--red);font-weight:700">${n(r.own_goals)}</span>`:'0'}${matchTotalTag(p,'own_goals')}</td>
                   <td style="${dCol}">${v('tackles',n(r.tackles)||0)}</td>
                   <td style="${dCol}">${v('interceptions',n(r.interceptions)||0)}</td>
                   <td style="${dCol}">${v('blocks',n(r.blocks)||0)}</td>
-                  <td style="${dCol}">${gkS>0?v('goalkeeper_saves',gkS):'—'}</td>
+                  <td style="${dCol}">${gkS>0?v('goalkeeper_saves',gkS):(matchTotalTag(p,'goalkeeper_saves')?`0${matchTotalTag(p,'goalkeeper_saves')}`:'—')}</td>
                   <td style="${bCol}">${v('nutmegs',n(r.nutmegs)||0)}</td>
                 </tr>`;
               };
@@ -10080,7 +10208,7 @@ function renderProfile(name) {
         </div>
         <div style="text-align:right;flex-shrink:0">
           <div style="font-family:&#x27;Bebas Neue&#x27;,sans-serif;font-size:1.1rem;color:${col};line-height:1">${d > 0 ? '+' : ''}${d}%</div>
-          <div style="font-size:.6rem;color:var(--muted)">${c.games}g</div>
+          <div style="font-size:.6rem;color:var(--muted)">${fmtGames(c.games)}g</div>
         </div>
       </div>`;
     }).join('');
@@ -10619,7 +10747,7 @@ function renderProfile(name) {
               <span style="width:22px;height:22px;border-radius:50%;background:rgba(240,192,64,.15);color:var(--gold);font-family:'Bebas Neue',sans-serif;font-size:.85rem;display:flex;align-items:center;justify-content:center;flex-shrink:0">${i+1}</span>
               <div style="flex:1;min-width:0">
                 <div style="font-size:.78rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.partner}</div>
-                <div style="font-size:.58rem;color:var(--muted)">${c.winRate}% win rate · ${c.games} games together</div>
+                <div style="font-size:.58rem;color:var(--muted)">${c.winRate}% win rate · ${fmtGames(c.games)} games together</div>
               </div>
               <div style="text-align:right;flex-shrink:0">
                 <div style="font-family:'Bebas Neue',sans-serif;font-size:1.05rem;color:${col}">${c.delta>0?'+':''}${c.delta}%</div>
@@ -11298,18 +11426,26 @@ function renderTeamBuilder() {
   const regularChips = players.map(p => {
     const note = playerNotes[p.player];
     const cls = selectedForTeams.has(p.player) ? 'pchip sel-a' : 'pchip';
+    const lock = lockedTeam[p.player];
+    const lockIcon = lock === 'A' ? '🔒A' : lock === 'B' ? '🔒B' : '🔓';
+    const lockCls = lock === 'A' ? 'lock-icon lock-a' : lock === 'B' ? 'lock-icon lock-b' : 'lock-icon';
     return `<div class="${cls}" onclick="toggleTeamPlayer('${p.player}')">
       ${p.player}
       ${adminMode ? `<span class="cr">${p.rating}</span>` : ''}
       ${note ? `<span class="inj" title="${note}">⚠</span>` : ''}
+      <span class="${lockCls}" onclick="event.stopPropagation();cyclePlayerLock('${p.player}')" title="Pin to a team before balancing/shuffling">${lockIcon}</span>
     </div>`;
   }).join('');
 
   const customChips = Object.values(customPlayers).map(p => {
     const cls = selectedForTeams.has(p.player) ? 'pchip sel-a' : 'pchip';
+    const lock = lockedTeam[p.player];
+    const lockIcon = lock === 'A' ? '🔒A' : lock === 'B' ? '🔒B' : '🔓';
+    const lockCls = lock === 'A' ? 'lock-icon lock-a' : lock === 'B' ? 'lock-icon lock-b' : 'lock-icon';
     return `<div class="${cls}" onclick="toggleTeamPlayer('${p.player}')" style="border-color:var(--amber);position:relative">
       <span style="color:var(--amber)">★</span> ${p.player}
       ${adminMode ? `<span class="cr">${p.rating}</span>` : ''}
+      <span class="${lockCls}" onclick="event.stopPropagation();cyclePlayerLock('${p.player}')" title="Pin to a team before balancing/shuffling">${lockIcon}</span>
       <span onclick="openEditCustomPlayer('${p.player}',event)" title="Edit" style="margin-left:4px;opacity:.6;font-size:.7rem;cursor:pointer">✏</span>
       <span onclick="removeCustomPlayer('${p.player}',event)" title="Remove" style="margin-left:2px;opacity:.6;font-size:.7rem;cursor:pointer;color:var(--red)">✕</span>
     </div>`;
@@ -11367,6 +11503,20 @@ function toggleTeamPlayer(name) {
   updateKeepApartDropdowns();
 }
 
+// Cycles a player through unlocked -> pinned to A -> pinned to B -> unlocked.
+// Locking a player auto-selects them (locking implies you want them in the pool).
+// autoBalance/shuffleTeams place locked players first, then optimize/randomize
+// only the remaining unlocked players around them.
+function cyclePlayerLock(name) {
+  const cur = lockedTeam[name];
+  if (!cur) lockedTeam[name] = 'A';
+  else if (cur === 'A') lockedTeam[name] = 'B';
+  else delete lockedTeam[name];
+  if (lockedTeam[name]) selectedForTeams.add(name);
+  renderTeamBuilder();
+  updateKeepApartDropdowns();
+}
+
 function savePlayerNote(name, val, rebalance = false) {
   playerNotes[name] = val;
   const pool = document.getElementById('avail-pool');
@@ -11376,10 +11526,14 @@ function savePlayerNote(name, val, rebalance = false) {
     pool.innerHTML = players.map(p => {
       const note = playerNotes[p.player];
       const cls = selectedForTeams.has(p.player) ? 'pchip sel-a' : 'pchip';
+      const lock = lockedTeam[p.player];
+      const lockIcon = lock === 'A' ? '🔒A' : lock === 'B' ? '🔒B' : '🔓';
+      const lockCls = lock === 'A' ? 'lock-icon lock-a' : lock === 'B' ? 'lock-icon lock-b' : 'lock-icon';
       return `<div class="${cls}" onclick="toggleTeamPlayer('${p.player}')">
         ${p.player}
         ${adminMode ? `<span class="cr">${p.rating}</span>` : ''}
         ${note ? `<span class="inj" title="${note}">⚠</span>` : ''}
+        <span class="${lockCls}" onclick="event.stopPropagation();cyclePlayerLock('${p.player}')" title="Pin to a team before balancing/shuffling">${lockIcon}</span>
       </div>`;
     }).join('');
   }
@@ -11404,10 +11558,12 @@ function adjustPlayerBuff(name, delta) {
 
 function clearTeams() {
   selectedForTeams.clear();
+  lockedTeam = {};
   teamA = []; teamB = [];
+  lastBalanceExplanation = null;
   document.getElementById('teams-grid').style.display = 'none';
   document.getElementById('balance-msg-area').innerHTML = '';
-  document.getElementById('drag-hint').style.display = 'none';
+  document.getElementById('team-actions-row').style.display = 'none';
   const ps = document.getElementById('predict-section');
   if (ps) ps.style.display = 'none';
   const ss = document.getElementById('synergy-section');
@@ -11741,6 +11897,20 @@ function computeWeightedRating(playerName) {
   return parseFloat((weightedBase + strikerBuff).toFixed(2));
 }
 
+// Small-sample shrinkage for team-builder balancing only. A player's raw rating
+// (computeRating/computeWeightedRating) treats every player's per-game average as
+// equally reliable, but someone with 1-4 games can have a wildly noisy rating (one
+// hat-trick, one big save game) that the balancer would otherwise trust as much as
+// a 40-game regular. This pulls low-sample ratings toward the selected pool's mean,
+// with the pull fading out by roughly SHRINK_K games — used only when deciding team
+// splits, never shown as the player's displayed rating elsewhere in the app.
+const SHRINK_K = 8; // games at which a player is trusted ~50/50 vs the pool average
+function shrinkRatingForBalance(rating, games, poolMean) {
+  const g = Math.max(games || 0, 0);
+  const trust = g / (g + SHRINK_K); // 0 games -> 0 trust, 8 games -> 50%, 24 games -> 75%...
+  return rating * trust + poolMean * (1 - trust);
+}
+
 function getPlayerRole(p) {
   const cs = customStats[p.player] || {};
   const g = Math.max(p.games, 1);
@@ -11825,8 +11995,19 @@ function toggleStreakAugment() {
   if (teamA.length || teamB.length) renderTeamResult(teamA, teamB);
 }
 
-// Keep-apart pairs for shuffle
+// Keep-apart pairs for shuffle AND smart balance — pairs that must not end up
+// on the same team. Shared by both autoBalance() and shuffleTeams() so the
+// constraint behaves identically regardless of which one the user runs.
 let keepApartPairs = [];
+
+function violatesKeepApart(a, b) {
+  const aNm = new Set(a.map(p => p.player));
+  const bNm = new Set(b.map(p => p.player));
+  return keepApartPairs.some(pair =>
+    (aNm.has(pair.a) && aNm.has(pair.b)) ||
+    (bNm.has(pair.a) && bNm.has(pair.b))
+  );
+}
 
 function updateKeepApartDropdowns() {
   const players = [...selectedForTeams];
@@ -11905,19 +12086,21 @@ function shuffleTeams() {
 
   if (sel.length < 2) { alert('Add at least 2 players first.'); return; }
 
-  const total = sel.length;
-  const sizeA = Math.ceil(total / 2);
-  const enfThreshold = parseInt(document.getElementById('enf-threshold')?.value || 3);
+  // Locked players are pinned to their side; only unlocked players get shuffled.
+  const lockedA = sel.filter(p => lockedTeam[p.player] === 'A');
+  const lockedB = sel.filter(p => lockedTeam[p.player] === 'B');
+  const unlocked = sel.filter(p => !lockedTeam[p.player]);
 
-  // Keep-apart constraint check
-  const violatesKeepApart = (a, b) => {
-    const aNm = new Set(a.map(p => p.player));
-    const bNm = new Set(b.map(p => p.player));
-    return keepApartPairs.some(pair =>
-      (aNm.has(pair.a) && aNm.has(pair.b)) ||
-      (bNm.has(pair.a) && bNm.has(pair.b))
-    );
-  };
+  if (!unlocked.length && (lockedA.length || lockedB.length)) {
+    teamA = lockedA; teamB = lockedB;
+    lastBalanceExplanation = null;
+    renderTeamResult(teamA, teamB);
+    return;
+  }
+
+  const total = sel.length;
+  const sizeA = Math.max(0, Math.ceil(total / 2) - lockedA.length);
+  const enfThreshold = parseInt(document.getElementById('enf-threshold')?.value || 3);
 
   const shuffle = arr => {
     const a = [...arr];
@@ -11953,9 +12136,9 @@ function shuffleTeams() {
   const candidates = [];
   const seen = new Set();
   for (let i = 0; i < 300; i++) {
-    const shuffled = shuffle(sel);
-    const a = shuffled.slice(0, sizeA);
-    const b = shuffled.slice(sizeA);
+    const shuffled = shuffle(unlocked);
+    const a = [...lockedA, ...shuffled.slice(0, sizeA)];
+    const b = [...lockedB, ...shuffled.slice(sizeA)];
     const key = a.map(p=>p.player).sort().join('|');
     if (seen.has(key)) continue;
     seen.add(key);
@@ -11970,9 +12153,9 @@ function shuffleTeams() {
   // If no valid split found, relax enforcer constraint but keep keep-apart
   if (!candidates.length) {
     for (let i = 0; i < 200; i++) {
-      const shuffled = shuffle(sel);
-      const a = shuffled.slice(0, sizeA);
-      const b = shuffled.slice(sizeA);
+      const shuffled = shuffle(unlocked);
+      const a = [...lockedA, ...shuffled.slice(0, sizeA)];
+      const b = [...lockedB, ...shuffled.slice(sizeA)];
       const key = a.map(p=>p.player).sort().join('|');
       if (seen.has(key)) continue;
       seen.add(key);
@@ -11984,9 +12167,9 @@ function shuffleTeams() {
   // Last resort — ignore all constraints
   if (!candidates.length) {
     for (let i = 0; i < 100; i++) {
-      const shuffled = shuffle(sel);
-      const a = shuffled.slice(0, sizeA);
-      const b = shuffled.slice(sizeA);
+      const shuffled = shuffle(unlocked);
+      const a = [...lockedA, ...shuffled.slice(0, sizeA)];
+      const b = [...lockedB, ...shuffled.slice(sizeA)];
       candidates.push({ a, b, score: scoreSplit(a, b) });
     }
   }
@@ -11998,6 +12181,7 @@ function shuffleTeams() {
 
   teamA = chosen.a;
   teamB = chosen.b;
+  lastBalanceExplanation = null; // shuffle is intentionally random — no "why" to show
 
   renderTeamResult(teamA, teamB); // sets balance-msg-area with balance bar + enforcer note
 
@@ -12016,13 +12200,26 @@ function shuffleTeams() {
 }
 
 function autoBalance(rebalanceOnly = false) {
-  const sel = [...selectedForTeams].map(name => {
-    // Check custom players first, then regular player stats
+  // First pass: gather raw weighted ratings so we can compute the selected
+  // pool's mean, then shrink low-sample players' ratings toward it (see
+  // shrinkRatingForBalance) so a player with only a couple of games doesn't
+  // swing the balance based on a noisy small-sample average.
+  const rawList = [...selectedForTeams].map(name => {
     const p = customPlayers[name] || playerStats[name];
     if (!p) return null;
     const cs = customStats[name] || {};
+    const weightedRatingRaw = p._isCustom ? computeRating(p, cs) : computeWeightedRating(name);
+    return { name, p, cs, weightedRatingRaw, games: p.games || 0 };
+  }).filter(Boolean);
+  const poolMean = rawList.length
+    ? rawList.reduce((s,r) => s + r.weightedRatingRaw, 0) / rawList.length
+    : 0;
+
+  const sel = rawList.map(({ name, p, cs, weightedRatingRaw, games }) => {
     p.rating = computeRating(p, cs);
-    const weightedRating = p._isCustom ? computeRating(p, cs) : computeWeightedRating(name);
+    // Custom players are hand-entered (no match history to be noisy about),
+    // so only shrink real players with a real sample-size problem.
+    const weightedRating = p._isCustom ? weightedRatingRaw : shrinkRatingForBalance(weightedRatingRaw, games, poolMean);
     const note = (playerNotes[name] || '').toLowerCase();
     const pen = getPenalty(playerNotes[name]);
 
@@ -12071,9 +12268,33 @@ function autoBalance(rebalanceOnly = false) {
 
   if (sel.length < 2) { alert('Select at least 2 players to balance.'); return; }
 
-  const total = sel.length;
-  const sizeA = Math.ceil(total / 2);
-  const sizeB = Math.floor(total / 2);
+  // Split out locked players — they're placed on their pinned side unconditionally,
+  // and only the remaining unlocked players go through the balancing search below.
+  const lockedA = sel.filter(p => lockedTeam[p.player] === 'A');
+  const lockedB = sel.filter(p => lockedTeam[p.player] === 'B');
+  const unlocked = sel.filter(p => !lockedTeam[p.player]);
+
+  if (unlocked.length < 1 && (lockedA.length || lockedB.length)) {
+    // Everyone is locked — nothing to optimize, just use the pins as-is.
+    teamA = lockedA; teamB = lockedB;
+    renderTeamResult(teamA, teamB);
+    return;
+  }
+
+  const total = unlocked.length;
+  // Target sizes for the unlocked pool so the FINAL teams (locked + unlocked) end up
+  // as evenly sized as possible overall, not just the unlocked portion.
+  const totalAll = sel.length;
+  const finalSizeA = Math.ceil(totalAll / 2);
+  const finalSizeB = Math.floor(totalAll / 2);
+  let sizeA = Math.max(0, finalSizeA - lockedA.length);
+  let sizeB = Math.max(0, finalSizeB - lockedB.length);
+  // If locks alone already overfill/underfill relative to the ideal split, fall back
+  // to filling whatever's left as evenly as possible between the two sides.
+  if (sizeA + sizeB !== total) {
+    sizeA = Math.ceil(total / 2);
+    sizeB = Math.floor(total / 2);
+  }
   const uneven = sizeA !== sizeB;
 
   const totalEnforcer = sel.reduce((s, p) => s + p.enforcer, 0);
@@ -12125,15 +12346,15 @@ function autoBalance(rebalanceOnly = false) {
   let bestA = [], bestB = [], bestSecondary = Infinity;
 
   if (total <= 14) {
-    // Generate all combinations, two passes:
-    // Pass 1 — find the minimum enforcer diff achievable
-    // Pass 2 — from all splits at that min diff, pick best secondary score
+    // Generate all combinations of the UNLOCKED players only, then add each side's
+    // locked players in before scoring — so balance/enforcer scoring always reflects
+    // the true final teams, not just the portion being optimized.
     const allSplits = [];
     const combos = (arr, k, start, cur) => {
       if (cur.length === k) {
         const bSet = new Set(cur.map(p => p.player));
-        const b = sel.filter(p => !bSet.has(p.player));
-        allSplits.push({ a: [...cur], b });
+        const bUnlocked = arr.filter(p => !bSet.has(p.player));
+        allSplits.push({ a: [...lockedA, ...cur], b: [...lockedB, ...bUnlocked] });
         return;
       }
       for (let i = start; i < arr.length; i++) {
@@ -12142,13 +12363,19 @@ function autoBalance(rebalanceOnly = false) {
         cur.pop();
       }
     };
-    combos(sel, sizeA, 0, []);
+    combos(unlocked, sizeA, 0, []);
 
-    // Phase 1: find minimum enforcer diff across all splits
+    // Keep-apart pairs must never end up on the same team. Filter these out first;
+    // if that leaves nothing (constraint impossible given the locks/selection), fall
+    // back to considering all splits rather than silently producing no teams.
+    const validSplits = allSplits.filter(({ a, b }) => !violatesKeepApart(a, b));
+    const searchSplits = validSplits.length ? validSplits : allSplits;
+
+    // Phase 1: find minimum enforcer diff across all valid splits
     // Skip enforcer gate when rebalancing due to injury/note changes — just optimise balance
     let minEnfDiff = rebalanceOnly ? 0 : Infinity;
     if (!rebalanceOnly) {
-      allSplits.forEach(({ a, b }) => {
+      searchSplits.forEach(({ a, b }) => {
         const ed = enforcerDiff(a, b);
         if (ed < minEnfDiff) minEnfDiff = ed;
       });
@@ -12157,7 +12384,7 @@ function autoBalance(rebalanceOnly = false) {
     // Phase 2: from splits within tolerance of min enforcer diff, pick best secondary balance
     // Allow tolerance of 1 enforcer point above minimum to give some flexibility
     const tolerance = 1;
-    allSplits.forEach(({ a, b }) => {
+    searchSplits.forEach(({ a, b }) => {
       const ed = enforcerDiff(a, b);
       if (ed <= minEnfDiff + tolerance) {
         const sec = secondaryScore(a, b);
@@ -12168,25 +12395,58 @@ function autoBalance(rebalanceOnly = false) {
       }
     });
   } else {
-    // Large groups: greedy seed + swap-improve with enforcer as hard gate
-    sel.sort((a, b) => b.effectiveRating - a.effectiveRating);
-    let tA = [], tB = [];
-    let sumA = 0, sumB = 0;
-    sel.forEach(p => {
-      if (tA.length < sizeA && (sumA <= sumB || tB.length >= sizeB)) { tA.push(p); sumA += p.effectiveRating; }
+    // Large groups: greedy seed + swap-improve with enforcer as hard gate.
+    // Locked players are pre-placed on their pinned side and excluded from swapping —
+    // only the unlocked players are seeded/optimized around them.
+    unlocked.sort((a, b) => b.effectiveRating - a.effectiveRating);
+    let tA = [...lockedA], tB = [...lockedB];
+    let sumA = lockedA.reduce((s,p)=>s+p.effectiveRating,0);
+    let sumB = lockedB.reduce((s,p)=>s+p.effectiveRating,0);
+    const targetA = lockedA.length + sizeA;
+    unlocked.forEach(p => {
+      if (tA.length < targetA && (sumA <= sumB || tB.length >= lockedB.length + sizeB)) { tA.push(p); sumA += p.effectiveRating; }
       else { tB.push(p); sumB += p.effectiveRating; }
     });
+    const lockedNames = new Set([...lockedA, ...lockedB].map(p => p.player));
+    const swappableIdx = (team) => team.map((p,i)=>lockedNames.has(p.player)?-1:i).filter(i=>i>=0);
 
-    // Find minimum enforcer diff achievable by swapping
+    // Fix-up pass: if the initial greedy seed put a keep-apart pair on the same team,
+    // try swapping one of them (an unlocked player) to the other side to resolve it.
+    if (violatesKeepApart(tA, tB)) {
+      outer:
+      for (const pair of keepApartPairs) {
+        for (const [team, other, teamName] of [[tA, tB, 'A'], [tB, tA, 'B']]) {
+          const aIn = team.some(p => p.player === pair.a);
+          const bIn = team.some(p => p.player === pair.b);
+          if (!aIn || !bIn) continue;
+          // Try moving whichever of the pair is unlocked to the other side, swapping
+          // with the lowest-impact unlocked player there to keep team sizes even.
+          const moveName = !lockedNames.has(pair.a) ? pair.a : (!lockedNames.has(pair.b) ? pair.b : null);
+          if (!moveName) continue; // both locked to the same side — truly unsatisfiable, leave as-is
+          const moveIdx = team.findIndex(p => p.player === moveName);
+          const otherSwapIdx = swappableIdx(other)[0];
+          if (moveIdx === -1 || otherSwapIdx === undefined) continue;
+          const moved = team[moveIdx];
+          const swapped = other[otherSwapIdx];
+          team[moveIdx] = swapped;
+          other[otherSwapIdx] = moved;
+          if (!violatesKeepApart(tA, tB)) break outer;
+        }
+      }
+    }
+
+    // Find minimum enforcer diff achievable by swapping (locked players excluded,
+    // and swaps that would create a new keep-apart violation are rejected)
     let minEnfDiff = enforcerDiff(tA, tB);
     let improved = true, iters = 0;
     // First pass: swap to minimise enforcer
     while (improved && iters++ < 100) {
       improved = false;
-      for (let i = 0; i < tA.length; i++) {
-        for (let j = 0; j < tB.length; j++) {
+      for (const i of swappableIdx(tA)) {
+        for (const j of swappableIdx(tB)) {
           const nA = [...tA]; nA[i] = tB[j];
           const nB = [...tB]; nB[j] = tA[i];
+          if (violatesKeepApart(nA, nB)) continue;
           const ed = enforcerDiff(nA, nB);
           if (ed < minEnfDiff) {
             minEnfDiff = ed; tA = nA; tB = nB; improved = true;
@@ -12203,10 +12463,11 @@ function autoBalance(rebalanceOnly = false) {
     improved = true; iters = 0;
     while (improved && iters++ < 100) {
       improved = false;
-      for (let i = 0; i < bestA.length; i++) {
-        for (let j = 0; j < bestB.length; j++) {
+      for (const i of swappableIdx(bestA)) {
+        for (const j of swappableIdx(bestB)) {
           const nA = [...bestA]; nA[i] = bestB[j];
           const nB = [...bestB]; nB[j] = bestA[i];
+          if (violatesKeepApart(nA, nB)) continue;
           if (enforcerDiff(nA, nB) <= minEnfDiff + tolerance) {
             const sec = secondaryScore(nA, nB);
             if (sec < bestSecondary) {
@@ -12219,7 +12480,50 @@ function autoBalance(rebalanceOnly = false) {
   }
 
   teamA = bestA; teamB = bestB;
+  lastBalanceExplanation = explainBalance(bestA, bestB);
   renderTeamResult(teamA, teamB);
+}
+
+// Builds a short, plain-language summary of what Smart Balance actually optimized
+// for this split, from the real component diffs — so the reasoning behind a split
+// is visible instead of a black box. Called right after autoBalance picks a result.
+let lastBalanceExplanation = null;
+function explainBalance(tA, tB) {
+  if (!tA.length || !tB.length) return null;
+  const dA = teamDimensions(tA), dB = teamDimensions(tB);
+  const rA = tA.reduce((s,p)=>s+p.effectiveRating,0);
+  const rB = tB.reduce((s,p)=>s+p.effectiveRating,0);
+  const eA = tA.reduce((s,p)=>s+p.enforcer,0);
+  const eB = tB.reduce((s,p)=>s+p.enforcer,0);
+  const gkA = tA.reduce((s,p)=>s+((p.goalkeeper_saves||0)/Math.max(p.games,1)),0);
+  const gkB = tB.reduce((s,p)=>s+((p.goalkeeper_saves||0)/Math.max(p.games,1)),0);
+
+  const pct = (x, y) => {
+    const t = x + y;
+    return t > 0 ? Math.round(Math.abs(x-y) / t * 100) : 0;
+  };
+  const factors = [
+    { label: 'overall rating',  gap: pct(rA, rB) },
+    { label: 'attacking output', gap: pct(dA.attack, dB.attack) },
+    { label: 'defensive output', gap: pct(dA.defense, dB.defense) },
+    { label: 'playmaking',       gap: pct(dA.playmaking, dB.playmaking) },
+    { label: 'chemistry',        gap: pct(Math.abs(dA.synergy)+50, Math.abs(dB.synergy)+50) },
+    { label: 'goalkeeping',      gap: gkA + gkB > 0 ? pct(gkA, gkB) : null },
+    { label: 'enforcer/physicality', gap: eA + eB > 0 ? pct(eA, eB) : null },
+  ].filter(f => f.gap != null);
+
+  const lockedCount = tA.concat(tB).filter(p => lockedTeam[p.player]).length;
+  const tightest = [...factors].sort((a,b) => a.gap - b.gap).slice(0, 3).map(f => f.label);
+  const loosest = [...factors].sort((a,b) => b.gap - a.gap)[0];
+
+  let text = `Matched closely on ${tightest.join(', ')}.`;
+  if (loosest && loosest.gap > 15) {
+    text += ` Biggest remaining gap is ${loosest.label} (${loosest.gap}% split) — not always fully closeable alongside the other factors.`;
+  }
+  if (lockedCount > 0) {
+    text += ` ${lockedCount} player${lockedCount>1?'s were':' was'} pinned to a side and excluded from optimization.`;
+  }
+  return text;
 }
 
 // ---- Drag and drop between teams (mouse + touch) ----
@@ -12309,7 +12613,108 @@ function dropToTeam(toTeam, event) {
   to.push(moved);
   _dragPlayer = null;
   _dragFromTeam = null;
+  lastBalanceExplanation = null; // manual edit — the auto-balance reasoning no longer applies
   renderTeamResult(teamA, teamB);
+}
+
+// Renders a simple JPG of the two teams — names only, no stats — for sharing
+// in a group chat etc. Drawn on an offscreen canvas at 2x for crisp text,
+// then triggered as a browser download.
+function downloadTeamsJpg() {
+  if (!teamA.length && !teamB.length) return;
+
+  const DPR = 2;
+  const width = 720;
+  const rowH = 44;
+  const headerH = 90;
+  const footerH = 40;
+  const maxRows = Math.max(teamA.length, teamB.length, 1);
+  const height = headerH + maxRows * rowH + footerH;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = width * DPR;
+  canvas.height = height * DPR;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(DPR, DPR);
+
+  // Colors pulled from the app's theme so the export matches the UI
+  const COL_BG     = '#0d1a0f';
+  const COL_CARD   = '#162018';
+  const COL_BORDER = 'rgba(37,53,39,.8)';
+  const COL_GREEN  = '#39d353';
+  const COL_BLUE   = '#4fa3e8';
+  const COL_TEXT   = '#d4ead6';
+  const COL_MUTED  = '#6b8a6e';
+
+  // Background
+  ctx.fillStyle = COL_BG;
+  ctx.fillRect(0, 0, width, height);
+
+  const halfW = width / 2;
+
+  // Column backgrounds
+  ctx.fillStyle = COL_CARD;
+  ctx.fillRect(0, 0, halfW, height);
+  ctx.fillRect(halfW, 0, halfW, height);
+
+  // Top accent bars
+  ctx.fillStyle = COL_GREEN;
+  ctx.fillRect(0, 0, halfW, 4);
+  ctx.fillStyle = COL_BLUE;
+  ctx.fillRect(halfW, 0, halfW, 4);
+
+  // Center divider
+  ctx.strokeStyle = COL_BORDER;
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(halfW, 0); ctx.lineTo(halfW, height); ctx.stroke();
+
+  // Team headers
+  ctx.textBaseline = 'alphabetic';
+  ctx.font = "bold 30px 'Trebuchet MS', Helvetica, Arial, sans-serif";
+  ctx.fillStyle = COL_GREEN;
+  ctx.textAlign = 'center';
+  ctx.fillText('TEAM A', halfW / 2, 50);
+  ctx.fillStyle = COL_BLUE;
+  ctx.fillText('TEAM B', halfW + halfW / 2, 50);
+
+  // Header underline
+  ctx.strokeStyle = COL_BORDER;
+  ctx.beginPath(); ctx.moveTo(20, headerH - 20); ctx.lineTo(halfW - 20, headerH - 20); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(halfW + 20, headerH - 20); ctx.lineTo(width - 20, headerH - 20); ctx.stroke();
+
+  // Player rows — names only, as requested
+  const drawTeamNames = (team, xOffset) => {
+    ctx.font = "20px 'Trebuchet MS', Helvetica, Arial, sans-serif";
+    ctx.textAlign = 'left';
+    team.forEach((p, i) => {
+      const y = headerH + i * rowH + rowH / 2 + 7;
+      // Row separator
+      if (i > 0) {
+        ctx.strokeStyle = COL_BORDER;
+        ctx.beginPath();
+        ctx.moveTo(xOffset + 20, headerH + i * rowH);
+        ctx.lineTo(xOffset + halfW - 20, headerH + i * rowH);
+        ctx.stroke();
+      }
+      ctx.fillStyle = COL_TEXT;
+      ctx.fillText(p.player, xOffset + 26, y);
+    });
+  };
+  drawTeamNames(teamA, 0);
+  drawTeamNames(teamB, halfW);
+
+  // Footer
+  ctx.font = "13px 'Trebuchet MS', Helvetica, Arial, sans-serif";
+  ctx.fillStyle = COL_MUTED;
+  ctx.textAlign = 'center';
+  ctx.fillText('Aero Soccer · Team Builder', width / 2, height - 14);
+
+  // Trigger download as JPG
+  const link = document.createElement('a');
+  const dateStr = new Date().toISOString().slice(0, 10);
+  link.download = `teams-${dateStr}.jpg`;
+  link.href = canvas.toDataURL('image/jpeg', 0.92);
+  link.click();
 }
 
 // Parse injury penalty from a note string
@@ -12331,12 +12736,22 @@ function getPenalty(note) {
 }
 
 function renderTeamResult(tA, tB) {
-  // Recompute effectiveRating for all players in case notes/penalties changed
+  // Recompute effectiveRating for all players in case notes/penalties changed.
+  // Uses the same small-sample shrinkage as autoBalance (see shrinkRatingForBalance)
+  // so the displayed team ratings stay consistent with what the balancer actually
+  // optimized for, even after a manual drag-and-drop reshuffle.
+  const allPlayers = [...tA, ...tB];
+  const rawRatings = allPlayers.map(p => p._isCustom
+    ? null // custom players aren't shrunk — see recomputeRating below
+    : computeWeightedRating(p.player));
+  const realRatings = rawRatings.filter(r => r != null);
+  const poolMean = realRatings.length ? realRatings.reduce((s,r)=>s+r,0) / realRatings.length : 0;
+
   const recomputeRating = (p) => {
     const pen = getPenalty(playerNotes[p.player]);
     const weightedRating = p._isCustom
       ? (p._ratingOverride || computeRating(p, customStats[p.player] || {}))
-      : computeWeightedRating(p.player);
+      : shrinkRatingForBalance(computeWeightedRating(p.player), p.games || 0, poolMean);
     const streakMod = p._isCustom ? 1.0 : (p.streakMod || 1.0);
     const buff = playerBuffs[p.player] || 0;
     p.effectiveRating = weightedRating * (1 - pen) * streakMod + buff;
@@ -12367,6 +12782,7 @@ function renderTeamResult(tA, tB) {
     <div style="display:flex;justify-content:space-between;font-size:.75rem;color:var(--muted);margin-bottom:10px">
       ${adminMode ? `<span style="color:var(--green)">Team A ${pctA}%</span><span style="color:var(--blue)">Team B ${pctB}%</span>` : '<span></span><span></span>'}
     </div>
+    ${lastBalanceExplanation ? `<div style="font-size:.74rem;color:var(--text2);background:var(--card2);border:1px solid var(--border);border-radius:7px;padding:8px 12px;margin-bottom:10px;line-height:1.5">🧠 ${lastBalanceExplanation}</div>` : ''}
     ${(() => {
       // Time-based balance: compare clutch, 2H trend and pressure across teams
       const getTimeVal = (team, key) => {
@@ -12559,7 +12975,7 @@ function renderTeamResult(tA, tB) {
   document.getElementById('ta-total').textContent = sumA.toFixed(1);
   document.getElementById('tb-total').textContent = sumB.toFixed(1);
   document.getElementById('teams-grid').style.display = 'grid';
-  document.getElementById('drag-hint').style.display = 'block';
+  document.getElementById('team-actions-row').style.display = 'flex';
 
   // Append enforcer note under balance bar
   document.getElementById('balance-msg-area').innerHTML += enfNote;
@@ -12691,7 +13107,7 @@ function renderTeamSynergy(tA, tB) {
           <span style="font-size:.8rem;color:var(--text2);font-weight:500">${p.p1} <span style="color:var(--muted);font-size:.72rem">&amp;</span> ${p.p2}</span>
           <div style="text-align:right">
             <span style="font-family:'Bebas Neue',sans-serif;font-size:1rem;color:${col}">${sign}${p.delta}%</span>
-            <span style="font-size:.65rem;color:var(--muted);margin-left:4px">${p.winRate}% WR · ${p.games}G</span>
+            <span style="font-size:.65rem;color:var(--muted);margin-left:4px">${p.winRate}% WR · ${fmtGames(p.games)}G</span>
           </div>
         </div>
         <div style="background:var(--bg2);border-radius:2px;height:3px;overflow:hidden;position:relative">
@@ -12703,6 +13119,28 @@ function renderTeamSynergy(tA, tB) {
       </div>`;
     }).join('');
   };
+
+  // ── Volatility flag ────────────────────────────────────────────────
+  // Some players don't have uniformly good/bad chemistry — they might click
+  // strongly with one or two specific teammates and struggle with others.
+  // That's invisible in a flat pair list, so for each player on either team,
+  // look across ALL their known pairings (not just current teammates) and
+  // flag a wide best-vs-worst spread as "volatile" — clicks with some,
+  // struggles with others — rather than a uniformly good or bad partner.
+  const allChem = window._filteredChemistry || window._chemistry || [];
+  const getVolatility = (playerName) => {
+    const pairs = allChem.filter(c => (c.p1 === playerName || c.p2 === playerName) && c.games >= 3);
+    if (pairs.length < 2) return null;
+    const withPartner = pairs.map(c => ({ partner: c.p1 === playerName ? c.p2 : c.p1, delta: c.delta, games: c.games }));
+    withPartner.sort((a,b) => b.delta - a.delta);
+    const best = withPartner[0], worst = withPartner[withPartner.length - 1];
+    const spread = best.delta - worst.delta;
+    return spread >= 20 ? { best, worst, spread } : null;
+  };
+  const volatilityRows = [...tA, ...tB]
+    .map(p => ({ player: p.player, v: getVolatility(p.player) }))
+    .filter(r => r.v)
+    .sort((a,b) => b.v.spread - a.v.spread);
 
   content.innerHTML = `
     <!-- Team synergy summary -->
@@ -12723,20 +13161,36 @@ function renderTeamSynergy(tA, tB) {
       </div>
     </div>
 
-    <!-- Individual pair breakdowns -->
+    <!-- Individual pair breakdowns — collapsed by default, click to expand -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
-      <div>
-        <div style="font-size:.7rem;color:var(--green);font-family:'Barlow Condensed',sans-serif;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">Team A Pairs</div>
-        ${renderPairs(pairsA, 'var(--green)')}
-      </div>
-      <div>
-        <div style="font-size:.7rem;color:var(--blue);font-family:'Barlow Condensed',sans-serif;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">Team B Pairs</div>
-        ${renderPairs(pairsB, 'var(--blue)')}
-      </div>
+      <details class="chem-pairs-details">
+        <summary style="cursor:pointer;list-style:none;display:flex;align-items:center;gap:6px;font-size:.7rem;color:var(--green);font-family:'Barlow Condensed',sans-serif;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;user-select:none">
+          <span class="chem-caret" style="display:inline-block;transition:transform .15s">▸</span> Team A Pairs <span style="color:var(--muted);font-size:.65rem;text-transform:none;letter-spacing:0">(${pairsA.length})</span>
+        </summary>
+        <div style="margin-top:4px">${renderPairs(pairsA, 'var(--green)')}</div>
+      </details>
+      <details class="chem-pairs-details">
+        <summary style="cursor:pointer;list-style:none;display:flex;align-items:center;gap:6px;font-size:.7rem;color:var(--blue);font-family:'Barlow Condensed',sans-serif;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;user-select:none">
+          <span class="chem-caret" style="display:inline-block;transition:transform .15s">▸</span> Team B Pairs <span style="color:var(--muted);font-size:.65rem;text-transform:none;letter-spacing:0">(${pairsB.length})</span>
+        </summary>
+        <div style="margin-top:4px">${renderPairs(pairsB, 'var(--blue)')}</div>
+      </details>
     </div>
     <div style="margin-top:10px;font-size:.68rem;color:var(--muted);opacity:.7">
       % = how much better/worse this pair performs together vs their individual win rates combined. Updates automatically when you drag players between teams.
-    </div>`;
+    </div>
+    ${adminMode && volatilityRows.length ? `
+    <details class="chem-pairs-details" style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">
+      <summary style="cursor:pointer;list-style:none;display:flex;align-items:center;gap:6px;font-size:.7rem;color:var(--muted);font-family:'Barlow Condensed',sans-serif;letter-spacing:1px;text-transform:uppercase;user-select:none">
+        <span class="chem-caret" style="display:inline-block;transition:transform .15s">▸</span> 🎭 Volatile chemistry <span style="font-size:.65rem;text-transform:none;letter-spacing:0">(${volatilityRows.length})</span>
+      </summary>
+      <div style="margin-top:8px">
+        ${volatilityRows.map(r => `<div style="font-size:.76rem;color:var(--text2);margin-bottom:5px">
+          <b>${r.player}</b> clicks with <span style="color:var(--green)">${r.v.best.partner}</span> (+${r.v.best.delta}%) but struggles with <span style="color:var(--red)">${r.v.worst.partner}</span> (${r.v.worst.delta}%)
+        </div>`).join('')}
+        <div style="font-size:.65rem;color:var(--muted);opacity:.7;margin-top:2px">Based on this player's full chemistry history, not just current teammates.</div>
+      </div>
+    </details>` : ''}`;
 
   sec.style.display = 'block';
 }
@@ -12769,10 +13223,62 @@ function predictResult(tA, tB) {
   const rB = tB.reduce((s,p) => s + p.effectiveRating, 0);
   const rTotal = rA + rB || 1;
 
-  // Blend stat strength and rating share for final probability
+  // ── Team chemistry signal ──────────────────────────────────────────
+  // Average pairwise "played together" win-rate delta within each team
+  // (same data source as the Team Chemistry panel). A team that's kept
+  // its good combos together gets a small boost — this is intentionally
+  // a minor factor (chemistry is noisy on small samples, and a lot of
+  // it is already implicit in each player's individual rating).
+  const chemMap = {};
+  (window._filteredChemistry || window._chemistry || []).forEach(c => {
+    chemMap[`${c.p1}|||${c.p2}`] = c;
+    chemMap[`${c.p2}|||${c.p1}`] = c;
+  });
+  const teamChemAvg = (team) => {
+    const deltas = [];
+    for (let i = 0; i < team.length; i++) {
+      for (let j = i+1; j < team.length; j++) {
+        const c = chemMap[`${team[i].player}|||${team[j].player}`];
+        if (c && c.games >= 3) deltas.push(c.delta); // require a minimum sample to count
+      }
+    }
+    return deltas.length ? deltas.reduce((s,d)=>s+d,0) / deltas.length : 0;
+  };
+  const chemA = teamChemAvg(tA), chemB = teamChemAvg(tB);
+
+  // ── Counters signal ────────────────────────────────────────────────
+  // For every cross-team pair, check their head-to-head record when
+  // they've directly opposed each other before (min 3 games). A player
+  // with a real historical edge over a specific opponent nudges the
+  // prediction toward their team, on top of the general stat comparison.
+  const counterMatchups = [];
+  let counterNetA = 0; // positive = net advantage to Team A from head-to-heads
+  tA.forEach(pa => tB.forEach(pb => {
+    const h2h = getHeadToHeadRecord(pa.player, pb.player, 3);
+    if (!h2h) return;
+    const edge = h2h.winRate - 50; // +ve = pa's side has historically won more
+    counterNetA += edge;
+    if (Math.abs(edge) >= 20) {
+      counterMatchups.push({
+        winner: edge > 0 ? pa.player : pb.player,
+        loser: edge > 0 ? pb.player : pa.player,
+        winnerTeam: edge > 0 ? 'A' : 'B',
+        winRate: edge > 0 ? h2h.winRate : 100 - h2h.winRate,
+        games: h2h.games,
+      });
+    }
+  }));
+  counterMatchups.sort((x,y) => y.winRate - x.winRate);
+
+  // Blend stat strength, rating share, chemistry and counters for final probability.
+  // Chemistry and counters are kept as small nudges (not primary drivers) since both
+  // are drawn from historical win-rate deltas that are already noisy in small samples.
   const statShareA = strA / (strA + strB);
   const ratingShareA = rA / rTotal;
-  const rawWinA = statShareA * 0.6 + ratingShareA * 0.4;
+  const chemNudge = Math.max(-0.06, Math.min(0.06, (chemA - chemB) / 100 * 0.3));
+  const counterNudge = Math.max(-0.05, Math.min(0.05, counterNetA / 100 * 0.15));
+  let rawWinA = statShareA * 0.55 + ratingShareA * 0.35 + chemNudge + counterNudge;
+  rawWinA = Math.max(0.05, Math.min(0.95, rawWinA));
 
   // Convert to win/draw/loss probabilities
   // Closer to 50/50 = more draw chance; bigger gap = more decisive
@@ -12800,6 +13306,7 @@ function predictResult(tA, tB) {
   else if (dB.playmaking > dA.playmaking * 1.15) edges.push({ team:'B', label:'stronger playmaking', col:'var(--blue)' });
   if (dA.gk > dB.gk * 1.2)           edges.push({ team:'A', label:'stronger GK', col:'var(--green)' });
   else if (dB.gk > dA.gk * 1.2)       edges.push({ team:'B', label:'stronger GK', col:'var(--blue)' });
+  if (Math.abs(chemA - chemB) >= 3)  edges.push({ team: chemA > chemB ? 'A' : 'B', label:'better team chemistry', col: chemA > chemB ? 'var(--green)' : 'var(--blue)' });
   if (!edges.length) edges.push({ team: null, label:'evenly matched across all dimensions', col:'var(--muted)' });
 
   // Streak modifier notes
@@ -12836,8 +13343,20 @@ function predictResult(tA, tB) {
         <span>${e.label}</span>
       </div>`).join('')}
     </div>
-    <div style="margin-top:10px;font-size:.66rem;color:var(--muted);opacity:.55">Based on per-game stats + weighted form · Football is unpredictable 🎲</div>
-    ${streakNotes.length ? `<div style="margin-top:6px;font-size:.66rem;color:var(--muted);border-top:1px solid var(--border);padding-top:6px">⚖ Streak adjustments: ${streakNotes.join(' · ')}</div>` : ''}`;
+    <div style="margin-top:10px;font-size:.66rem;color:var(--muted);opacity:.55">Based on per-game stats + weighted form + chemistry + head-to-head history · Football is unpredictable 🎲</div>
+    ${streakNotes.length ? `<div style="margin-top:6px;font-size:.66rem;color:var(--muted);border-top:1px solid var(--border);padding-top:6px">⚖ Streak adjustments: ${streakNotes.join(' · ')}</div>` : ''}
+    ${adminMode && counterMatchups.length ? `
+    <details class="chem-pairs-details" style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
+      <summary style="cursor:pointer;list-style:none;display:flex;align-items:center;gap:6px;font-size:.7rem;color:var(--muted);font-family:'Barlow Condensed',sans-serif;letter-spacing:1px;text-transform:uppercase;user-select:none">
+        <span class="chem-caret" style="display:inline-block;transition:transform .15s">▸</span> ⚔ Head-to-head counters <span style="font-size:.65rem;text-transform:none;letter-spacing:0">(${counterMatchups.length})</span>
+      </summary>
+      <div style="margin-top:8px">
+        ${counterMatchups.slice(0,3).map(c => `<div style="font-size:.76rem;color:var(--text2);margin-bottom:4px;display:flex;align-items:center;gap:6px">
+          <span style="font-family:'Barlow Condensed',sans-serif;font-size:.68rem;background:${c.winnerTeam==='A'?'rgba(57,211,83,.15)':'rgba(79,163,232,.15)'};color:${c.winnerTeam==='A'?'var(--green)':'var(--blue)'};border-radius:4px;padding:1px 6px">Team ${c.winnerTeam}</span>
+          <span><b>${c.winner}</b> has a ${c.winRate}% record vs ${c.loser} (${c.games} matchups)</span>
+        </div>`).join('')}
+      </div>
+    </details>` : ''}`;
 
   sec.style.display = 'block';
 }
@@ -13336,33 +13855,33 @@ function computeAnalytics() {
   });
 
   matchList.forEach(m => {
-    [m.teamA, m.teamB].forEach(team => {
-      const names = team.map(r=>r.player);
-      const teamIdx = team === m.teamA ? 'A' : 'B';
-      const won = m.winnerTeam === teamIdx;
+    // Half-aware: a pair only gets chemistry credit for the half(s) they
+    // actually shared a team in. A full match together = 1 game; a single
+    // shared half (e.g. one of them swapped sides at half-time) = 0.5 game.
+    getHalfTeamSnapshots(m).forEach(snap => {
+      const names = snap.players;
+      const won = snap.won;
       for (let i=0;i<names.length;i++) for (let j=i+1;j<names.length;j++) {
         const key = [names[i],names[j]].sort().join('|||');
         if (!chemMap[key]) chemMap[key] = {p1:names[i],p2:names[j],games:0,wins:0};
-        chemMap[key].games++;
-        if (won) chemMap[key].wins++;
+        chemMap[key].games += snap.weight;
+        if (won) chemMap[key].wins += snap.weight;
       }
     });
-    // Track games apart (opposite teams)
-    const allNames = [...m.teamA.map(r=>r.player), ...m.teamB.map(r=>r.player)];
-    const teamANames = new Set(m.teamA.map(r=>r.player));
-    allNames.forEach(pa => allNames.forEach(pb => {
-      if (pa >= pb) return;
-      const key = [pa,pb].sort().join('|||');
-      if (!chemMap[key]) return; // only track apart for pairs who've played together
-      // They're on opposite teams this match
-      if ((teamANames.has(pa)) !== (teamANames.has(pb))) {
+    // Track games apart (opposite teams) — also half-aware, so a player
+    // who swapped sides only counts as "apart" from someone for the
+    // half(s) they were actually on opposing teams.
+    const snaps = getHalfTeamSnapshots(m);
+    // Pair up 1H's two sides and 2H's two sides so we compare within the same half
+    const halfPairs = [[snaps[0], snaps[1]], [snaps[2], snaps[3]]].filter(([a,b]) => a && b);
+    halfPairs.forEach(([sideA, sideB]) => {
+      sideA.players.forEach(pa => sideB.players.forEach(pb => {
+        const key = [pa,pb].sort().join('|||');
+        if (!chemMap[key]) return; // only track apart for pairs who've played together
         if (!chemMap[key].gamesApart) chemMap[key].gamesApart = 0;
-        if (!chemMap[key].winsApart) chemMap[key].winsApart = 0;
-        // "wins apart" = how many times their side won when on opposite teams
-        // (ambiguous — track just games apart count)
-        chemMap[key].gamesApart++;
-      }
-    }));
+        chemMap[key].gamesApart += sideA.weight; // sideA.weight === sideB.weight (0.5 or 1)
+      }));
+    });
   });
 
   window._chemistry = Object.values(chemMap)
@@ -13976,7 +14495,7 @@ function renderStatsPage() {
                     <div style="position:absolute;left:0;top:0;height:100%;width:${c.winRate}%;background:${winRateColor(c.winRate)};opacity:.7;border-radius:3px;transition:width .3s"></div>
                   </div>
                   <div style="display:flex;justify-content:space-between;font-size:.68rem;color:var(--muted)">
-                    <span>${c.wins}W · ${c.games-c.wins}L from ${c.games} game${c.games!==1?'s':''} together</span>
+                    <span>${fmtGames(c.wins)}W · ${fmtGames(c.games-c.wins)}L from ${fmtGames(c.games)} game${c.games!==1?'s':''} together</span>
                     <span style="opacity:.7">expected ${c.baseline}%</span>
                   </div>
                 </div>
