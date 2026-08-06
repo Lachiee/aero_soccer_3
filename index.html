@@ -778,7 +778,15 @@ canvas.spider{display:block;margin:0 auto}
 
   <!-- Predicted Result -->
   <div id="predict-section" style="display:none;margin-top:16px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:18px">
-    <div style="font-family:'Barlow Condensed',sans-serif;font-size:.85rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:14px">🔮 Predicted Result</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:.85rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted)">🔮 Predicted Result</div>
+      <label style="display:flex;align-items:center;gap:6px;font-size:.72rem;color:var(--muted);cursor:pointer;user-select:none">
+        <input type="checkbox" id="chem-affects-prediction-toggle" checked
+          onchange="chemistryAffectsPrediction=this.checked;if(teamA.length&&teamB.length)predictResult(teamA,teamB)"
+          style="accent-color:var(--lime);cursor:pointer">
+        Chemistry affects prediction
+      </label>
+    </div>
     <div id="predict-content"></div>
   </div>
 
@@ -12074,6 +12082,7 @@ function teamDimensions(team) {
 
 let streakAugmentEnabled = false;
 let winRateAugStrength = 0.20; // max modifier — 0.20 = ±20% rating adjustment
+let chemistryAffectsPrediction = true; // toggle: does pair chemistry nudge Predicted Result?
 
 function toggleStreakAugment() {
   streakAugmentEnabled = !streakAugmentEnabled;
@@ -13490,7 +13499,9 @@ function predictResult(tA, tB) {
   // are drawn from historical win-rate deltas that are already noisy in small samples.
   const statShareA = strA / (strA + strB);
   const ratingShareA = rA / rTotal;
-  const chemNudge = Math.max(-0.06, Math.min(0.06, (chemA - chemB) / 100 * 0.3));
+  const chemNudge = chemistryAffectsPrediction
+    ? Math.max(-0.06, Math.min(0.06, (chemA - chemB) / 100 * 0.3))
+    : 0;
   const counterNudge = Math.max(-0.05, Math.min(0.05, counterNetA / 100 * 0.15));
   let rawWinA = statShareA * 0.55 + ratingShareA * 0.35 + chemNudge + counterNudge;
   rawWinA = Math.max(0.05, Math.min(0.95, rawWinA));
@@ -13521,7 +13532,7 @@ function predictResult(tA, tB) {
   else if (dB.playmaking > dA.playmaking * 1.15) edges.push({ team:'B', label:'stronger playmaking', col:'var(--blue)' });
   if (dA.gk > dB.gk * 1.2)           edges.push({ team:'A', label:'stronger GK', col:'var(--green)' });
   else if (dB.gk > dA.gk * 1.2)       edges.push({ team:'B', label:'stronger GK', col:'var(--blue)' });
-  if (Math.abs(chemA - chemB) >= 3)  edges.push({ team: chemA > chemB ? 'A' : 'B', label:'better team chemistry', col: chemA > chemB ? 'var(--green)' : 'var(--blue)' });
+  if (chemistryAffectsPrediction && Math.abs(chemA - chemB) >= 3)  edges.push({ team: chemA > chemB ? 'A' : 'B', label:'better team chemistry', col: chemA > chemB ? 'var(--green)' : 'var(--blue)' });
   if (!edges.length) edges.push({ team: null, label:'evenly matched across all dimensions', col:'var(--muted)' });
 
   // Streak modifier notes
