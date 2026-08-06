@@ -796,6 +796,13 @@ canvas.spider{display:block;margin:0 auto}
     <div id="synergy-content"></div>
   </div>
 
+  <!-- Suggested Pairings — profile-based, doesn't require shared game history -->
+  <div id="suggested-pairings-section" style="display:none;margin-top:16px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:18px">
+    <div style="font-family:'Barlow Condensed',sans-serif;font-size:.85rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:6px">🧩 Suggested Pairings</div>
+    <div style="font-size:.68rem;color:var(--muted);margin-bottom:14px;line-height:1.4">Based on each player's own stat profile — who might complement who, even if they haven't played together much yet.</div>
+    <div id="suggested-pairings-content"></div>
+  </div>
+
   <!-- Attack combo predictions -->
   <div id="attack-combos-section" style="display:none"></div>
 </div>
@@ -11625,6 +11632,8 @@ function clearTeams() {
   if (ps) ps.style.display = 'none';
   const ss = document.getElementById('synergy-section');
   if (ss) ss.style.display = 'none';
+  const sps = document.getElementById('suggested-pairings-section');
+  if (sps) sps.style.display = 'none';
   renderTeamBuilder();
 }
 
@@ -12024,6 +12033,70 @@ const ROLE_PRIORITY = ['goalkeeper', 'scorer', 'creator', 'defender', 'flair', '
 function getPlayerRole(p, poolAvg) {
   const tags = getPlayerRoles(p, poolAvg);
   return ROLE_PRIORITY.find(r => tags.includes(r)) || 'allrounder';
+}
+
+// ── Profile-based pairing suggestions ──────────────────────────────────
+// Different from win-rate/goal-combo chemistry (which need real shared-game
+// history): this looks at two players' STAT PROFILES and asks whether their
+// tendencies fill gaps in each other — e.g. a low-key-pass shooter paired
+// with a high-key-pass, lower-shot-volume creator. Works even for players
+// who've never actually played together, since it's derived purely from
+// each player's own individual rates, not any shared outcome.
+function getPairComplementarity(p1, p2, poolAvg) {
+  const g1 = Math.max(p1.games, 1), g2 = Math.max(p2.games, 1);
+  const stats1 = {
+    shots: p1.total_shots / g1, kp: p1.key_passes / g1, goals: p1.goals / g1,
+    assists: p1.assists / g1, def: (p1.tackles + p1.interceptions + p1.blocks) / g1,
+  };
+  const stats2 = {
+    shots: p2.total_shots / g2, kp: p2.key_passes / g2, goals: p2.goals / g2,
+    assists: p2.assists / g2, def: (p2.tackles + p2.interceptions + p2.blocks) / g2,
+  };
+  const roles1 = getPlayerRoles(p1, poolAvg);
+  const roles2 = getPlayerRoles(p2, poolAvg);
+
+  const reasons = [];
+  let score = 0;
+
+  // 1) Shooter <-> Creator, using each player's OWN shot:key-pass ratio (not
+  // absolute volume) — this is the fine-grained version of your original ask:
+  // "a player who doesn't shoot much paired with a prominent scorer" or
+  // "a heavy passer paired with someone who shoots often but doesn't pass much".
+  const ratio1 = stats1.shots - stats1.kp; // positive = shoots more than creates
+  const ratio2 = stats2.shots - stats2.kp;
+  if (Math.abs(ratio1 - ratio2) >= 4 && (ratio1 > 0) !== (ratio2 > 0)) {
+    const shooter = ratio1 > ratio2 ? p1 : p2;
+    const creator = ratio1 > ratio2 ? p2 : p1;
+    score += 2;
+    reasons.push({
+      type: 'shoot-create',
+      text: `${shooter.player} shoots often but creates little (${(shooter===p1?stats1:stats2).shots.toFixed(1)} shots/g, ${(shooter===p1?stats1:stats2).kp.toFixed(1)} KP/g) — ${creator.player} leans the other way (${(creator===p1?stats1:stats2).kp.toFixed(1)} KP/g vs ${(creator===p1?stats1:stats2).shots.toFixed(1)} shots/g)`
+    });
+  }
+
+  // 2) Attacker <-> Defender using role tags
+  const isAttacker = (roles) => roles.some(r => ['scorer','creator','flair'].includes(r));
+  const isDefender = (roles) => roles.includes('defender');
+  if ((isAttacker(roles1) && isDefender(roles2)) || (isAttacker(roles2) && isDefender(roles1))) {
+    const att = isAttacker(roles1) ? p1 : p2;
+    const def = isAttacker(roles1) ? p2 : p1;
+    score += 1.5;
+    reasons.push({ type: 'attack-defend', text: `${att.player} pushes forward — ${def.player} covers behind (${(def===p1?stats1:stats2).def.toFixed(1)} def actions/g)` });
+  }
+
+  // 3) Scorer <-> Creator using role tags (broader than #1's raw ratio check —
+  // catches cases where both shoot/create a fair bit, but one clearly finishes
+  // and the other clearly sets up)
+  const isScorer = (roles) => roles.includes('scorer');
+  const isCreator = (roles) => roles.includes('creator');
+  if ((isScorer(roles1) && isCreator(roles2) && !isScorer(roles2)) || (isScorer(roles2) && isCreator(roles1) && !isScorer(roles1))) {
+    const scorer = isScorer(roles1) ? p1 : p2;
+    const creator = isScorer(roles1) ? p2 : p1;
+    score += 1;
+    reasons.push({ type: 'score-create', text: `${scorer.player} finishes (${(scorer===p1?stats1:stats2).goals.toFixed(1)} goals/g) — ${creator.player} supplies (${(creator===p1?stats1:stats2).assists.toFixed(1)} assists/g, ${(creator===p1?stats1:stats2).kp.toFixed(1)} KP/g)` });
+  }
+
+  return { score, reasons };
 }
 
 function teamDimensions(team) {
@@ -13093,6 +13166,7 @@ function renderTeamResult(tA, tB) {
 
   // Generate synergy breakdown and prediction
   renderTeamSynergy(tA, tB);
+  renderSuggestedPairings(tA, tB);
   predictResult(tA, tB);
   renderAttackComboPrediction(tA, tB);
 }
@@ -13415,6 +13489,60 @@ function renderTeamSynergy(tA, tB) {
         <div style="font-size:.65rem;color:var(--muted);opacity:.7;margin-top:2px">Based on this player's full chemistry history, not just current teammates.</div>
       </div>
     </details>` : ''}`;
+
+  sec.style.display = 'block';
+}
+
+// Suggested Pairings — profile-based complementarity across the WHOLE selected pool
+// (not just the two current teams), since the point is surfacing pairings worth
+// trying even if they haven't shared much/any game time. Ranked by complementarity
+// score from getPairComplementarity; ties broken by showing pairs currently split
+// across teams first (a nudge toward "these two aren't together right now, but
+// maybe should be" rather than just restating an existing pairing).
+function renderSuggestedPairings(tA, tB) {
+  const sec = document.getElementById('suggested-pairings-section');
+  const content = document.getElementById('suggested-pairings-content');
+  if (!sec || !content) return;
+
+  const allSelected = [...tA, ...tB];
+  if (allSelected.length < 3) { sec.style.display = 'none'; return; }
+
+  const poolAvg = computePoolAverages(allSelected);
+  const teamOf = {};
+  tA.forEach(p => teamOf[p.player] = 'A');
+  tB.forEach(p => teamOf[p.player] = 'B');
+
+  const suggestions = [];
+  for (let i = 0; i < allSelected.length; i++) {
+    for (let j = i+1; j < allSelected.length; j++) {
+      const p1 = allSelected[i], p2 = allSelected[j];
+      if (Math.max(p1.games,1) < 3 || Math.max(p2.games,1) < 3) continue; // too little data to trust either profile
+      const { score, reasons } = getPairComplementarity(p1, p2, poolAvg);
+      if (score > 0) {
+        suggestions.push({ p1: p1.player, p2: p2.player, score, reasons, sameTeam: teamOf[p1.player] === teamOf[p2.player] });
+      }
+    }
+  }
+
+  if (!suggestions.length) {
+    content.innerHTML = `<div style="font-size:.78rem;color:var(--muted)">No strong profile matches found in this selection — try a bigger or more varied pool.</div>`;
+    sec.style.display = 'block';
+    return;
+  }
+
+  suggestions.sort((a,b) => b.score - a.score || (a.sameTeam - b.sameTeam));
+  const top = suggestions.slice(0, 6);
+
+  content.innerHTML = top.map(s => `
+    <div style="padding:8px 0;border-bottom:1px solid var(--border)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+        <span style="font-size:.82rem;color:var(--text2);font-weight:500">${s.p1} <span style="color:var(--muted);font-size:.72rem">&amp;</span> ${s.p2}</span>
+        ${s.sameTeam
+          ? `<span style="font-size:.6rem;color:var(--muted);background:var(--card2);border-radius:4px;padding:1px 6px">Already together</span>`
+          : `<span style="font-size:.6rem;color:var(--amber);background:rgba(240,160,48,.12);border-radius:4px;padding:1px 6px">Currently split</span>`}
+      </div>
+      ${s.reasons.map(r => `<div style="font-size:.68rem;color:var(--muted);line-height:1.4;margin-top:2px">${r.text}</div>`).join('')}
+    </div>`).join('');
 
   sec.style.display = 'block';
 }
