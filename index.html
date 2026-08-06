@@ -2422,6 +2422,20 @@ let playerNotes = {};
 let playerBuffs = {}; // name → flat rating bonus (can be negative)
 let playerGifs = {};
 let selectedForTeams = new Set();
+// Small-sample shrinkage for chemistry pair deltas (used by both the main and
+// filtered chemistry builders, plus predictResult's chemistry nudge). A pair's raw
+// delta (win rate together vs their individual baselines) is extremely noisy on a
+// handful of games — a single lucky/unlucky result can swing it ±50%+. This pulls
+// the delta toward 0 ("no evidence of an effect yet"), fading out as more shared
+// games accumulate. Declared here (script block 1) since filtChemList is built
+// earlier in the file than the team-builder code in script block 2.
+const CHEM_MIN_GAMES = 3;   // pairs below this don't get a delta at all — not enough data to say anything
+const CHEM_SHRINK_K = 6;    // games at which a pair's delta is trusted ~50/50 vs 0
+function shrinkChemDelta(delta, games) {
+  const g = Math.max(games || 0, 0);
+  const trust = g / (g + CHEM_SHRINK_K);
+  return delta * trust;
+}
 let lockedTeam = {}; // playerName -> 'A' | 'B' — pins a player to a side before balancing/shuffling
 let teamA = [], teamB = [];
 let currentPage = 'matches';
@@ -7517,16 +7531,51 @@ function computeFilteredStats() {
         }
       }
     });
+
+    // Defensive coverage (goals conceded together vs apart) — same approach as the
+    // main chemistry builder, scoped to the filtered match set.
+    const teamAConceded = m.goalsB, teamBConceded = m.goalsA;
+    const onTeam = (name) => m.teamA.some(r=>r.player===name) ? 'A' : m.teamB.some(r=>r.player===name) ? 'B' : null;
+    const matchPlayers = [...new Set([...m.teamA, ...m.teamB].map(r=>r.player))];
+    for (let i=0;i<matchPlayers.length;i++) for (let j=i+1;j<matchPlayers.length;j++) {
+      const pa = matchPlayers[i], pb = matchPlayers[j];
+      const ta = onTeam(pa), tb = onTeam(pb);
+      if (!ta || !tb) continue;
+      const key = [pa,pb].sort().join('|||');
+      if (ta === tb) {
+        if (!filtChemMap[key]) filtChemMap[key] = {p1:pa,p2:pb,games:0,wins:0};
+        if (!filtChemMap[key].concededTogether) { filtChemMap[key].concededTogether = 0; filtChemMap[key].concededTogetherGames = 0; }
+        filtChemMap[key].concededTogether += (ta === 'A' ? teamAConceded : teamBConceded);
+        filtChemMap[key].concededTogetherGames += 1;
+      } else {
+        if (!filtChemMap[key]) continue;
+        if (!filtChemMap[key].concededApart) { filtChemMap[key].concededApart = 0; filtChemMap[key].concededApartGames = 0; }
+        filtChemMap[key].concededApart += ((teamAConceded + teamBConceded) / 2);
+        filtChemMap[key].concededApartGames += 1;
+      }
+    }
   });
 
   const filtChemList = Object.values(filtChemMap)
-    .filter(c => c.games >= 1)
+    .filter(c => c.games >= CHEM_MIN_GAMES) // below this, there's not enough evidence to say anything about the pair
     .map(c => ({
       ...c,
       winRate: Math.round(c.wins / c.games * 100),
       baseline: Math.round(((filtWinRate[c.p1]||0) + (filtWinRate[c.p2]||0)) / 2 * 100),
     }))
-    .map(c => ({ ...c, delta: c.winRate - c.baseline }));
+    .map(c => {
+      const rawDelta = c.winRate - c.baseline;
+      return { ...c, rawDelta, delta: Math.round(shrinkChemDelta(rawDelta, c.games)) };
+    })
+    .map(c => {
+      const cgAvg = c.concededTogetherGames >= CHEM_MIN_GAMES ? c.concededTogether / c.concededTogetherGames : null;
+      const caAvg = c.concededApartGames >= CHEM_MIN_GAMES ? c.concededApart / c.concededApartGames : null;
+      const defenseRawDelta = (cgAvg !== null && caAvg !== null) ? parseFloat((cgAvg - caAvg).toFixed(2)) : null;
+      const defenseDelta = defenseRawDelta !== null
+        ? parseFloat(shrinkChemDelta(defenseRawDelta, Math.min(c.concededTogetherGames, c.concededApartGames)).toFixed(2))
+        : null;
+      return { ...c, concededTogetherPerGame: cgAvg, concededApartPerGame: caAvg, defenseRawDelta, defenseDelta };
+    });
 
   // Update synergy scores on newStats using filtered chemistry
   const filtSynergyMap = {};
@@ -11910,20 +11959,63 @@ function shrinkRatingForBalance(rating, games, poolMean) {
   const trust = g / (g + SHRINK_K); // 0 games -> 0 trust, 8 games -> 50%, 24 games -> 75%...
   return rating * trust + poolMean * (1 - trust);
 }
+// (shrinkChemDelta / CHEM_MIN_GAMES / CHEM_SHRINK_K are declared earlier in script
+// block 1, alongside filtChemList, since that's built before this script block runs)
 
-function getPlayerRole(p) {
-  const cs = customStats[p.player] || {};
+// Multi-tag role classifier — a player can be more than one thing (e.g. a real
+// scorer who's also a real defender), which single-label classification couldn't
+// express. Thresholds are relative to the selected pool's own averages rather than
+// fixed absolute numbers: this league rotates goalkeepers rather than having
+// specialists, so an absolute "saves >= 4/game" cutoff was mislabeling roughly half
+// the regulars as goalkeepers. Comparing each player to the pool they're actually
+// being balanced against is more meaningful than a hardcoded number.
+//
+// poolAverages: { gpg, apg, kppg, defpg, savpg, nmpg } — mean per-game rate across
+// the currently selected player pool. Computed once per pool by computePoolAverages().
+function computePoolAverages(players) {
+  const sums = { gpg:0, apg:0, kppg:0, defpg:0, savpg:0, nmpg:0 };
+  players.forEach(p => {
+    const g = Math.max(p.games, 1);
+    sums.gpg   += p.goals / g;
+    sums.apg   += p.assists / g;
+    sums.kppg  += p.key_passes / g;
+    sums.defpg += (p.tackles + p.interceptions + p.blocks) / g;
+    sums.savpg += (p.goalkeeper_saves || 0) / g;
+    sums.nmpg  += p.nutmegs / g;
+  });
+  const count = Math.max(players.length, 1);
+  Object.keys(sums).forEach(k => sums[k] = sums[k] / count);
+  return sums;
+}
+
+function getPlayerRoles(p, poolAvg) {
   const g = Math.max(p.games, 1);
   const gpg = p.goals / g, apg = p.assists / g, kppg = p.key_passes / g;
   const defpg = (p.tackles + p.interceptions + p.blocks) / g;
   const savpg = (p.goalkeeper_saves || 0) / g;
   const nmpg = p.nutmegs / g;
-  if (savpg >= 4) return 'goalkeeper';
-  if (gpg >= 1.5) return 'scorer';
-  if (apg >= 1.5 || kppg >= 5) return 'creator';
-  if (defpg >= 8) return 'defender';
-  if (nmpg >= 1.5) return 'flair';
-  return 'allrounder';
+
+  // Fall back to fixed thresholds if no pool context is given (shouldn't normally
+  // happen, but keeps this safe to call standalone).
+  const avg = poolAvg || { gpg:1, apg:0.8, kppg:3, defpg:6, savpg:3, nmpg:1 };
+
+  const tags = [];
+  if (avg.savpg > 0 && savpg >= avg.savpg * 1.6) tags.push('goalkeeper');
+  if (avg.gpg > 0 && gpg >= avg.gpg * 1.3) tags.push('scorer');
+  if ((avg.apg > 0 && apg >= avg.apg * 1.3) || (avg.kppg > 0 && kppg >= avg.kppg * 1.3)) tags.push('creator');
+  if (avg.defpg > 0 && defpg >= avg.defpg * 1.25) tags.push('defender');
+  if (avg.nmpg > 0 && nmpg >= avg.nmpg * 1.5) tags.push('flair');
+  if (!tags.length) tags.push('allrounder');
+  return tags;
+}
+
+// Back-compat single-label wrapper — a few older display spots want one icon/label
+// per player rather than a full tag list. Picks the strongest tag by a fixed
+// priority order (goalkeeper first since it's the most specialized/least common).
+const ROLE_PRIORITY = ['goalkeeper', 'scorer', 'creator', 'defender', 'flair', 'allrounder'];
+function getPlayerRole(p, poolAvg) {
+  const tags = getPlayerRoles(p, poolAvg);
+  return ROLE_PRIORITY.find(r => tags.includes(r)) || 'allrounder';
 }
 
 function teamDimensions(team) {
@@ -12050,6 +12142,8 @@ function renderKeepApartList() {
 
 function shuffleTeams() {
   // Build rated player objects same way autoBalance does
+  const rawPool = [...selectedForTeams].map(name => customPlayers[name] || playerStats[name]).filter(Boolean);
+  const poolAvg = computePoolAverages(rawPool);
   const sel = [...selectedForTeams].map(name => {
     const p = customPlayers[name] || playerStats[name];
     if (!p) return null;
@@ -12080,7 +12174,8 @@ function shuffleTeams() {
       playerBuff: buff,
       enforcer: n(cs.enforcer || 0) * (1 - pen),
       enforcerRaw: n(cs.enforcer || 0),
-      role: getPlayerRole(p)
+      role: getPlayerRole(p, poolAvg),
+      roles: getPlayerRoles(p, poolAvg)
     };
   }).filter(Boolean);
 
@@ -12214,6 +12309,8 @@ function autoBalance(rebalanceOnly = false) {
   const poolMean = rawList.length
     ? rawList.reduce((s,r) => s + r.weightedRatingRaw, 0) / rawList.length
     : 0;
+  // Pool-relative role thresholds — see getPlayerRoles/computePoolAverages notes.
+  const poolAvg = computePoolAverages(rawList.map(r => r.p));
 
   const sel = rawList.map(({ name, p, cs, weightedRatingRaw, games }) => {
     p.rating = computeRating(p, cs);
@@ -12262,7 +12359,8 @@ function autoBalance(rebalanceOnly = false) {
       playerBuff: buff,
       enforcer: n((customStats[name] || {}).enforcer || 0) * (1 - pen),
       enforcerRaw: n((customStats[name] || {}).enforcer || 0),
-      role: getPlayerRole(p)
+      role: getPlayerRole(p, poolAvg),
+      roles: getPlayerRoles(p, poolAvg)
     };
   }).filter(Boolean);
 
@@ -12844,6 +12942,10 @@ function renderTeamResult(tA, tB) {
   const renderRows = (team, teamKey) => team.map(p => {
     const note = playerNotes[p.player];
     const role = p.role || getPlayerRole(p);
+    const roles = p.roles || getPlayerRoles(p);
+    const roleTitle = roles.length > 1
+      ? `Also: ${roles.filter(r=>r!==role).map(r=>roleLabel[r]).join(', ')}`
+      : roleLabel[role];
     return `<div class="tp-row" draggable="true"
       ondragstart="startDrag('${p.player}','${teamKey}',this)"
       ondragend="endDrag(this)"
@@ -12852,7 +12954,7 @@ function renderTeamResult(tA, tB) {
       ontouchend="touchEndDrag(this,event)">
       <span style="font-size:.8rem;opacity:.5;cursor:grab;margin-right:2px">⠿</span>
       <span class="tp-name" onclick="nav('profile','${p.player}')" style="cursor:pointer">${p.player}</span>
-      <span style="font-size:.7rem;opacity:.55">${roleIcon[role]} ${roleLabel[role]}</span>
+      <span style="font-size:.7rem;opacity:.55" title="${roleTitle}">${roles.map(r=>roleIcon[r]).join('')} ${roleLabel[role]}${roles.length>1?'+':''}</span>
       ${p.streakLabel ? `<span style="font-size:.65rem;font-weight:600;padding:1px 6px;border-radius:4px;${p.streakLabel.type==='buff'?'background:rgba(96,165,250,.15);color:#60a5fa':'background:rgba(239,68,68,.12);color:#f87171'}" title="${p.streakLabel.type==='buff'?'Win rate is low — rating buffed to help balance teams':'Win rate is high — rating slightly nerfed to help balance teams'}">WR ${p.streakLabel.text}</span>` : ''}
       ${p.playerBuff ? `<span style="font-size:.65rem;font-weight:600;padding:1px 6px;border-radius:4px;${p.playerBuff>0?'background:rgba(74,222,128,.12);color:#4ade80':'background:rgba(248,113,113,.12);color:#f87171'}" data-tip="Manual buff applied — adjustable in Player Notes &amp; Buffs above">${p.playerBuff>0?'+':''}${p.playerBuff} buff</span>` : ''}
       ${(() => {
@@ -13053,19 +13155,48 @@ function renderTeamSynergy(tA, tB) {
     chemMap[`${c.p2}|||${c.p1}`] = c;
   });
 
+  // Each player's own solo win rate — shown side by side with the "together" rate
+  // instead of pre-averaging them into one combined baseline number, so you can see
+  // the raw comparison yourself (e.g. "P1 lifts P2 a lot, P2 barely changes P1") rather
+  // than trusting one collapsed delta.
+  const soloWinRate = (name) => {
+    const s = playerStats[name];
+    if (!s) return null;
+    const total = s.wins + s.losses + (s.draws||0);
+    return total > 0 ? Math.round(s.wins/total*100) : null;
+  };
+
   const getPairs = (team) => {
     const pairs = [];
     for (let i = 0; i < team.length; i++) {
       for (let j = i + 1; j < team.length; j++) {
         const key = `${team[i].player}|||${team[j].player}`;
         const c = chemMap[key];
+        // Complementary roles (e.g. a creator + a scorer, or a defender + a creator)
+        // suggest a plausible reason a pairing works, beyond just "the numbers say so".
+        // Uses each player's full multi-tag role list (see getPlayerRoles) rather than
+        // a single label, so e.g. a player who's BOTH a scorer and a defender still
+        // gets credit for complementing a pure creator. "Complementary" = each has at
+        // least one real (non-allrounder) tag the other one lacks.
+        const roles1 = (team[i].roles || [team[i].role]).filter(r => r && r !== 'allrounder');
+        const roles2 = (team[j].roles || [team[j].role]).filter(r => r && r !== 'allrounder');
+        const uniqueTo1 = roles1.filter(r => !roles2.includes(r));
+        const uniqueTo2 = roles2.filter(r => !roles1.includes(r));
+        const complementary = uniqueTo1.length > 0 && uniqueTo2.length > 0;
         pairs.push({
           p1: team[i].player,
           p2: team[j].player,
+          roles1, roles2, complementary,
+          complementTags: complementary ? [uniqueTo1[0], uniqueTo2[0]] : null,
           data: c || null,
           delta: c ? c.delta : null,
           winRate: c ? c.winRate : null,
           games: c ? c.games : 0,
+          soloWR1: soloWinRate(team[i].player),
+          soloWR2: soloWinRate(team[j].player),
+          defenseDelta: c && c.defenseDelta !== undefined ? c.defenseDelta : null,
+          concededTogetherPerGame: c ? c.concededTogetherPerGame : null,
+          concededApartPerGame: c ? c.concededApartPerGame : null,
         });
       }
     }
@@ -13074,6 +13205,49 @@ function renderTeamSynergy(tA, tB) {
 
   const pairsA = getPairs(tA);
   const pairsB = getPairs(tB);
+
+  // Goal-combo corroboration — a pair's win-rate chemistry only tells you the team
+  // did better with both on it, not why. Cross-reference actual scorer+assister
+  // combo data (a direct, causal signal) so a pair with a real attacking link gets
+  // a visible badge, kept separate from the win-rate delta itself rather than
+  // blended into one number (they measure different things — see design notes).
+  const comboStats = getComboStats();
+  const comboLookup = {};
+  comboStats.forEach(c => {
+    const key = [c.scorer, c.assister].sort().join('|||');
+    comboLookup[key] = (comboLookup[key] || 0) + c.goals;
+  });
+  const getComboGoals = (p1, p2) => comboLookup[[p1, p2].sort().join('|||')] || 0;
+
+  // Key-pass "chain" corroboration — a more precise signal than goal-combos: a
+  // timestamped key-pass immediately followed by the OTHER player's shot, not just
+  // "assist credited on a goal". Only available for matches where the full event
+  // log was captured (localStorage), so this is commonly empty — that's expected,
+  // not an error. Parsed ONCE here (not per-pair) since it involves a localStorage
+  // read + JSON parse that shouldn't run in a per-pair loop.
+  const chainLookup = {};
+  try {
+    const logs = JSON.parse(localStorage.getItem('aero_event_logs') || '{}');
+    const WINDOW = 10;
+    const SHOT_EVENTS = new Set(['On Target','Off Target','Goals']);
+    Object.values(logs).forEach(log => {
+      const events = log.events || [];
+      const kpEvents = events.filter(e => e.event === 'Key Passes');
+      const allShots = events.filter(e => SHOT_EVENTS.has(e.event));
+      kpEvents.forEach(kp => {
+        const shot = allShots.find(s =>
+          s.team === kp.team &&
+          s.tsSecsRaw > kp.tsSecsRaw &&
+          s.tsSecsRaw <= kp.tsSecsRaw + WINDOW &&
+          s.player !== kp.player
+        );
+        if (!shot) return;
+        const key = [kp.player, shot.player].sort().join('|||');
+        chainLookup[key] = (chainLookup[key] || 0) + 1;
+      });
+    });
+  } catch (e) { /* no event logs captured — chainLookup stays empty, which is fine */ }
+  const getChainCount = (p1, p2) => chainLookup[[p1, p2].sort().join('|||')] || 0;
 
   // Team average synergy (only pairs with data)
   const avgSyn = (pairs) => {
@@ -13090,24 +13264,59 @@ function renderTeamSynergy(tA, tB) {
   const synCol = (v) => v === null ? 'var(--muted)' : v >= 8 ? '#4ade80' : v >= 2 ? '#a3e635' : v >= -2 ? '#facc15' : v >= -8 ? '#fb923c' : '#f87171';
   const synIcon = (v) => v === null ? '–' : v >= 8 ? '🔥' : v >= 2 ? '⚡' : v >= -2 ? '⚖' : '❄';
 
+  const roleLabel = { goalkeeper: 'GK', scorer: 'Scorer', creator: 'Creator', defender: 'Defender', flair: 'Flair' };
   const renderPairs = (pairs, teamCol) => {
     if (!pairs.length) return '<div style="font-size:.78rem;color:var(--muted)">No pairs yet.</div>';
     return pairs.map(p => {
+      const comboGoals = getComboGoals(p.p1, p.p2);
+      const comboBadge = comboGoals > 0
+        ? `<span title="${comboGoals} goal${comboGoals!==1?'s':''} from this pair combining directly (scorer + assister)" style="font-size:.62rem;color:var(--amber);background:rgba(240,160,48,.12);border-radius:4px;padding:1px 5px;margin-left:5px;white-space:nowrap">⚽ ${comboGoals}</span>`
+        : '';
+      const chainCount = getChainCount(p.p1, p.p2);
+      const chainBadge = chainCount > 0
+        ? `<span title="${chainCount} key-pass${chainCount!==1?'es':''} → shot within 10s between this pair (timestamped, from event log data)" style="font-size:.62rem;color:#60a5fa;background:rgba(96,165,250,.12);border-radius:4px;padding:1px 5px;margin-left:4px;white-space:nowrap">🔗 ${chainCount}</span>`
+        : '';
+      const roleNote = (p.complementary && p.delta !== null && p.delta >= 5 && p.complementTags && roleLabel[p.complementTags[0]] && roleLabel[p.complementTags[1]])
+        ? `<div style="font-size:.62rem;color:var(--muted);margin-top:2px">${roleLabel[p.complementTags[0]]} + ${roleLabel[p.complementTags[1]]} — complementary roles</div>`
+        : '';
+      // Defensive coverage: goals conceded together vs apart — a separate signal from
+      // win-rate chemistry (see chemMap build notes). Only shown when there's enough
+      // data on both sides of the comparison to say something meaningful. Guard on
+      // all three fields (not just defenseDelta) since they're set together but this
+      // is cheap insurance against ever calling .toFixed on a missing value again.
+      const hasDefenseData = p.defenseDelta !== null && p.defenseDelta !== undefined
+        && typeof p.concededTogetherPerGame === 'number' && typeof p.concededApartPerGame === 'number';
+      const defenseNote = hasDefenseData
+        ? `<div style="font-size:.62rem;color:${p.defenseDelta <= -1 ? '#4ade80' : p.defenseDelta >= 1 ? '#fb923c' : 'var(--muted)'};margin-top:2px">
+            🛡 Concedes ${p.concededTogetherPerGame.toFixed(1)}/g together vs ${p.concededApartPerGame.toFixed(1)}/g apart
+            ${p.defenseDelta <= -1 ? ' — tightens up as a pair' : p.defenseDelta >= 1 ? ' — leakier as a pair' : ''}
+          </div>`
+        : '';
       if (p.delta === null) {
         return `<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--border);font-size:.78rem">
-          <span style="color:var(--text2)">${p.p1} <span style="color:var(--muted);font-size:.72rem">&amp;</span> ${p.p2}</span>
-          <span style="color:var(--muted);font-size:.72rem">No data yet</span>
+          <span style="color:var(--text2)">${p.p1} <span style="color:var(--muted);font-size:.72rem">&amp;</span> ${p.p2}${comboBadge}${chainBadge}</span>
+          <span style="color:var(--muted);font-size:.72rem">${p.games > 0 ? `Not enough data (${fmtGames(p.games)}G)` : 'No data yet'}</span>
         </div>`;
       }
       const col = synCol(p.delta);
       const sign = p.delta >= 0 ? '+' : '';
       const barW = Math.min(Math.abs(p.delta) / 25 * 100, 100).toFixed(0);
+      const deltaTooltip = `Win rate together (${p.winRate}%) vs what you'd expect from their solo win rates (${p.soloWR1 ?? '–'}% and ${p.soloWR2 ?? '–'}%). Positive = they win more together than expected; negative = less.`;
+      // Raw win-rate breakdown shown alongside the delta, rather than only the
+      // pre-combined number — lets you see whether the lift comes from both
+      // players, or mostly from one of them being strong solo anyway.
+      const wrBreakdown = `<div style="font-size:.62rem;color:var(--muted);margin-top:3px;display:flex;gap:8px">
+        <span>Together <b style="color:var(--text2)">${p.winRate}%</b></span>
+        <span>${p.p1} solo <b style="color:var(--text2)">${p.soloWR1 ?? '–'}%</b></span>
+        <span>${p.p2} solo <b style="color:var(--text2)">${p.soloWR2 ?? '–'}%</b></span>
+      </div>`;
       return `<div style="padding:6px 0;border-bottom:1px solid var(--border)">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
-          <span style="font-size:.8rem;color:var(--text2);font-weight:500">${p.p1} <span style="color:var(--muted);font-size:.72rem">&amp;</span> ${p.p2}</span>
-          <div style="text-align:right">
+          <span style="font-size:.8rem;color:var(--text2);font-weight:500">${p.p1} <span style="color:var(--muted);font-size:.72rem">&amp;</span> ${p.p2}${comboBadge}${chainBadge}</span>
+          <div style="text-align:right" title="${deltaTooltip}">
             <span style="font-family:'Bebas Neue',sans-serif;font-size:1rem;color:${col}">${sign}${p.delta}%</span>
-            <span style="font-size:.65rem;color:var(--muted);margin-left:4px">${p.winRate}% WR · ${fmtGames(p.games)}G</span>
+            <span style="font-size:.6rem;color:var(--muted);margin-left:2px">vs expected</span>
+            <span style="font-size:.65rem;color:var(--muted);margin-left:4px">· ${fmtGames(p.games)}G</span>
           </div>
         </div>
         <div style="background:var(--bg2);border-radius:2px;height:3px;overflow:hidden;position:relative">
@@ -13116,6 +13325,9 @@ function renderTeamSynergy(tA, tB) {
             ? `<div style="position:absolute;left:50%;width:${barW}%;height:100%;background:${col};border-radius:2px"></div>`
             : `<div style="position:absolute;right:50%;width:${barW}%;height:100%;background:${col};border-radius:2px"></div>`}
         </div>
+        ${wrBreakdown}
+        ${defenseNote}
+        ${roleNote}
       </div>`;
     }).join('');
   };
@@ -13143,6 +13355,9 @@ function renderTeamSynergy(tA, tB) {
     .sort((a,b) => b.v.spread - a.v.spread);
 
   content.innerHTML = `
+    <div style="font-size:.68rem;color:var(--muted);margin-bottom:10px;line-height:1.4">
+      The % on each pair shows how much better (or worse) they perform together compared to what their individual win rates would predict — e.g. <b style="color:var(--text2)">+12%</b> means they win 12 points more often as a pair than expected.
+    </div>
     <!-- Team synergy summary -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
       <div style="background:rgba(57,211,83,.06);border:1px solid rgba(57,211,83,.2);border-radius:8px;padding:12px 14px">
@@ -13882,16 +14097,65 @@ function computeAnalytics() {
         chemMap[key].gamesApart += sideA.weight; // sideA.weight === sideB.weight (0.5 or 1)
       }));
     });
+
+    // ── Defensive coverage: goals conceded together vs apart ───────────
+    // Whole-match granularity (not half-split) — goals aren't reliably timestamped
+    // to a half in this data, so rather than force false precision onto swapped
+    // players, this simply asks "were these two on the same team for this match"
+    // using the match's final team rosters, and compares goals conceded that match.
+    // A pair whose team concedes noticeably less when both are on it (vs either
+    // playing without the other) is a real defensive-coverage signal — something
+    // the win-rate delta alone can't distinguish from just "their team won".
+    const teamAConceded = m.goalsB, teamBConceded = m.goalsA;
+    const onTeam = (name) => m.teamA.some(r=>r.player===name) ? 'A' : m.teamB.some(r=>r.player===name) ? 'B' : null;
+    const matchPlayers = [...new Set([...m.teamA, ...m.teamB].map(r=>r.player))];
+    for (let i=0;i<matchPlayers.length;i++) for (let j=i+1;j<matchPlayers.length;j++) {
+      const pa = matchPlayers[i], pb = matchPlayers[j];
+      const ta = onTeam(pa), tb = onTeam(pb);
+      if (!ta || !tb) continue;
+      const key = [pa,pb].sort().join('|||');
+      if (ta === tb) {
+        // Together this match
+        if (!chemMap[key]) chemMap[key] = {p1:pa,p2:pb,games:0,wins:0};
+        if (!chemMap[key].concededTogether) { chemMap[key].concededTogether = 0; chemMap[key].concededTogetherGames = 0; }
+        chemMap[key].concededTogether += (ta === 'A' ? teamAConceded : teamBConceded);
+        chemMap[key].concededTogetherGames += 1;
+      } else {
+        // Apart this match (opposing teams) — each player's OWN team's conceded total
+        if (!chemMap[key]) continue; // only track for pairs who've also played together at some point
+        if (!chemMap[key].concededApart) { chemMap[key].concededApart = 0; chemMap[key].concededApartGames = 0; }
+        // Average of both sides' conceded, since "apart" involves two different teams conceding independently
+        chemMap[key].concededApart += ((teamAConceded + teamBConceded) / 2);
+        chemMap[key].concededApartGames += 1;
+      }
+    }
   });
 
   window._chemistry = Object.values(chemMap)
-    .filter(c=>c.games>=1)
+    .filter(c=>c.games>=CHEM_MIN_GAMES) // below this, there's not enough evidence to say anything about the pair
     .map(c=>({
       ...c,
       winRate: Math.round(c.wins/c.games*100),
       baseline: Math.round(((playerWinRate[c.p1]||0) + (playerWinRate[c.p2]||0)) / 2 * 100),
     }))
-    .map(c=>({...c, delta: c.winRate - c.baseline}))
+    .map(c=>{
+      const rawDelta = c.winRate - c.baseline;
+      return { ...c, rawDelta, delta: Math.round(shrinkChemDelta(rawDelta, c.games)) };
+    })
+    .map(c => {
+      // Defensive coverage: goals conceded per game together vs apart, and a
+      // shrunk delta of the same shape as the win-rate delta (negative = concede
+      // LESS together than apart, i.e. genuinely better defensive coverage as a
+      // pair — kept as its own signal since a low-concession pair isn't
+      // necessarily also a high-win-rate pair, e.g. a team that draws a lot).
+      const cgAvg = c.concededTogetherGames >= CHEM_MIN_GAMES ? c.concededTogether / c.concededTogetherGames : null;
+      const caAvg = c.concededApartGames >= CHEM_MIN_GAMES ? c.concededApart / c.concededApartGames : null;
+      const defenseRawDelta = (cgAvg !== null && caAvg !== null) ? parseFloat((cgAvg - caAvg).toFixed(2)) : null;
+      const defenseDelta = defenseRawDelta !== null
+        ? parseFloat(shrinkChemDelta(defenseRawDelta, Math.min(c.concededTogetherGames, c.concededApartGames)).toFixed(2))
+        : null;
+      return { ...c, concededTogetherPerGame: cgAvg, concededApartPerGame: caAvg, defenseRawDelta, defenseDelta };
+    })
     .sort((a,b)=>b.games-a.games||b.winRate-a.winRate);
 
   // ---- Per-player synergy score ----
