@@ -3124,6 +3124,12 @@ function computeWinLoss(playerMap, matches) {
 function computeRating(s, cs) {
   const g = Math.max(s.games, 1);
   const enforcer = cs ? n(cs.enforcer) : 0;
+  // NOTE: this event-derived stamina override is used here (profile/leaderboard
+  // rating) but INTENTIONALLY NOT in computeWeightedRating (team builder rating) —
+  // event-log stamina isn't reliable/fully sorted out yet, so the team builder
+  // deliberately sticks to the manual Stamina slider only. Don't "fix" this
+  // inconsistency by adding the override to computeWeightedRating without
+  // revisiting whether computeStaminaFromEvents is trustworthy first.
   const staminaComputed = computeStaminaFromEvents(s.player);
   const stamina = staminaComputed?.matches >= 2
     ? staminaComputed.score
@@ -11932,6 +11938,10 @@ function computeWeightedRating(playerName) {
   const p = playerStats[playerName];
   const cs = customStats[playerName] || {};
   if (!p) return 0;
+  // Uses cs.stamina (the manual slider) directly — deliberately does NOT fall back
+  // to computeStaminaFromEvents like computeRating does. Event-derived stamina isn't
+  // reliable enough yet to drive team-builder balancing; revisit this once that's
+  // sorted out, but don't change it as a "consistency fix" before then.
 
   // Sort matches newest first, take last 10 — exclude DNP rows
   const sorted = [...p.matches]
@@ -11969,6 +11979,54 @@ function computeWeightedRating(playerName) {
   const strikerBuff = sr ? (sr.rating / 10) * weightedBase * 0.08 : 0;
 
   return parseFloat((weightedBase + strikerBuff).toFixed(2));
+}
+
+// Breaks a player's weighted rating into "earned from actual match performance"
+// vs "manual enforcer/stamina input" vs "striker buff" — so the team builder can
+// show WHY two players ended up close in rating, instead of one opaque number.
+// Because enforcer*0.5 + stamina*0.4 is added identically to every match's score
+// before the weighted average, its contribution to the final weightedBase is just
+// that same constant (the weighted average of a constant is the constant) — no
+// need to duplicate the full computeWeightedRating loop to isolate it.
+function getRatingBreakdown(playerName) {
+  const p = playerStats[playerName];
+  const cs = customStats[playerName] || {};
+  if (!p) return null;
+  const manualBonus = n(cs.enforcer || 0) * 0.5 + n(cs.stamina || 0) * 0.4;
+  const total = computeWeightedRating(playerName);
+  const sr = computeStrikerRating(playerName);
+  // Re-derive weightedBase (pre-striker-buff) the same way computeWeightedRating does,
+  // so matchOnly = weightedBase - manualBonus is exact, not approximated.
+  const sorted = [...(p.matches||[])]
+    .filter(r => r.match_date && r.half === 'FULL' && r.team !== 'DNP' && r.team !== '-' && r.half !== 'DNP')
+    .sort((a,b) => (b.match_date||'').localeCompare(a.match_date||''))
+    .slice(0, 10);
+  let weightedBase;
+  if (!sorted.length || sorted.length < 5) {
+    weightedBase = computeRating(p, cs); // computeRating already includes enforcer/stamina once, not per-match-weighted
+  } else {
+    let totalWeight = 0, weightedSum = 0;
+    sorted.forEach((r, idx) => {
+      const w = idx < 5 ? 1.5 : 1.0;
+      const matchScore =
+        n(r.goals) * 4.5 + n(r.assists) * 3 + n(r.total_shots) * 0.25 +
+        (n(r.interceptions) + n(r.tackles)) * 0.4 + n(r.goalkeeper_saves) * 0.3 +
+        n(r.key_passes) * 0.35 + n(r.blocks) * 0.3 + manualBonus;
+      weightedSum += matchScore * w;
+      totalWeight += w;
+    });
+    weightedBase = totalWeight > 0 ? weightedSum / totalWeight : 0;
+  }
+  const matchOnly = parseFloat((weightedBase - manualBonus).toFixed(2));
+  const strikerBuff = parseFloat((total - weightedBase).toFixed(2));
+  return {
+    matchOnly,                          // rating earned purely from on-pitch stats
+    manualBonus: parseFloat(manualBonus.toFixed(2)), // from Enforcer/Stamina sliders
+    strikerBuff: strikerBuff > 0 ? strikerBuff : 0,   // elite-scorer bonus, if any
+    total,
+    enforcer: n(cs.enforcer || 0),
+    stamina: n(cs.stamina || 0),
+  };
 }
 
 // Small-sample shrinkage for team-builder balancing only. A player's raw rating
@@ -13316,9 +13374,19 @@ function renderTeamResult(tA, tB) {
           ? ` · injury ${Math.round((1-(p.effectiveRating/(p.weightedRating*p.streakMod||1)))*100)}% off` : '';
         const wrNote = p.streakMod !== 1 ? ` · WR ${p.streakMod > 1 ? '+' : ''}${Math.round((p.streakMod-1)*100)}%` : '';
         const buffNote = p.playerBuff ? ` · buff ${p.playerBuff > 0 ? '+' : ''}${p.playerBuff}` : '';
-        const tip = p._isCustom ? `Custom player · Effective: ${eff}` : `Base: ${base}${wrNote}${penNote}${buffNote} → Effective: ${eff}`;
+        // Breaks out how much of the base rating came from actual match performance
+        // vs manually-set Enforcer/Stamina — e.g. two players can land close together
+        // where one earned it on the pitch and the other got there partly from a
+        // manual physicality score. Only computed/shown for real (non-custom) players.
+        const rb = !p._isCustom ? getRatingBreakdown(p.player) : null;
+        const manualNote = rb && rb.manualBonus > 0.05
+          ? ` (match: ${rb.matchOnly.toFixed(1)} + enforcer/stamina: +${rb.manualBonus.toFixed(1)})` : '';
+        const tip = p._isCustom ? `Custom player · Effective: ${eff}` : `Base: ${base}${manualNote}${wrNote}${penNote}${buffNote} → Effective: ${eff}`;
         const display = p._isCustom ? parseFloat(eff).toFixed(1) : eff;
-        return `<span data-tip="${tip}" style="cursor:help">${display}</span>`;
+        const manualBadge = rb && rb.manualBonus > 0.05
+          ? `<span style="font-size:.6rem;color:var(--muted);opacity:.7;margin-left:3px" title="${rb.manualBonus.toFixed(1)} of this rating comes from manually-set Enforcer/Stamina, not match performance">(+${rb.manualBonus.toFixed(1)} manual)</span>`
+          : '';
+        return `<span data-tip="${tip}" style="cursor:help">${display}</span>${manualBadge}`;
       })() : ''}</span>
     </div>`;
   }).join('');
