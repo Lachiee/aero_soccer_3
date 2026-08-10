@@ -11987,10 +11987,10 @@ function shrinkRatingForBalance(rating, games, poolMean) {
 // the regulars as goalkeepers. Comparing each player to the pool they're actually
 // being balanced against is more meaningful than a hardcoded number.
 //
-// poolAverages: { gpg, apg, kppg, defpg, savpg, nmpg } — mean per-game rate across
+// poolAverages: { gpg, apg, kppg, defpg, savpg } — mean per-game rate across
 // the currently selected player pool. Computed once per pool by computePoolAverages().
 function computePoolAverages(players) {
-  const sums = { gpg:0, apg:0, kppg:0, defpg:0, savpg:0, nmpg:0 };
+  const sums = { gpg:0, apg:0, kppg:0, defpg:0, savpg:0 };
   players.forEach(p => {
     const g = Math.max(p.games, 1);
     sums.gpg   += p.goals / g;
@@ -11998,7 +11998,6 @@ function computePoolAverages(players) {
     sums.kppg  += p.key_passes / g;
     sums.defpg += (p.tackles + p.interceptions + p.blocks) / g;
     sums.savpg += (p.goalkeeper_saves || 0) / g;
-    sums.nmpg  += p.nutmegs / g;
   });
   const count = Math.max(players.length, 1);
   Object.keys(sums).forEach(k => sums[k] = sums[k] / count);
@@ -12010,29 +12009,57 @@ function getPlayerRoles(p, poolAvg) {
   const gpg = p.goals / g, apg = p.assists / g, kppg = p.key_passes / g;
   const defpg = (p.tackles + p.interceptions + p.blocks) / g;
   const savpg = (p.goalkeeper_saves || 0) / g;
-  const nmpg = p.nutmegs / g;
 
   // Fall back to fixed thresholds if no pool context is given (shouldn't normally
   // happen, but keeps this safe to call standalone).
-  const avg = poolAvg || { gpg:1, apg:0.8, kppg:3, defpg:6, savpg:3, nmpg:1 };
+  const avg = poolAvg || { gpg:1, apg:0.8, kppg:3, defpg:6, savpg:3 };
 
-  const tags = [];
-  if (avg.savpg > 0 && savpg >= avg.savpg * 1.6) tags.push('goalkeeper');
-  if (avg.gpg > 0 && gpg >= avg.gpg * 1.3) tags.push('scorer');
-  if ((avg.apg > 0 && apg >= avg.apg * 1.3) || (avg.kppg > 0 && kppg >= avg.kppg * 1.3)) tags.push('creator');
-  if (avg.defpg > 0 && defpg >= avg.defpg * 1.25) tags.push('defender');
-  if (avg.nmpg > 0 && nmpg >= avg.nmpg * 1.5) tags.push('flair');
-  if (!tags.length) tags.push('allrounder');
-  return tags;
+  // Compute every category's strength relative to the pool ONCE, then rank —
+  // this is what makes primary/secondary meaningful. Previously tags were
+  // pushed in a fixed if-chain order (goalkeeper, scorer, creator, defender),
+  // so a player who cleared both the GK and creator thresholds always showed
+  // "goalkeeper" first regardless of which one they actually lean into harder
+  // (e.g. a keeper who ALSO distributes well, or vice versa) — this ranks by
+  // actual ratio instead, so roles[0] is the genuine primary.
+  const THRESH = { goalkeeper: 1.6, scorer: 1.3, creator: 1.3, defender: 1.25 };
+  const ratios = [
+    { role: 'goalkeeper', ratio: avg.savpg > 0 ? savpg / avg.savpg : 0 },
+    { role: 'scorer',     ratio: avg.gpg > 0 ? gpg / avg.gpg : 0 },
+    { role: 'creator',    ratio: Math.max(avg.apg > 0 ? apg / avg.apg : 0, avg.kppg > 0 ? kppg / avg.kppg : 0) },
+    { role: 'defender',   ratio: avg.defpg > 0 ? defpg / avg.defpg : 0 },
+  ].sort((a, b) => b.ratio - a.ratio);
+
+  const tags = ratios.filter(r => r.ratio >= THRESH[r.role]).map(r => r.role);
+  if (tags.length) return tags;
+
+  // Nobody cleared a strong threshold — rather than dumping the player into a
+  // generic "allrounder" bucket (which contributes nothing to role-based
+  // balancing/coverage checks), find their single BEST category relative to
+  // the pool and tag them with that. This matters because a player can sit
+  // just under a threshold (e.g. 1.55x on saves, just short of the 1.6x GK
+  // cutoff) while being clearly below average everywhere else — that's a
+  // real lean, not genuine all-round flatness, and should still count.
+  const best = ratios[0]; // already sorted descending
+
+  // Only a genuinely flat statline (best category still close to pool average)
+  // gets called a true all-rounder — everyone else gets their best lean.
+  if (best.ratio < 1.1) return ['allrounder'];
+  return [best.role];
 }
 
+// Convenience accessors — roles[0] is always the strongest relative category
+// (primary), roles[1] (if present) the next strongest (secondary). A player
+// who only cleared one threshold, or fell back to a single best-lean/
+// all-rounder tag, simply has no secondary — that's a real "just one thing"
+// profile, not a gap in the data.
+function getPrimaryRole(p, poolAvg) { return getPlayerRoles(p, poolAvg)[0]; }
+function getSecondaryRole(p, poolAvg) { return getPlayerRoles(p, poolAvg)[1] || null; }
+
 // Back-compat single-label wrapper — a few older display spots want one icon/label
-// per player rather than a full tag list. Picks the strongest tag by a fixed
-// priority order (goalkeeper first since it's the most specialized/least common).
-const ROLE_PRIORITY = ['goalkeeper', 'scorer', 'creator', 'defender', 'flair', 'allrounder'];
+// per player rather than a full tag list. roles[0] is already the genuine primary
+// (ranked by relative strength in getPlayerRoles), so just take that directly.
 function getPlayerRole(p, poolAvg) {
-  const tags = getPlayerRoles(p, poolAvg);
-  return ROLE_PRIORITY.find(r => tags.includes(r)) || 'allrounder';
+  return getPrimaryRole(p, poolAvg) || 'allrounder';
 }
 
 // ── Profile-based pairing suggestions ──────────────────────────────────
@@ -12075,7 +12102,7 @@ function getPairComplementarity(p1, p2, poolAvg) {
   }
 
   // 2) Attacker <-> Defender using role tags
-  const isAttacker = (roles) => roles.some(r => ['scorer','creator','flair'].includes(r));
+  const isAttacker = (roles) => roles.some(r => ['scorer','creator'].includes(r));
   const isDefender = (roles) => roles.includes('defender');
   if ((isAttacker(roles1) && isDefender(roles2)) || (isAttacker(roles2) && isDefender(roles1))) {
     const att = isAttacker(roles1) ? p1 : p2;
@@ -12097,6 +12124,52 @@ function getPairComplementarity(p1, p2, poolAvg) {
   }
 
   return { score, reasons };
+}
+
+// ── Player volatility (game-to-game unpredictability) ──────────────────
+// Different from the sample-size shrinkage applied to ratings: shrinkage asks
+// "how much do we trust this rating given how few games we've seen", while
+// volatility asks "even with plenty of games, does this player swing wildly
+// from game to game, or produce steadily?" A boom-or-bust player and a
+// reliably-average player can have the SAME average rating but very
+// different risk profiles for a team relying on them.
+//
+// Computed as the coefficient of variation (stdDev / mean) of a per-match
+// performance score, using the same stat weights as computeRating. Needs at
+// least 5 FULL-row matches to produce a meaningful number — below that, a
+// player is treated as unknown/neutral volatility rather than guessing.
+// NOTE: like the existing X-Factor calculation elsewhere in the app, this
+// only sees FULL rows, so a player's swapped-team matches (1H/2H only, no
+// FULL row) aren't counted in their volatility sample.
+function getPlayerVolatility(p) {
+  if (!p || !p.matches || p.matches.length < 5) return null;
+  const perMatchScore = p.matches.map(r =>
+    n(r.goals) * 4.5 + n(r.assists) * 3 + n(r.total_shots) * 0.25 +
+    (n(r.interceptions) + n(r.tackles)) * 0.4 + n(r.goalkeeper_saves) * 0.3 +
+    n(r.key_passes) * 0.35 + n(r.blocks) * 0.3
+  );
+  const mean = perMatchScore.reduce((s,v)=>s+v,0) / perMatchScore.length;
+  if (mean <= 0) return null; // no meaningful output to measure variance against
+  const variance = perMatchScore.reduce((s,v)=>s+(v-mean)**2,0) / perMatchScore.length;
+  const stdDev = Math.sqrt(variance);
+  const cv = stdDev / mean; // coefficient of variation — scale-independent, comparable across players
+  return { cv, mean, matches: perMatchScore.length };
+}
+
+// League-wide volatility baseline, used to classify a player as "volatile"
+// relative to their peers rather than against an arbitrary fixed number.
+// Cached per session (recomputed if playerStats changes via nav) since it
+// scans every player's match history — not something to redo per pair.
+let _volatilityBaselineCache = null;
+function getVolatilityBaseline() {
+  if (_volatilityBaselineCache) return _volatilityBaselineCache;
+  const cvs = Object.values(playerStats)
+    .map(p => getPlayerVolatility(p))
+    .filter(v => v !== null)
+    .map(v => v.cv);
+  const mean = cvs.length ? cvs.reduce((s,v)=>s+v,0) / cvs.length : 0.6;
+  _volatilityBaselineCache = { mean, count: cvs.length };
+  return _volatilityBaselineCache;
 }
 
 function teamDimensions(team) {
@@ -12289,6 +12362,27 @@ function shuffleTeams() {
   };
 
   // Score a split using the same multi-dimensional balance as autoBalance
+  const poolAvgForRolesShuffle = computePoolAverages(sel);
+  const roleCoveragePenaltyShuffle = (a, b) => {
+    const rolesOf = (team) => {
+      const has = { scorer: false, creator: false, defender: false };
+      team.forEach(p => {
+        (p.roles || getPlayerRoles(p, poolAvgForRolesShuffle)).forEach(r => { if (r in has) has[r] = true; });
+      });
+      return has;
+    };
+    const hasA = rolesOf(a), hasB = rolesOf(b);
+    let penalty = 0;
+    ['scorer', 'creator', 'defender'].forEach(role => {
+      if (hasA[role] !== hasB[role]) penalty += 8;
+    });
+    return penalty;
+  };
+  const volBaselineShuffle = getVolatilityBaseline().mean || 0.3;
+  const volatilityScoreShuffle = (team) => team.reduce((s,p) => {
+    const v = getPlayerVolatility(p);
+    return s + (v ? v.cv : volBaselineShuffle);
+  }, 0);
   const scoreSplit = (a, b) => {
     const rA = a.reduce((s,p) => s+p.effectiveRating, 0);
     const rB = b.reduce((s,p) => s+p.effectiveRating, 0);
@@ -12297,6 +12391,7 @@ function shuffleTeams() {
     const gkB = b.reduce((s,p) => s + ((p.goalkeeper_saves||0)/Math.max(p.games,1)), 0);
     const eA  = a.reduce((s,p) => s + p.enforcer, 0);
     const eB  = b.reduce((s,p) => s + p.enforcer, 0);
+    const volA = volatilityScoreShuffle(a), volB = volatilityScoreShuffle(b);
     const abs = (x,y) => Math.abs(x-y);
     return (
       abs(rA,rB)          * 3.0 +
@@ -12305,7 +12400,9 @@ function shuffleTeams() {
       abs(dA.playmaking,dB.playmaking) * 1.0 +
       abs(gkA,gkB)        * 2.0 +
       abs(eA,eB)          * 1.2 +
-      Math.abs(dA.synergy - dB.synergy) * 5.0
+      Math.abs(dA.synergy - dB.synergy) * 5.0 +
+      roleCoveragePenaltyShuffle(a, b) +
+      abs(volA, volB) * 1.5
     );
   };
 
@@ -12486,6 +12583,42 @@ function autoBalance(rebalanceOnly = false) {
     chemLookup[`${c.p2}|||${c.p1}`] = c;
   });
 
+  // Role coverage: does each team have at least one real scorer/creator, rather
+  // than just balanced SUM totals (a team could match another's total playmaking
+  // number with zero individual playmakers if their attackers "share the load" —
+  // this catches that specific failure mode). Uses the pool-relative multi-tag
+  // role system (getPlayerRoles), computed once per selected pool.
+  const poolAvgForRoles = computePoolAverages(sel);
+  const roleCoveragePenalty = (a, b) => {
+    const rolesOf = (team) => {
+      const has = { scorer: false, creator: false, defender: false };
+      team.forEach(p => {
+        (p.roles || getPlayerRoles(p, poolAvgForRoles)).forEach(r => { if (r in has) has[r] = true; });
+      });
+      return has;
+    };
+    const hasA = rolesOf(a), hasB = rolesOf(b);
+    let penalty = 0;
+    ['scorer', 'creator', 'defender'].forEach(role => {
+      // Only penalise a team having ZERO of a role while the other has at least one —
+      // this is a coverage gap, not a small imbalance, so it's weighted heavily.
+      if (hasA[role] !== hasB[role]) penalty += 8;
+    });
+    return penalty;
+  };
+
+  // Volatility balance: teams with a similar TOTAL amount of "boom or bust" risk
+  // are preferable to one team hoarding all the unpredictable players. Uses the
+  // coefficient-of-variation based getPlayerVolatility, relative to the league
+  // baseline so it's meaningful regardless of absolute scoring rates.
+  const volBaseline = getVolatilityBaseline().mean || 0.3;
+  const volatilityScore = (team) => team.reduce((s,p) => {
+    const v = getPlayerVolatility(p);
+    // No reliable volatility data (too few games) -> treat as league-average, so
+    // unproven players don't get free-passed OR unfairly flagged either way.
+    return s + (v ? v.cv : volBaseline);
+  }, 0);
+
   // Secondary score: overall balance (rating + attack + defense + creative + gk + H2H synergy)
   const secondaryScore = (a, b) => {
     const dA = teamDimensions(a), dB = teamDimensions(b);
@@ -12500,13 +12633,17 @@ function autoBalance(rebalanceOnly = false) {
     // Chemistry imbalance — heavily weighted so teams with stacked good pairs get split
     const synergyDiff = Math.abs(dA.synergy - dB.synergy) * 5.0;
 
+    const volA = volatilityScore(a), volB = volatilityScore(b);
+
     return (
       abs(rA, rB) * 3.0 +
       abs(dA.attack, dB.attack) * 1.5 +
       abs(dA.defense, dB.defense) * 1.5 +
       abs(dA.playmaking, dB.playmaking) * 1.0 +
       abs(gkA, gkB) * 2.0 +
-      synergyDiff
+      synergyDiff +
+      roleCoveragePenalty(a, b) +
+      abs(volA, volB) * 1.5
     );
   };
 
@@ -12677,6 +12814,13 @@ function explainBalance(tA, tB) {
   const eB = tB.reduce((s,p)=>s+p.enforcer,0);
   const gkA = tA.reduce((s,p)=>s+((p.goalkeeper_saves||0)/Math.max(p.games,1)),0);
   const gkB = tB.reduce((s,p)=>s+((p.goalkeeper_saves||0)/Math.max(p.games,1)),0);
+  const poolAvgExplain = computePoolAverages([...tA, ...tB]);
+  const volBaselineExplain = getVolatilityBaseline().mean || 0.3;
+  const volOf = (team) => team.reduce((s,p) => {
+    const v = getPlayerVolatility(p);
+    return s + (v ? v.cv : volBaselineExplain);
+  }, 0);
+  const volA = volOf(tA), volB = volOf(tB);
 
   const pct = (x, y) => {
     const t = x + y;
@@ -12690,6 +12834,7 @@ function explainBalance(tA, tB) {
     { label: 'chemistry',        gap: pct(Math.abs(dA.synergy)+50, Math.abs(dB.synergy)+50) },
     { label: 'goalkeeping',      gap: gkA + gkB > 0 ? pct(gkA, gkB) : null },
     { label: 'enforcer/physicality', gap: eA + eB > 0 ? pct(eA, eB) : null },
+    { label: 'consistency (volatility)', gap: volA + volB > 0 ? pct(volA, volB) : null },
   ].filter(f => f.gap != null);
 
   const lockedCount = tA.concat(tB).filter(p => lockedTeam[p.player]).length;
@@ -12700,6 +12845,24 @@ function explainBalance(tA, tB) {
   if (loosest && loosest.gap > 15) {
     text += ` Biggest remaining gap is ${loosest.label} (${loosest.gap}% split) — not always fully closeable alongside the other factors.`;
   }
+
+  // Role coverage callout — a genuine gap (one team has zero of a role the
+  // other has) is worth naming explicitly, since it's a different kind of
+  // problem than a numeric imbalance and easy to miss otherwise.
+  const rolesOfExplain = (team) => {
+    const has = { scorer: false, creator: false, defender: false };
+    team.forEach(p => (p.roles || getPlayerRoles(p, poolAvgExplain)).forEach(r => { if (r in has) has[r] = true; }));
+    return has;
+  };
+  const hasA = rolesOfExplain(tA), hasB = rolesOfExplain(tB);
+  const roleLabelsExplain = { scorer: 'a real scorer', creator: 'a real creator', defender: 'a real defender' };
+  const missingGaps = ['scorer','creator','defender']
+    .filter(r => hasA[r] !== hasB[r])
+    .map(r => `Team ${hasA[r] ? 'B' : 'A'} has no ${roleLabelsExplain[r]}`);
+  if (missingGaps.length) {
+    text += ` ⚠ ${missingGaps.join('; ')} — couldn't be fully resolved with this player pool.`;
+  }
+
   if (lockedCount > 0) {
     text += ` ${lockedCount} player${lockedCount>1?'s were':' was'} pinned to a side and excluded from optimization.`;
   }
@@ -13018,16 +13181,19 @@ function renderTeamResult(tA, tB) {
       </div>`;
     })()}`;
 
-  const roleIcon = { scorer:'⚽', creator:'🎯', defender:'🛡️', goalkeeper:'🧤', flair:'🪄', allrounder:'⭐' };
-  const roleLabel = { scorer:'Scorer', creator:'Creator', defender:'Defender', goalkeeper:'Goalkeeper', flair:'Flair', allrounder:'All-Rounder' };
+  const roleIcon = { scorer:'⚽', creator:'🎯', defender:'🛡️', goalkeeper:'🧤', allrounder:'⭐' };
+  const roleLabel = { scorer:'Scorer', creator:'Creator', defender:'Defender', goalkeeper:'Goalkeeper', allrounder:'All-Rounder' };
 
   const renderRows = (team, teamKey) => team.map(p => {
     const note = playerNotes[p.player];
-    const role = p.role || getPlayerRole(p);
     const roles = p.roles || getPlayerRoles(p);
-    const roleTitle = roles.length > 1
-      ? `Also: ${roles.filter(r=>r!==role).map(r=>roleLabel[r]).join(', ')}`
-      : roleLabel[role];
+    const primary = roles[0], secondary = roles[1] || null;
+    const roleTitle = secondary
+      ? `Primary: ${roleLabel[primary]} · Secondary: ${roleLabel[secondary]}`
+      : `Primary: ${roleLabel[primary]}`;
+    const roleDisplay = secondary
+      ? `${roleIcon[primary]} ${roleLabel[primary]} <span style="opacity:.6">/ ${roleIcon[secondary]} ${roleLabel[secondary]}</span>`
+      : `${roleIcon[primary]} ${roleLabel[primary]}`;
     return `<div class="tp-row" draggable="true"
       ondragstart="startDrag('${p.player}','${teamKey}',this)"
       ondragend="endDrag(this)"
@@ -13036,7 +13202,7 @@ function renderTeamResult(tA, tB) {
       ontouchend="touchEndDrag(this,event)">
       <span style="font-size:.8rem;opacity:.5;cursor:grab;margin-right:2px">⠿</span>
       <span class="tp-name" onclick="nav('profile','${p.player}')" style="cursor:pointer">${p.player}</span>
-      <span style="font-size:.7rem;opacity:.55" title="${roleTitle}">${roles.map(r=>roleIcon[r]).join('')} ${roleLabel[role]}${roles.length>1?'+':''}</span>
+      <span style="font-size:.7rem;opacity:.55" title="${roleTitle}">${roleDisplay}</span>
       ${p.streakLabel ? `<span style="font-size:.65rem;font-weight:600;padding:1px 6px;border-radius:4px;${p.streakLabel.type==='buff'?'background:rgba(96,165,250,.15);color:#60a5fa':'background:rgba(239,68,68,.12);color:#f87171'}" title="${p.streakLabel.type==='buff'?'Win rate is low — rating buffed to help balance teams':'Win rate is high — rating slightly nerfed to help balance teams'}">WR ${p.streakLabel.text}</span>` : ''}
       ${p.playerBuff ? `<span style="font-size:.65rem;font-weight:600;padding:1px 6px;border-radius:4px;${p.playerBuff>0?'background:rgba(74,222,128,.12);color:#4ade80':'background:rgba(248,113,113,.12);color:#f87171'}" data-tip="Manual buff applied — adjustable in Player Notes &amp; Buffs above">${p.playerBuff>0?'+':''}${p.playerBuff} buff</span>` : ''}
       ${(() => {
@@ -13347,7 +13513,7 @@ function renderTeamSynergy(tA, tB) {
   const synCol = (v) => v === null ? 'var(--muted)' : v >= 8 ? '#4ade80' : v >= 2 ? '#a3e635' : v >= -2 ? '#facc15' : v >= -8 ? '#fb923c' : '#f87171';
   const synIcon = (v) => v === null ? '–' : v >= 8 ? '🔥' : v >= 2 ? '⚡' : v >= -2 ? '⚖' : '❄';
 
-  const roleLabel = { goalkeeper: 'GK', scorer: 'Scorer', creator: 'Creator', defender: 'Defender', flair: 'Flair' };
+  const roleLabel = { goalkeeper: 'GK', scorer: 'Scorer', creator: 'Creator', defender: 'Defender' };
   const renderPairs = (pairs, teamCol) => {
     if (!pairs.length) return '<div style="font-size:.78rem;color:var(--muted)">No pairs yet.</div>';
     return pairs.map(p => {
