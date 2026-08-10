@@ -7324,6 +7324,7 @@ function loadData(csv) {
   allRows = parseCSV(csv);
   playerStats = buildPlayerStats(allRows);
   if (typeof invalidateRoleBaselineCache === 'function') invalidateRoleBaselineCache();
+  if (typeof invalidateRatingBaselineCache === 'function') invalidateRatingBaselineCache();
   matchList = buildMatches(allRows);
   computeWinLoss(playerStats, matchList);
   computeSpiderMaxima();
@@ -8646,6 +8647,7 @@ function confirmEditMatchDate(matchId, newDate) {
   // Rebuild everything
   playerStats = buildPlayerStats(allRows);
   if (typeof invalidateRoleBaselineCache === 'function') invalidateRoleBaselineCache();
+  if (typeof invalidateRatingBaselineCache === 'function') invalidateRatingBaselineCache();
   matchList = buildMatches(allRows);
   computeWinLoss(playerStats, matchList);
   computeSpiderMaxima();
@@ -8669,6 +8671,7 @@ function deleteMatch(matchId, matchDate) {
   // Rebuild everything
   playerStats = buildPlayerStats(allRows);
   if (typeof invalidateRoleBaselineCache === 'function') invalidateRoleBaselineCache();
+  if (typeof invalidateRatingBaselineCache === 'function') invalidateRatingBaselineCache();
   matchList = buildMatches(allRows);
   computeWinLoss(playerStats, matchList);
   computeSpiderMaxima();
@@ -8708,6 +8711,7 @@ function restoreFromBackup() {
     // Rebuild everything
     playerStats = buildPlayerStats(allRows);
     if (typeof invalidateRoleBaselineCache === 'function') invalidateRoleBaselineCache();
+    if (typeof invalidateRatingBaselineCache === 'function') invalidateRatingBaselineCache();
     matchList = buildMatches(allRows);
     computeWinLoss(playerStats, matchList);
     computeSpiderMaxima();
@@ -11971,15 +11975,66 @@ function computeWeightedRating(playerName) {
 // (computeRating/computeWeightedRating) treats every player's per-game average as
 // equally reliable, but someone with 1-4 games can have a wildly noisy rating (one
 // hat-trick, one big save game) that the balancer would otherwise trust as much as
-// a 40-game regular. This pulls low-sample ratings toward the selected pool's mean,
-// with the pull fading out by roughly SHRINK_K games — used only when deciding team
-// splits, never shown as the player's displayed rating elsewhere in the app.
-const SHRINK_K = 8; // games at which a player is trusted ~50/50 vs the pool average
-function shrinkRatingForBalance(rating, games, poolMean) {
+// a 40-game regular. This pulls low-sample ratings toward a baseline, with the pull
+// fading out as games accumulate — used only when deciding team splits, never shown
+// as the player's displayed rating elsewhere in the app.
+//
+// Shrinks toward a FIXED league-wide rating baseline (see getLeagueRatingBaseline),
+// not the currently selected pool's average — pulling toward "whoever you happened
+// to pick today" meant a low-sample player's rating could be inflated just by being
+// selected alongside strong players (their inflated pool average became the anchor),
+// or deflated alongside weak ones. A fixed baseline means the shrinkage target
+// doesn't move depending on today's selection.
+//
+// Shrinkage strength also scales with the player's own CONSISTENCY (via
+// getPlayerVolatility's coefficient of variation), not just games played: a new
+// player who's been consistently excellent (or consistently poor) across their
+// few games is a clearer signal than someone bouncing wildly game to game, and
+// should be trusted sooner even at the same low game count. A genuinely elite
+// newcomer performing like your top players, or a genuinely weak one performing
+// like your bottom players, should be recognized as such rather than dragged
+// toward "average" just because they're new.
+const SHRINK_K = 8; // base games-scale for trust — see trust formula below
+function shrinkRatingForBalance(rating, games, player) {
   const g = Math.max(games || 0, 0);
-  const trust = g / (g + SHRINK_K); // 0 games -> 0 trust, 8 games -> 50%, 24 games -> 75%...
-  return rating * trust + poolMean * (1 - trust);
+  const baseline = getLeagueRatingBaseline();
+
+  // Consistency multiplier: low volatility (steady performer) shrinks the
+  // effective SHRINK_K down (reaches full trust sooner); high volatility
+  // stretches it out (stays distrusted longer). No volatility data yet
+  // (fewer than 5 games) -> neutral, no adjustment, fall back to games-only.
+  let consistencyFactor = 1.0;
+  if (player) {
+    const vol = getPlayerVolatility(player);
+    if (vol) {
+      const baselineCv = getVolatilityBaseline().mean || 0.3;
+      // ratio < 1 = more consistent than league average -> trust sooner (lower K)
+      // ratio > 1 = more volatile than league average -> trust later (higher K)
+      const ratio = baselineCv > 0 ? vol.cv / baselineCv : 1;
+      consistencyFactor = Math.max(0.4, Math.min(2.0, ratio)); // clamp to a sane range
+    }
+  }
+  const effectiveK = SHRINK_K * consistencyFactor;
+
+  const trust = g / (g + effectiveK);
+  return rating * trust + baseline * (1 - trust);
 }
+
+// Fixed league-wide rating baseline — the shrinkage "anchor" for low-sample
+// players, computed once from all regular players' weighted ratings (5+ games,
+// same threshold used for the role baseline) and cached for the session.
+// Same fix as getLeagueRoleBaseline: a player's shrinkage target shouldn't move
+// depending on who else is currently selected in the team builder.
+let _leagueRatingBaselineCache = null;
+function getLeagueRatingBaseline() {
+  if (_leagueRatingBaselineCache != null) return _leagueRatingBaselineCache;
+  const regulars = Object.values(playerStats || {}).filter(p => p.games >= 5);
+  const ratings = regulars.map(p => computeWeightedRating(p.player)).filter(r => !isNaN(r));
+  _leagueRatingBaselineCache = ratings.length ? ratings.reduce((s,r)=>s+r,0) / ratings.length : 0;
+  return _leagueRatingBaselineCache;
+}
+function invalidateRatingBaselineCache() { _leagueRatingBaselineCache = null; }
+
 // (shrinkChemDelta / CHEM_MIN_GAMES / CHEM_SHRINK_K are declared earlier in script
 // block 1, alongside filtChemList, since that's built before this script block runs)
 
@@ -12493,10 +12548,11 @@ function shuffleTeams() {
 }
 
 function autoBalance(rebalanceOnly = false) {
-  // First pass: gather raw weighted ratings so we can compute the selected
-  // pool's mean, then shrink low-sample players' ratings toward it (see
-  // shrinkRatingForBalance) so a player with only a couple of games doesn't
-  // swing the balance based on a noisy small-sample average.
+  // Gather raw weighted ratings for the selected pool. Shrinkage (see
+  // shrinkRatingForBalance) now pulls low-sample players toward a FIXED
+  // league-wide baseline plus a consistency check, not this pool's own
+  // average — so a low-sample player's rating doesn't depend on who else
+  // happens to be selected today.
   const rawList = [...selectedForTeams].map(name => {
     const p = customPlayers[name] || playerStats[name];
     if (!p) return null;
@@ -12504,9 +12560,6 @@ function autoBalance(rebalanceOnly = false) {
     const weightedRatingRaw = p._isCustom ? computeRating(p, cs) : computeWeightedRating(name);
     return { name, p, cs, weightedRatingRaw, games: p.games || 0 };
   }).filter(Boolean);
-  const poolMean = rawList.length
-    ? rawList.reduce((s,r) => s + r.weightedRatingRaw, 0) / rawList.length
-    : 0;
   // Role thresholds now use a fixed league-wide baseline (getLeagueRoleBaseline),
   // not this pool — kept for backward-compat call signatures only; getPlayerRoles
   // ignores this parameter. See getPlayerRoles notes for why.
@@ -12516,7 +12569,7 @@ function autoBalance(rebalanceOnly = false) {
     p.rating = computeRating(p, cs);
     // Custom players are hand-entered (no match history to be noisy about),
     // so only shrink real players with a real sample-size problem.
-    const weightedRating = p._isCustom ? weightedRatingRaw : shrinkRatingForBalance(weightedRatingRaw, games, poolMean);
+    const weightedRating = p._isCustom ? weightedRatingRaw : shrinkRatingForBalance(weightedRatingRaw, games, p);
     const note = (playerNotes[name] || '').toLowerCase();
     const pen = getPenalty(playerNotes[name]);
 
@@ -13101,21 +13154,17 @@ function getPenalty(note) {
 
 function renderTeamResult(tA, tB) {
   // Recompute effectiveRating for all players in case notes/penalties changed.
+  // Recompute effectiveRating for all players in case notes/penalties changed.
   // Uses the same small-sample shrinkage as autoBalance (see shrinkRatingForBalance)
   // so the displayed team ratings stay consistent with what the balancer actually
-  // optimized for, even after a manual drag-and-drop reshuffle.
-  const allPlayers = [...tA, ...tB];
-  const rawRatings = allPlayers.map(p => p._isCustom
-    ? null // custom players aren't shrunk — see recomputeRating below
-    : computeWeightedRating(p.player));
-  const realRatings = rawRatings.filter(r => r != null);
-  const poolMean = realRatings.length ? realRatings.reduce((s,r)=>s+r,0) / realRatings.length : 0;
-
+  // optimized for, even after a manual drag-and-drop reshuffle. Shrinkage now pulls
+  // toward a fixed league baseline (not this pool), scaled by each player's own
+  // consistency — no pool-mean computation needed here anymore.
   const recomputeRating = (p) => {
     const pen = getPenalty(playerNotes[p.player]);
     const weightedRating = p._isCustom
       ? (p._ratingOverride || computeRating(p, customStats[p.player] || {}))
-      : shrinkRatingForBalance(computeWeightedRating(p.player), p.games || 0, poolMean);
+      : shrinkRatingForBalance(computeWeightedRating(p.player), p.games || 0, p);
     const streakMod = p._isCustom ? 1.0 : (p.streakMod || 1.0);
     const buff = playerBuffs[p.player] || 0;
     p.effectiveRating = weightedRating * (1 - pen) * streakMod + buff;
@@ -13924,6 +13973,7 @@ function doImport() {
     allRows = rows;
     playerStats = buildPlayerStats(allRows);
     if (typeof invalidateRoleBaselineCache === 'function') invalidateRoleBaselineCache();
+    if (typeof invalidateRatingBaselineCache === 'function') invalidateRatingBaselineCache();
     matchList = buildMatches(allRows);
     computeWinLoss(playerStats, matchList);
     document.getElementById('import-modal').classList.remove('open');
@@ -17366,6 +17416,7 @@ function appendToAppData() {
     allRows = [...filtered, ...newRows];
     playerStats = buildPlayerStats(allRows);
     if (typeof invalidateRoleBaselineCache === 'function') invalidateRoleBaselineCache();
+    if (typeof invalidateRatingBaselineCache === 'function') invalidateRatingBaselineCache();
     matchList = buildMatches(allRows);
     computeWinLoss(playerStats, matchList);
     computeSpiderMaxima();
