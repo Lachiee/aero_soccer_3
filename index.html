@@ -12007,23 +12007,21 @@ function getRatingBreakdown(playerName) {
   if (!p) return null;
   const manualBonus = n(cs.enforcer || 0) * 0.5 + n(cs.stamina || 0) * 0.4;
   const rawTotal = computeWeightedRating(playerName);
+  const rawMatchOnly = rawTotal - manualBonus;
 
-  // Shrink the SAME combined total the app actually shrinks (matching
-  // shrinkRatingForBalance's real input) — do not shrink matchOnly and
-  // manualBonus separately and add them back, since shrinkage isn't linear
-  // and the two pieces don't sum to the same result as shrinking the whole
-  // thing at once. Instead: shrink the real total, then simply subtract the
-  // FULL unshrunk manual bonus from that shrunk total to get matchOnly. This
-  // guarantees matchOnly + manualBonus === shrunk total by construction, so
-  // the breakdown can never silently drift out of sync with what's displayed.
-  const shrunkTotal = shrinkRatingForBalance(rawTotal, p.games, p);
-  const matchOnly = parseFloat((shrunkTotal - manualBonus).toFixed(2));
+  // Shrinks ONLY the match-performance component (via shrinkPlayerRating, the
+  // same function used for actual balancing) toward the match-only league
+  // baseline, then adds this player's own manual bonus back at full strength.
+  // matchOnly + manualBonus === total by construction, so the breakdown can
+  // never silently drift out of sync with what's actually displayed/balanced on.
+  const shrunkMatchOnly = shrinkRatingForBalance(rawMatchOnly, p.games, p);
+  const matchOnly = parseFloat(shrunkMatchOnly.toFixed(2));
   const shrunkManualBonus = parseFloat(manualBonus.toFixed(2));
-  const total = parseFloat(shrunkTotal.toFixed(2));
+  const total = parseFloat((shrunkMatchOnly + manualBonus).toFixed(2));
   return {
-    matchOnly,                          // shrunk total minus the (unshrunk) manual bonus
+    matchOnly,                          // shrunk rating from match performance alone
     manualBonus: shrunkManualBonus,     // from Enforcer/Stamina sliders — NOT shrunk (intentional)
-    total,                               // == shrinkRatingForBalance(computeWeightedRating(...)) — matches what's shown as "Base"
+    total,                               // == shrinkPlayerRating(...) — matches what's shown as "Base"
     enforcer: n(cs.enforcer || 0),
     stamina: n(cs.stamina || 0),
   };
@@ -12052,15 +12050,25 @@ function getRatingBreakdown(playerName) {
 // newcomer performing like your top players, or a genuinely weak one performing
 // like your bottom players, should be recognized as such rather than dragged
 // toward "average" just because they're new.
-const SHRINK_K = 8; // base games-scale for trust — see trust formula below
+const SHRINK_K = 5; // games required before a player is judged fully on their own rating (see hard cutoff below)
 function shrinkRatingForBalance(rating, games, player) {
   const g = Math.max(games || 0, 0);
+
+  // Hard cutoff: at SHRINK_K games or more, trust the player's own rating
+  // completely — no blending with the league baseline at all. Below that,
+  // blend toward the baseline using the same gradual trust curve as before,
+  // still scaled by consistency (a volatile small sample stays more
+  // conservative even under this cutoff, since it caps at less than
+  // SHRINK_K games of effective trust either way).
+  if (g >= SHRINK_K) return rating;
+
   const baseline = getLeagueRatingBaseline();
 
   // Consistency multiplier: low volatility (steady performer) shrinks the
-  // effective SHRINK_K down (reaches full trust sooner); high volatility
-  // stretches it out (stays distrusted longer). No volatility data yet
-  // (fewer than 5 games) -> neutral, no adjustment, fall back to games-only.
+  // effective SHRINK_K down (reaches full trust sooner, though never past the
+  // hard cutoff above); high volatility stretches it out (stays distrusted
+  // longer within the pre-cutoff window). No volatility data yet (fewer than
+  // 5 games) -> neutral, no adjustment, fall back to games-only.
   let consistencyFactor = 1.0;
   if (player) {
     const vol = getPlayerVolatility(player);
@@ -12078,17 +12086,49 @@ function shrinkRatingForBalance(rating, games, player) {
   return rating * trust + baseline * (1 - trust);
 }
 
+// Shrinks ONLY a player's match-performance rating toward the match-only league
+// baseline, then adds their own manual enforcer/stamina bonus back at full,
+// unshrunk strength. This is the function balancing/display code should call
+// (not shrinkRatingForBalance directly on a combined raw total) — shrinking the
+// combined total would dilute a low-sample player's OWN manual bonus along with
+// their match performance, which contradicts the explicit decision that manual
+// input isn't subject to small-sample shrinkage. Returns the final rating to use
+// as weightedRating/effectiveRating's base.
+function shrinkPlayerRating(playerName) {
+  const p = playerStats[playerName];
+  if (!p) return 0;
+  const cs = customStats[playerName] || {};
+  const manualBonus = n(cs.enforcer || 0) * 0.5 + n(cs.stamina || 0) * 0.4;
+  const rawTotal = computeWeightedRating(playerName);
+  const rawMatchOnly = rawTotal - manualBonus;
+  const shrunkMatchOnly = shrinkRatingForBalance(rawMatchOnly, p.games, p);
+  return parseFloat((shrunkMatchOnly + manualBonus).toFixed(2));
+}
+
 // Fixed league-wide rating baseline — the shrinkage "anchor" for low-sample
-// players, computed once from all regular players' weighted ratings (5+ games,
-// same threshold used for the role baseline) and cached for the session.
+// players, computed once from all regular players' MATCH-ONLY performance (5+
+// games, same threshold used for the role baseline) and cached for the session.
 // Same fix as getLeagueRoleBaseline: a player's shrinkage target shouldn't move
 // depending on who else is currently selected in the team builder.
+//
+// Deliberately excludes everyone's manual enforcer/stamina bonus from the
+// average: those are per-player subjective scores, not match performance, and
+// including them would mean a low-sample player gets pulled up (or down) by
+// OTHER players' manual physicality scores rather than by genuine on-pitch
+// form — which is a different, unintended kind of influence from what
+// shrinkage toward "typical match performance" is supposed to represent.
 let _leagueRatingBaselineCache = null;
 function getLeagueRatingBaseline() {
   if (_leagueRatingBaselineCache != null) return _leagueRatingBaselineCache;
   const regulars = Object.values(playerStats || {}).filter(p => p.games >= 5);
-  const ratings = regulars.map(p => computeWeightedRating(p.player)).filter(r => !isNaN(r));
-  _leagueRatingBaselineCache = ratings.length ? ratings.reduce((s,r)=>s+r,0) / ratings.length : 0;
+  const matchOnlyRatings = regulars.map(p => {
+    const cs = customStats[p.player] || {};
+    const manualBonus = n(cs.enforcer || 0) * 0.5 + n(cs.stamina || 0) * 0.4;
+    return computeWeightedRating(p.player) - manualBonus;
+  }).filter(r => !isNaN(r));
+  _leagueRatingBaselineCache = matchOnlyRatings.length
+    ? matchOnlyRatings.reduce((s,r)=>s+r,0) / matchOnlyRatings.length
+    : 0;
   return _leagueRatingBaselineCache;
 }
 function invalidateRatingBaselineCache() { _leagueRatingBaselineCache = null; }
@@ -12626,8 +12666,10 @@ function autoBalance(rebalanceOnly = false) {
   const sel = rawList.map(({ name, p, cs, weightedRatingRaw, games }) => {
     p.rating = computeRating(p, cs);
     // Custom players are hand-entered (no match history to be noisy about),
-    // so only shrink real players with a real sample-size problem.
-    const weightedRating = p._isCustom ? weightedRatingRaw : shrinkRatingForBalance(weightedRatingRaw, games, p);
+    // so only shrink real players with a real sample-size problem. Uses
+    // shrinkPlayerRating (shrinks match-only, adds manual bonus back unshrunk)
+    // rather than shrinking the combined raw total directly.
+    const weightedRating = p._isCustom ? weightedRatingRaw : shrinkPlayerRating(name);
     const note = (playerNotes[name] || '').toLowerCase();
     const pen = getPenalty(playerNotes[name]);
 
@@ -13212,17 +13254,16 @@ function getPenalty(note) {
 
 function renderTeamResult(tA, tB) {
   // Recompute effectiveRating for all players in case notes/penalties changed.
-  // Recompute effectiveRating for all players in case notes/penalties changed.
-  // Uses the same small-sample shrinkage as autoBalance (see shrinkRatingForBalance)
+  // Uses the same small-sample shrinkage as autoBalance (see shrinkPlayerRating)
   // so the displayed team ratings stay consistent with what the balancer actually
-  // optimized for, even after a manual drag-and-drop reshuffle. Shrinkage now pulls
-  // toward a fixed league baseline (not this pool), scaled by each player's own
-  // consistency — no pool-mean computation needed here anymore.
+  // optimized for, even after a manual drag-and-drop reshuffle. Shrinkage pulls
+  // toward a fixed match-only league baseline (not this pool), scaled by each
+  // player's own consistency, and never touches their own manual bonus.
   const recomputeRating = (p) => {
     const pen = getPenalty(playerNotes[p.player]);
     const weightedRating = p._isCustom
       ? (p._ratingOverride || computeRating(p, customStats[p.player] || {}))
-      : shrinkRatingForBalance(computeWeightedRating(p.player), p.games || 0, p);
+      : shrinkPlayerRating(p.player);
     const streakMod = p._isCustom ? 1.0 : (p.streakMod || 1.0);
     const buff = playerBuffs[p.player] || 0;
     p.effectiveRating = weightedRating * (1 - pen) * streakMod + buff;
