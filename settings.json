@@ -96,6 +96,10 @@
     "Vijit": {
       "enforcer": 6,
       "stamina": 8
+    },
+    "Martin": {
+      "enforcer": 7,
+      "stamina": 7
     }
   },
   "bannerHeights": {
