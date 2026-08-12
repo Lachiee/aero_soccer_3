@@ -2435,6 +2435,15 @@ let matchList = [];
 var customStats = window.customStats || {};
 let playerNotes = {};
 let playerBuffs = {}; // name → flat rating bonus (can be negative)
+// name -> percentage multiplier applied to ALL of a player's per-game stats
+// (goals, assists, shots, tackles, interceptions, blocks, key_passes, GK saves)
+// before anything downstream (rating, role tags, attack/defense/playmaking
+// dimensions, chemistry expectations) is computed. Different from playerBuffs
+// above, which only nudges the final rating NUMBER — this scales the whole
+// underlying stat profile, so it flows through to role classification and
+// team dimension totals too, not just the headline rating.
+// Stored as e.g. 15 for +15%, -20 for -20%. 0/absent = no scaling.
+let playerStatMultipliers = {};
 let playerGifs = {};
 let selectedForTeams = new Set();
 // Small-sample shrinkage for chemistry pair deltas (used by both the main and
@@ -11551,6 +11560,9 @@ function renderTeamBuilder() {
       const buff = playerBuffs[name] || 0;
       const buffCol = buff > 0 ? 'var(--green)' : buff < 0 ? 'var(--red,#f87171)' : 'var(--muted)';
       const buffDisplay = buff > 0 ? `+${buff}` : `${buff}`;
+      const statMult = playerStatMultipliers[name] || 0;
+      const statMultCol = statMult > 0 ? 'var(--green)' : statMult < 0 ? 'var(--red,#f87171)' : 'var(--muted)';
+      const statMultDisplay = statMult > 0 ? `+${statMult}%` : `${statMult}%`;
       return `
       <div class="note-row">
         <span class="note-player-name">${name}</span>
@@ -11563,6 +11575,11 @@ function renderTeamBuilder() {
           <button class="buff-btn" onclick="adjustPlayerBuff('${name}',-1)">−</button>
           <span class="buff-val" style="color:${buffCol}">${buffDisplay}</span>
           <button class="buff-btn" onclick="adjustPlayerBuff('${name}',+1)">+</button>
+        </div>
+        <div class="buff-stepper" data-tip="Stat scaling — multiplies ALL of this player's per-game stats (goals, assists, tackles, saves, etc.) up or down, so it flows through to their role, rating, and team dimension totals — not just the final rating number">
+          <button class="buff-btn" onclick="adjustPlayerStatMultiplier('${name}',-5)">−</button>
+          <span class="buff-val" style="color:${statMultCol}">${statMultDisplay}</span>
+          <button class="buff-btn" onclick="adjustPlayerStatMultiplier('${name}',+5)">+</button>
         </div>
       </div>`;
     }).join('');
@@ -11635,6 +11652,26 @@ function adjustPlayerBuff(name, delta) {
   renderTeamBuilder();
   if (teamA.length || teamB.length) {
     renderTeamResult(teamA, teamB);
+  }
+}
+
+// Adjusts a player's stat multiplier in 5% steps (±50% range). Unlike
+// adjustPlayerBuff (a flat addition to the final rating number only), this
+// scales the player's entire underlying stat profile — see getScaledPlayer —
+// so it flows through to role classification, team dimension totals
+// (attack/defense/playmaking), and chemistry expectations, not just rating.
+function adjustPlayerStatMultiplier(name, delta) {
+  const current = playerStatMultipliers[name] || 0;
+  const next = Math.max(-50, Math.min(50, current + delta));
+  if (next === 0) delete playerStatMultipliers[name];
+  else playerStatMultipliers[name] = next;
+  saveStatMultipliers();
+  renderTeamBuilder();
+  if (teamA.length || teamB.length) {
+    // A stat multiplier changes the underlying pool (roles/dimensions), not
+    // just one player's rating — rebalance rather than just re-render so the
+    // split actually reflects the new scaled stats, same as an injury note.
+    autoBalance(true); // rebalanceOnly — skip enforcer gate, matches savePlayerNote's pattern
   }
 }
 
@@ -11938,10 +11975,50 @@ function computeStaminaFromEvents(playerName) {
   };
 }
 
+// Returns a scaled COPY of a player's stats object with every per-game stat
+// multiplied by (1 + pct/100) — goals, assists, shots, tackles, interceptions,
+// blocks, key_passes, GK saves, nutmegs. Games/wins/losses/matches are left
+// untouched (scaling rates, not sample size). Used as a single choke point so
+// every downstream calculation (rating, roles, dimensions, chemistry) that
+// reads from this player object automatically reflects the multiplier,
+// instead of needing every one of the ~60 call sites that read raw stats to
+// be individually updated. Returns the original object unchanged if no
+// multiplier is set (0/absent), so this is always safe to call.
+const SCALABLE_STAT_FIELDS = ['goals','assists','total_shots','shots_on_target','shots_off_target',
+  'tackles','interceptions','blocks','key_passes','goalkeeper_saves','nutmegs','post'];
+function getScaledPlayer(p, playerName) {
+  const pct = playerStatMultipliers[playerName];
+  if (!pct) return p;
+  const factor = 1 + (pct / 100);
+  const scaled = { ...p };
+  SCALABLE_STAT_FIELDS.forEach(field => {
+    if (typeof p[field] === 'number') scaled[field] = p[field] * factor;
+  });
+  // .matches holds per-match rows used by computeWeightedRating/getPlayerVolatility —
+  // scale those too so the weighted-last-10 and volatility calculations stay
+  // consistent with the scaled totals, not just the aggregate fields.
+  if (Array.isArray(p.matches)) {
+    scaled.matches = p.matches.map(r => {
+      const sr = { ...r };
+      SCALABLE_STAT_FIELDS.forEach(field => {
+        if (typeof r[field] === 'number') sr[field] = r[field] * factor;
+      });
+      return sr;
+    });
+  }
+  scaled._statMultiplierPct = pct; // so UI can show "scaled by +15%" somewhere if useful
+  return scaled;
+}
+
 function computeWeightedRating(playerName) {
-  const p = playerStats[playerName];
+  const rawP = playerStats[playerName];
+  if (!rawP) return 0;
+  // Apply the stat multiplier (if any) at this single choke point — every
+  // downstream read of `p` below uses the scaled copy, so a +15% multiplier
+  // flows through to the rating exactly as if the player's real stats were
+  // 15% higher, without needing to touch each individual stat weight.
+  const p = getScaledPlayer(rawP, playerName);
   const cs = customStats[playerName] || {};
-  if (!p) return 0;
   // Uses cs.stamina (the manual slider) directly — deliberately does NOT fall back
   // to computeStaminaFromEvents like computeRating does. Event-derived stamina isn't
   // reliable enough yet to drive team-builder balancing; revisit this once that's
@@ -12050,16 +12127,16 @@ function getRatingBreakdown(playerName) {
 // newcomer performing like your top players, or a genuinely weak one performing
 // like your bottom players, should be recognized as such rather than dragged
 // toward "average" just because they're new.
-const SHRINK_K = 5; // games required before a player is judged fully on their own rating (see hard cutoff below)
+const SHRINK_K = 0; // games required before a player is judged fully on their own rating — set to 0 so EVERY player gets full trust immediately, even at 1 game (per explicit product decision). Kept as a named constant (not deleted) so this can be dialed back up later without rebuilding the mechanism.
 function shrinkRatingForBalance(rating, games, player) {
   const g = Math.max(games || 0, 0);
 
   // Hard cutoff: at SHRINK_K games or more, trust the player's own rating
-  // completely — no blending with the league baseline at all. Below that,
-  // blend toward the baseline using the same gradual trust curve as before,
-  // still scaled by consistency (a volatile small sample stays more
-  // conservative even under this cutoff, since it caps at less than
-  // SHRINK_K games of effective trust either way).
+  // completely — no blending with the league baseline at all. With
+  // SHRINK_K = 0 this fires for every player unconditionally (including a
+  // single game), so the blending logic below is currently dead code in
+  // practice — left in place rather than removed in case shrinkage is
+  // wanted again for very small samples down the line.
   if (g >= SHRINK_K) return rating;
 
   const baseline = getLeagueRatingBaseline();
@@ -12472,8 +12549,11 @@ function shuffleTeams() {
   const rawPool = [...selectedForTeams].map(name => customPlayers[name] || playerStats[name]).filter(Boolean);
   const poolAvg = computePoolAverages(rawPool);
   const sel = [...selectedForTeams].map(name => {
-    const p = customPlayers[name] || playerStats[name];
-    if (!p) return null;
+    const rawP = customPlayers[name] || playerStats[name];
+    if (!rawP) return null;
+    // Scaled copy so teamDimensions/getPlayerRoles/etc. reflect the stat
+    // multiplier too, not just the rating number — same reasoning as autoBalance.
+    const p = rawP._isCustom ? rawP : getScaledPlayer(rawP, name);
     const cs = customStats[name] || {};
     p.rating = computeRating(p, cs);
     const weightedRating = p._isCustom ? computeRating(p, cs) : computeWeightedRating(name);
@@ -12652,8 +12732,13 @@ function autoBalance(rebalanceOnly = false) {
   // average — so a low-sample player's rating doesn't depend on who else
   // happens to be selected today.
   const rawList = [...selectedForTeams].map(name => {
-    const p = customPlayers[name] || playerStats[name];
-    if (!p) return null;
+    const rawP = customPlayers[name] || playerStats[name];
+    if (!rawP) return null;
+    // Apply the stat multiplier here too (not just inside computeWeightedRating) —
+    // this `p` becomes the actual team-builder player object via ...p further
+    // down, so teamDimensions/getPlayerRoles/etc. (which read stats directly,
+    // not through computeWeightedRating) also see the scaled stats.
+    const p = rawP._isCustom ? rawP : getScaledPlayer(rawP, name);
     const cs = customStats[name] || {};
     const weightedRatingRaw = p._isCustom ? computeRating(p, cs) : computeWeightedRating(name);
     return { name, p, cs, weightedRatingRaw, games: p.games || 0 };
@@ -13374,6 +13459,7 @@ function renderTeamResult(tA, tB) {
       <span style="font-size:.7rem;opacity:.55" title="${roleTitle}">${roleDisplay}</span>
       ${p.streakLabel ? `<span style="font-size:.65rem;font-weight:600;padding:1px 6px;border-radius:4px;${p.streakLabel.type==='buff'?'background:rgba(96,165,250,.15);color:#60a5fa':'background:rgba(239,68,68,.12);color:#f87171'}" title="${p.streakLabel.type==='buff'?'Win rate is low — rating buffed to help balance teams':'Win rate is high — rating slightly nerfed to help balance teams'}">WR ${p.streakLabel.text}</span>` : ''}
       ${p.playerBuff ? `<span style="font-size:.65rem;font-weight:600;padding:1px 6px;border-radius:4px;${p.playerBuff>0?'background:rgba(74,222,128,.12);color:#4ade80':'background:rgba(248,113,113,.12);color:#f87171'}" data-tip="Manual buff applied — adjustable in Player Notes &amp; Buffs above">${p.playerBuff>0?'+':''}${p.playerBuff} buff</span>` : ''}
+      ${p._statMultiplierPct ? `<span style="font-size:.65rem;font-weight:600;padding:1px 6px;border-radius:4px;${p._statMultiplierPct>0?'background:rgba(74,222,128,.12);color:#4ade80':'background:rgba(248,113,113,.12);color:#f87171'}" data-tip="All of this player's stats are scaled ${p._statMultiplierPct>0?'up':'down'} by ${Math.abs(p._statMultiplierPct)}% — adjustable in Player Notes &amp; Buffs above">${p._statMultiplierPct>0?'+':''}${p._statMultiplierPct}% stats</span>` : ''}
       ${(() => {
         const ps = playerStats[p.player];
         if (!ps || ps.momentum == null || isNaN(ps.momentum)) return '';
@@ -18017,6 +18103,7 @@ const LS_VIDEOS = 'aeroSoccer_videos';
 const LS_CUSTOM = 'aeroSoccer_customStats';
 const LS_GIFS = 'aeroSoccer_gifs';
 const LS_BUFFS = 'aeroSoccer_playerBuffs';
+const LS_STAT_MULT = 'aeroSoccer_playerStatMultipliers';
 const CSV_HEADER = 'match_id,match_date,team,player,half,goals,assists,shots_on_target,shots_off_target,total_shots,goalkeeper_saves,blocks,total_saves,interceptions,tackles,nutmegs,post,key_passes,own_goals';
 
 function saveExtraRows() {
@@ -18092,6 +18179,17 @@ function savePlayerBuffs() {
   try { localStorage.setItem(LS_BUFFS, JSON.stringify(playerBuffs)); } catch(e) {}
 }
 
+function saveStatMultipliers() {
+  try { localStorage.setItem(LS_STAT_MULT, JSON.stringify(playerStatMultipliers)); } catch(e) {}
+}
+
+function loadStatMultipliers() {
+  try {
+    const saved = localStorage.getItem(LS_STAT_MULT);
+    if (saved) Object.assign(playerStatMultipliers, JSON.parse(saved));
+  } catch(e) {}
+}
+
 function loadPlayerBuffs() {
   try {
     const saved = localStorage.getItem(LS_BUFFS);
@@ -18165,6 +18263,7 @@ document.addEventListener('DOMContentLoaded', () => {
   try { localStorage.removeItem(LS_COMBOS); } catch(e) {}
   loadCustomStats();
   loadPlayerBuffs();
+  loadStatMultipliers();
   loadVideos();
   loadGifs();
 
