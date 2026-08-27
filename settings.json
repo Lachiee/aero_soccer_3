@@ -14,7 +14,7 @@
   },
   "customStats": {
     "Amin": {
-      "enforcer": 10,
+      "enforcer": 9,
       "stamina": 8
     },
     "Gio": {
@@ -22,7 +22,7 @@
       "stamina": 8
     },
     "Jake": {
-      "enforcer": 10,
+      "enforcer": 9,
       "stamina": 7
     },
     "James": {
