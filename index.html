@@ -8187,12 +8187,19 @@ function buildSingleMatchCardHtml(m) {
               const t = a+b||1, ap = Math.round(a/t*100);
               const ac = a>b?'var(--green)':a===b?'rgba(255,255,255,.4)':'rgba(255,255,255,.3)';
               const bc = b>a?'#60a5fa':b===a?'rgba(255,255,255,.4)':'rgba(255,255,255,.3)';
+              // The bar previously always filled from the left with a fixed green color and a
+              // width equal to Team A's share — so whenever Team B actually led, the bar still
+              // looked green and simply showed a smaller green portion, rather than switching to
+              // blue and filling from the right. Now: Team A's portion (green) fills from the
+              // left, Team B's portion (blue) fills the remainder from the right, so whichever
+              // side leads is clearly shown in its own color and takes up the larger share.
               return '<div style="margin-bottom:7px">'
                 +'<div style="font-size:.56rem;letter-spacing:.7px;text-transform:uppercase;color:var(--muted);text-align:center;margin-bottom:2px">'+lbl+'</div>'
                 +'<div style="display:flex;align-items:center;gap:4px">'
                 +'<span style="font-family:Bebas Neue,sans-serif;font-size:.88rem;color:'+ac+';min-width:16px;text-align:right">'+a+'</span>'
-                +'<div style="flex:1;height:4px;border-radius:2px;overflow:hidden;background:rgba(96,165,250,.2)">'
-                +'<div style="height:100%;width:'+ap+'%;background:var(--green);border-radius:2px 0 0 2px"></div>'
+                +'<div style="flex:1;height:4px;border-radius:2px;overflow:hidden;display:flex;background:rgba(255,255,255,.08)">'
+                +'<div style="height:100%;width:'+ap+'%;background:var(--green)"></div>'
+                +'<div style="height:100%;width:'+(100-ap)+'%;background:#60a5fa"></div>'
                 +'</div>'
                 +'<span style="font-family:Bebas Neue,sans-serif;font-size:.88rem;color:'+bc+';min-width:16px">'+b+'</span>'
                 +'</div></div>';
