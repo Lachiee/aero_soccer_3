@@ -8185,21 +8185,30 @@ function buildSingleMatchCardHtml(m) {
             const pct    = Math.round(aShots/tot*100);
             const row = (lbl, a, b) => {
               const t = a+b||1, ap = Math.round(a/t*100);
-              const ac = a>b?'var(--green)':a===b?'rgba(255,255,255,.4)':'rgba(255,255,255,.3)';
-              const bc = b>a?'#60a5fa':b===a?'rgba(255,255,255,.4)':'rgba(255,255,255,.3)';
-              // The bar previously always filled from the left with a fixed green color and a
-              // width equal to Team A's share — so whenever Team B actually led, the bar still
-              // looked green and simply showed a smaller green portion, rather than switching to
-              // blue and filling from the right. Now: Team A's portion (green) fills from the
-              // left, Team B's portion (blue) fills the remainder from the right, so whichever
-              // side leads is clearly shown in its own color and takes up the larger share.
+              const aWins = a>b, bWins = b>a, tied = a===b;
+              const ac = aWins?'var(--green)':tied?'rgba(255,255,255,.4)':'#6b7280';
+              const bc = bWins?'#60a5fa':tied?'rgba(255,255,255,.4)':'#6b7280';
+              // Only the side that actually leads gets its team color in the bar; the trailing
+              // side's segment is greyed out instead of staying dim white, so it reads clearly
+              // as "not the leader" rather than just a fainter version of the same color. A tie
+              // colors neither side, since nobody actually leads.
+              const GREY = '#4b5563';
+              let barHtml;
+              if (tied) {
+                barHtml = '<div style="height:100%;width:100%;background:'+GREY+'"></div>';
+              } else if (aWins) {
+                barHtml = '<div style="height:100%;width:'+ap+'%;background:var(--green)"></div>'
+                        + '<div style="height:100%;width:'+(100-ap)+'%;background:'+GREY+'"></div>';
+              } else {
+                barHtml = '<div style="height:100%;width:'+ap+'%;background:'+GREY+'"></div>'
+                        + '<div style="height:100%;width:'+(100-ap)+'%;background:#60a5fa"></div>';
+              }
               return '<div style="margin-bottom:7px">'
                 +'<div style="font-size:.56rem;letter-spacing:.7px;text-transform:uppercase;color:var(--muted);text-align:center;margin-bottom:2px">'+lbl+'</div>'
                 +'<div style="display:flex;align-items:center;gap:4px">'
                 +'<span style="font-family:Bebas Neue,sans-serif;font-size:.88rem;color:'+ac+';min-width:16px;text-align:right">'+a+'</span>'
                 +'<div style="flex:1;height:4px;border-radius:2px;overflow:hidden;display:flex;background:rgba(255,255,255,.08)">'
-                +'<div style="height:100%;width:'+ap+'%;background:var(--green)"></div>'
-                +'<div style="height:100%;width:'+(100-ap)+'%;background:#60a5fa"></div>'
+                +barHtml
                 +'</div>'
                 +'<span style="font-family:Bebas Neue,sans-serif;font-size:.88rem;color:'+bc+';min-width:16px">'+b+'</span>'
                 +'</div></div>';
