@@ -180,6 +180,16 @@ canvas.mini-canvas{width:100%;display:block}
 .pp-tip .stat-row.highlighted span:first-child{color:var(--gold);font-weight:700}
 .pp-tip .stat-row.highlighted span:last-child{color:var(--gold)}
 
+/* ===== Goal Locations tab (added) ===== */
+.goals-direction-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;font-family:'Barlow Condensed',sans-serif;font-size:.72rem;letter-spacing:1px;text-transform:uppercase}
+.goals-dir-team.a{color:var(--green)} .goals-dir-team.b{color:var(--blue)}
+.goals-pitch-wrap{position:relative;border-radius:12px;overflow:hidden;background:#0a1408}
+canvas.goals-canvas{width:100%;display:block;cursor:crosshair}
+.goal-hint{font-size:.68rem;color:var(--muted);text-align:center;margin-top:8px;font-family:'Barlow Condensed',sans-serif;letter-spacing:.5px}
+.goal-tip{position:fixed;z-index:999;background:#0d1a0f;border:1px solid rgba(251,191,36,.4);border-radius:8px;padding:8px 12px;
+  font-family:'Barlow Condensed',sans-serif;pointer-events:none;opacity:0;transition:opacity .12s;font-size:.75rem;line-height:1.5;
+  box-shadow:0 4px 20px rgba(0,0,0,.8);min-width:150px}
+
 .detail-table{width:100%;border-collapse:collapse;font-size:.8rem}
 .detail-table th{padding:6px 10px;text-align:left;color:var(--muted);font-weight:500;
   font-family:'Barlow Condensed',sans-serif;letter-spacing:.5px;text-transform:uppercase;border-bottom:1px solid var(--border)}
@@ -8233,6 +8243,7 @@ function buildSingleMatchCardHtml(m) {
         <div class="matchtab-bar" onclick="event.stopPropagation()">
           <button class="matchtab-btn active" onclick="switchMatchTab('${m.id.replace(/[#]/g,'__')}','overview',this)">Overview</button>
           <button class="matchtab-btn" onclick="switchMatchTab('${m.id.replace(/[#]/g,'__')}','formation',this)">⚽ Formation</button>
+          <button class="matchtab-btn" onclick="switchMatchTab('${m.id.replace(/[#]/g,'__')}','goals',this)">🎯 Goal Locations</button>
         </div>
 
         <div class="matchtab-panel active" id="matchtab-overview-${m.id.replace(/[#]/g,'__')}">
@@ -8527,6 +8538,22 @@ function buildSingleMatchCardHtml(m) {
             <span>Hover a player to see which stats they led the team in this match (highlighted in gold)</span>
           </div>
         </div>
+
+        <div class="matchtab-panel" id="matchtab-goals-${m.id.replace(/[#]/g,'__')}">
+          <div class="goals-direction-row">
+            <span class="goals-dir-team a">● Team A ▶</span>
+            <span class="goals-dir-team b">◀ Team B ●</span>
+          </div>
+          <div class="goals-pitch-wrap" id="goalsWrap-${m.id.replace(/[#]/g,'__')}">
+            <canvas class="goals-canvas" id="goalsCanvas-${m.id.replace(/[#]/g,'__')}"></canvas>
+          </div>
+          <div class="goal-hint">Hover a dot for scorer info · click to reveal the assist origin and pass line</div>
+          <div class="formation-legend">
+            <span><i style="background:var(--green)"></i> Team A goal</span>
+            <span><i style="background:var(--blue)"></i> Team B goal</span>
+            <span><i style="background:#f06060"></i> Own goal</span>
+          </div>
+        </div>
       </div><!--END-MATCH-DETAIL-PANEL-->
     </div><!--END-MATCH-CARD-->`;
 }
@@ -8604,6 +8631,7 @@ function switchMatchTab(safeId, tabName, btn){
   const target = document.getElementById(`matchtab-${tabName}-${safeId}`);
   if (target) target.classList.add('active');
   if (tabName === 'formation') renderFormationTab(safeId);
+  if (tabName === 'goals') renderGoalsTab(safeId);
 }
 
 function formGkSecondsMap(matchId){
@@ -8665,7 +8693,6 @@ function formGetPlayerShotZone(playerName){
 }
 
 function formPlaceTeam(teamRowsRaw, matchId, pitchW, pitchH){
-  const gkSeconds = formGkSecondsMap(matchId);
   const teamRows = teamRowsRaw.filter(r => r.team !== 'DNP' && r.team !== '-');
   const scored = teamRows.map(p => ({ ...p, score: formAttackScore(p), _shotZone: formGetPlayerShotZone(p.player) }));
   const min = Math.min(...scored.map(p=>p.score));
@@ -8673,9 +8700,10 @@ function formPlaceTeam(teamRowsRaw, matchId, pitchW, pitchH){
   const range = (max-min) || 1;
   scored.forEach(p => p.norm = (p.score-min)/range);
 
-  const GK_MIN_SECONDS = 300; // 5 minutes — a brief stint shouldn't tag someone as "the GK"
-  const gkCandidate = [...scored].sort((a,b)=>(gkSeconds[b.player]||0)-(gkSeconds[a.player]||0))[0];
-  scored.forEach(p => p.isGK = gkCandidate && p.player===gkCandidate.player && (gkSeconds[gkCandidate.player]||0) >= GK_MIN_SECONDS);
+  // No dedicated GK on either pitch (per earlier decision) — everyone is classified purely by
+  // Forward/Midfield/Defence. Real GK saves / time-in-goal stats are unaffected and still show
+  // in the hover tooltip, this only stops a GK role from being assigned on the pitch.
+  scored.forEach(p => p.isGK = false);
 
   const outfield = scored.filter(p=>!p.isGK);
   const gk = scored.find(p=>p.isGK);
@@ -8848,10 +8876,226 @@ function renderFormationTab(safeId){
   formRenderTeamPitch(m.id, safeId, 'B', m.teamB, m.mvpList);
 }
 
+// ============================================================
+// GOAL LOCATIONS TAB — reads real Goals/OG events for THIS match from aero_event_logs
+// (same shotX/shotY/assistX/assistY/netX/netY fields your app already uses elsewhere).
+// Team A's dots draw attacking right, Team B's are mirrored (both axes) to attack left.
+// ============================================================
+let goalsTabState = {}; // safeId -> { events, hoveredIdx, selectedIdx }
+
+function goalsGetMatchEvents(matchId){
+  let logs;
+  try { logs = JSON.parse(localStorage.getItem('aero_event_logs') || '{}'); }
+  catch(e) { return []; }
+  const log = logs[matchId];
+  if (!log || !log.events) return [];
+  return log.events.filter(e => (e.event === 'Goals' || e.event === 'OG') && e.shotX != null && e.shotY != null);
+}
+
+function goalsDrawCourt(ctx, W, H){
+  ctx.fillStyle = '#1a7a32';
+  ctx.beginPath();
+  if (ctx.roundRect) ctx.roundRect(0,0,W,H,6); else ctx.rect(0,0,W,H);
+  ctx.fill();
+  for (let i=0;i<12;i++) {
+    ctx.fillStyle = i%2 ? 'rgba(0,0,0,0.04)' : 'rgba(255,255,255,0.015)';
+    ctx.fillRect(i*(W/12), 0, W/12, H);
+  }
+  const sh = H*0.18;
+  ctx.fillStyle = '#080e1a';
+  ctx.fillRect(0, H/2-sh/2, W, sh);
+  ctx.strokeStyle = 'rgba(255,255,255,0.9)'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(W/2,0); ctx.lineTo(W/2,H); ctx.stroke();
+  ctx.strokeStyle = 'rgba(255,215,0,0.92)'; ctx.lineWidth = 2;
+  ctx.strokeRect(3,3,W-6,H-6);
+  const zx = W*0.34;
+  ctx.beginPath(); ctx.moveTo(zx,3); ctx.lineTo(zx,H-3); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(W-zx,3); ctx.lineTo(W-zx,H-3); ctx.stroke();
+  const arcR = H*0.28;
+  ctx.lineWidth = 2.5;
+  ctx.beginPath(); ctx.arc(3,H/2,arcR,-Math.PI*0.5,Math.PI*0.5); ctx.stroke();
+  ctx.beginPath(); ctx.arc(W-3,H/2,arcR,Math.PI*0.5,Math.PI*1.5); ctx.stroke();
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(W/2,H/2,H*0.09,0,Math.PI*2); ctx.stroke();
+  ctx.fillStyle = 'rgba(255,255,255,0.9)';
+  ctx.beginPath(); ctx.arc(W/2,H/2,3,0,Math.PI*2); ctx.fill();
+  const goalH = H*0.22, goalD = W*0.02;
+  ctx.strokeStyle = 'rgba(255,255,255,0.95)'; ctx.lineWidth = 2.5;
+  ctx.strokeRect(3, H/2-goalH/2, goalD, goalH);
+  ctx.strokeRect(W-3-goalD, H/2-goalH/2, goalD, goalH);
+  ctx.fillStyle = 'rgba(57,211,83,0.75)';
+  ctx.font = `bold ${Math.max(7, Math.round(H*0.075))}px 'Barlow Condensed',sans-serif`;
+  ctx.textAlign = 'right'; ctx.textBaseline = 'top';
+  ctx.fillText('A GOAL ▶', W-6, H*0.08);
+  ctx.fillStyle = 'rgba(79,163,232,0.75)';
+  ctx.textAlign = 'left';
+  ctx.fillText('◀ B GOAL', 6, H*0.08);
+  ctx.textBaseline = 'alphabetic';
+}
+
+function goalsDraw(safeId){
+  const state = goalsTabState[safeId];
+  if (!state) return;
+  const wrap = document.getElementById(`goalsWrap-${safeId}`);
+  const cv = document.getElementById(`goalsCanvas-${safeId}`);
+  if (!wrap || !cv) return;
+  const dpr = window.devicePixelRatio || 1;
+  const W = wrap.getBoundingClientRect().width || 600;
+  const H = Math.round(W * 0.52);
+  cv.width = W*dpr; cv.height = H*dpr;
+  cv.style.width = W+'px'; cv.style.height = H+'px';
+  const ctx = cv.getContext('2d');
+  ctx.clearRect(0,0,cv.width,cv.height);
+  ctx.save(); ctx.scale(dpr,dpr);
+  goalsDrawCourt(ctx, W, H);
+
+  const { events, selectedIdx, hoveredIdx } = state;
+
+  if (selectedIdx >= 0) {
+    const g = events[selectedIdx];
+    const gx = g._sx*W, gy = g._sy*H;
+    const goalD = W*0.02;
+    const goalFaceX = g.team === 'A' ? (W - 3 - goalD) : (3 + goalD);
+    const targetY = H/2;
+    if (g._ax != null) {
+      const ax = g._ax*W, ay = g._ay*H;
+      ctx.setLineDash([5,4]); ctx.strokeStyle='rgba(251,191,36,0.85)'; ctx.lineWidth=2.5;
+      ctx.beginPath(); ctx.moveTo(ax,ay); ctx.lineTo(gx,gy); ctx.stroke();
+      ctx.setLineDash([]);
+      const ang = Math.atan2(gy-ay,gx-ax);
+      ctx.fillStyle='rgba(251,191,36,0.85)';
+      ctx.beginPath(); ctx.moveTo(gx,gy);
+      ctx.lineTo(gx-10*Math.cos(ang-0.38),gy-10*Math.sin(ang-0.38));
+      ctx.lineTo(gx-10*Math.cos(ang+0.38),gy-10*Math.sin(ang+0.38));
+      ctx.closePath(); ctx.fill();
+      const pillR = Math.max(10, W*0.022);
+      ctx.beginPath(); ctx.arc(ax,ay,pillR+4,0,Math.PI*2); ctx.fillStyle='rgba(57,211,83,.15)'; ctx.fill();
+      ctx.strokeStyle='rgba(57,211,83,.8)'; ctx.lineWidth=1.5; ctx.stroke();
+      ctx.beginPath(); ctx.arc(ax,ay,pillR,0,Math.PI*2); ctx.fillStyle='#4ade80'; ctx.globalAlpha=0.92; ctx.fill(); ctx.globalAlpha=1;
+      ctx.strokeStyle='rgba(0,0,0,.4)'; ctx.lineWidth=1.2; ctx.stroke();
+      ctx.fillStyle='#071009'; ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.font=`bold ${Math.round(pillR*0.9)}px Barlow Condensed,sans-serif`;
+      ctx.fillText('A',ax,ay);
+      ctx.textAlign='left'; ctx.textBaseline='alphabetic';
+    }
+    ctx.setLineDash([5,4]); ctx.strokeStyle='rgba(248,113,113,0.6)'; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.moveTo(gx,gy); ctx.lineTo(goalFaceX,targetY); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.globalAlpha = 0.5; ctx.fillStyle = 'white';
+    ctx.beginPath(); ctx.arc(goalFaceX, targetY, 6, 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha = 0.95; ctx.fillStyle = 'rgba(248,113,113,0.9)';
+    ctx.beginPath(); ctx.arc(goalFaceX, targetY, 4.5, 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+
+  events.forEach((g,i)=>{
+    const px = g._sx*W, py = g._sy*H;
+    const isHovered = i===hoveredIdx, isSelected = i===selectedIdx;
+    const col = g.event === 'OG' ? '#f06060' : (g.team==='A' ? 'rgba(57,211,83,.9)' : 'rgba(79,163,232,.9)');
+    const r = (isHovered||isSelected) ? 12 : 8;
+    ctx.beginPath(); ctx.arc(px,py,r,0,Math.PI*2);
+    ctx.fillStyle=col; ctx.globalAlpha=0.92; ctx.fill(); ctx.globalAlpha=1;
+    if (isSelected) { ctx.strokeStyle='white'; ctx.lineWidth=3; ctx.stroke(); }
+    else if (isHovered) { ctx.strokeStyle='white'; ctx.lineWidth=2.5; ctx.stroke(); }
+    else { ctx.strokeStyle='rgba(0,0,0,.5)'; ctx.lineWidth=1.5; ctx.stroke(); }
+  });
+  ctx.restore();
+}
+
+function goalsGetHit(safeId, ev){
+  const cv = document.getElementById(`goalsCanvas-${safeId}`);
+  const rect = cv.getBoundingClientRect();
+  const W = rect.width, H = rect.height;
+  const mx = ev.clientX-rect.left, my = ev.clientY-rect.top;
+  const state = goalsTabState[safeId];
+  let best=-1, bestD=22;
+  state.events.forEach((g,i)=>{
+    const d = Math.hypot(g._sx*W-mx, g._sy*H-my);
+    if (d<bestD){bestD=d;best=i;}
+  });
+  return best;
+}
+
+function goalsShowTip(ev, safeId, idx){
+  const state = goalsTabState[safeId];
+  const g = state.events[idx];
+  let tip = document.getElementById('goal-tip-global');
+  if (!tip) {
+    tip = document.createElement('div');
+    tip.id = 'goal-tip-global';
+    tip.className = 'goal-tip';
+    document.body.appendChild(tip);
+  }
+  const col = g.event==='OG' ? '#f06060' : (g.team==='A' ? '#39d353' : '#4fa3e8');
+  const label = g.event === 'OG' ? `⚠ Own Goal — ${g.player}` : `⚽ ${g.player}`;
+  tip.innerHTML = `<div style="color:${col};font-weight:700;margin-bottom:2px">${label}</div>`
+    + (g.assistBy ? `<div style="color:rgba(168,224,80,.8);font-size:.7rem">&larr; assist: ${g.assistBy}</div>` : '<div style="color:var(--muted);font-size:.7rem">Unassisted</div>')
+    + `<div style="color:rgba(255,255,255,.6);font-size:.68rem;margin-top:3px">${g.half || ''} · ${g.ts || ''}</div>`
+    + `<div style="color:rgba(251,191,36,.7);font-size:.6rem;margin-top:4px">CLICK TO SEE ASSIST LOCATION</div>`;
+  tip.style.opacity = '1';
+  const ow = tip.offsetWidth || 150;
+  let left = ev.clientX + 14;
+  if (left + ow > window.innerWidth) left = ev.clientX - ow - 8;
+  tip.style.left = left + 'px';
+  tip.style.top = (ev.clientY - 10) + 'px';
+}
+function goalsHideTip(){
+  const tip = document.getElementById('goal-tip-global');
+  if (tip) tip.style.opacity = '0';
+}
+
+function renderGoalsTab(safeId){
+  const m = window.__matchById?.[safeId];
+  if (!m) return;
+  const rawEvents = goalsGetMatchEvents(m.id);
+  // Shot coordinates in this app's data are stored oriented toward each event's OWN scoring
+  // direction — mirror Team B's x AND y so both teams read correctly on one shared court with
+  // Team A attacking right and Team B attacking left (same convention verified earlier).
+  const events = rawEvents.map(e => {
+    if (e.team === 'B') {
+      return { ...e, _sx: 1-e.shotX, _sy: 1-e.shotY, _ax: e.assistX!=null?1-e.assistX:null, _ay: e.assistY!=null?1-e.assistY:null };
+    }
+    return { ...e, _sx: e.shotX, _sy: e.shotY, _ax: e.assistX, _ay: e.assistY };
+  });
+
+  goalsTabState[safeId] = { events, hoveredIdx: -1, selectedIdx: -1 };
+  goalsDraw(safeId);
+
+  const cv = document.getElementById(`goalsCanvas-${safeId}`);
+  if (!cv || cv._goalsWired) { if (cv) goalsDraw(safeId); return; }
+  cv._goalsWired = true;
+  cv.addEventListener('mousemove', ev=>{
+    const hit = goalsGetHit(safeId, ev);
+    const state = goalsTabState[safeId];
+    if (hit !== state.hoveredIdx) {
+      state.hoveredIdx = hit;
+      goalsDraw(safeId);
+      cv.style.cursor = hit>=0 ? 'pointer' : 'crosshair';
+      if (hit<0) { goalsHideTip(); return; }
+      goalsShowTip(ev, safeId, hit);
+    } else if (hit>=0) {
+      goalsShowTip(ev, safeId, hit);
+    }
+  });
+  cv.addEventListener('mouseleave', ()=>{
+    const state = goalsTabState[safeId];
+    state.hoveredIdx = -1; goalsDraw(safeId); goalsHideTip();
+  });
+  cv.addEventListener('click', ev=>{
+    const hit = goalsGetHit(safeId, ev);
+    const state = goalsTabState[safeId];
+    if (hit>=0) { state.selectedIdx = (state.selectedIdx===hit) ? -1 : hit; goalsDraw(safeId); }
+  });
+}
+
 window.addEventListener('resize', () => {
   document.querySelectorAll('.matchtab-panel.active[id^="matchtab-formation-"]').forEach(panel=>{
     const safeId = panel.id.replace('matchtab-formation-', '');
     renderFormationTab(safeId);
+  });
+  document.querySelectorAll('.matchtab-panel.active[id^="matchtab-goals-"]').forEach(panel=>{
+    const safeId = panel.id.replace('matchtab-goals-', '');
+    if (goalsTabState[safeId]) goalsDraw(safeId);
   });
 });
 
