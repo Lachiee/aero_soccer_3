@@ -135,6 +135,51 @@ body::after{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;opac
 .mp-chip.mp-b{border-color:rgba(79,163,232,.3);color:rgba(79,163,232,.85)}
 .match-detail-panel{display:none;margin-top:10px;border-top:1px solid var(--border);padding-top:14px;overflow:visible}
 .match-detail-panel.open{display:block;overflow:visible}
+
+/* ===== Formation tab (added) ===== */
+.matchtab-bar{display:flex;gap:4px;border-bottom:1px solid var(--border);margin-bottom:12px}
+.matchtab-btn{background:none;border:none;color:var(--muted);font-family:'Barlow Condensed',sans-serif;
+  font-size:.8rem;font-weight:600;letter-spacing:.5px;text-transform:uppercase;
+  padding:8px 14px;cursor:pointer;border-bottom:2px solid transparent}
+.matchtab-btn:hover{color:var(--text)}
+.matchtab-btn.active{color:var(--green);border-bottom-color:var(--green)}
+.matchtab-panel{display:none}
+.matchtab-panel.active{display:block}
+.two-pitch{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.pitch-col{display:flex;flex-direction:column;gap:8px}
+.pitch-col-label{font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;text-align:center}
+.pitch-col-label.a{color:var(--green)} .pitch-col-label.b{color:var(--blue)}
+.mini-pitch-wrap{position:relative;border-radius:10px;overflow:hidden;background:#0a1408}
+canvas.mini-canvas{width:100%;display:block}
+.mini-players{position:absolute;inset:0;pointer-events:none}
+.pplayer{position:absolute;display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;transform:translate(-50%,-50%);z-index:2;width:70px;pointer-events:auto}
+.pplayer-avatar{width:38px;height:38px;border-radius:50%;background:var(--card2);border:2px solid rgba(255,255,255,.6);
+  display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:.82rem;color:var(--text);position:relative;
+  box-shadow:0 3px 8px rgba(0,0,0,.5);transition:transform .15s;margin:0 auto}
+.pplayer-avatar.team-a{border-color:var(--green)}
+.pplayer-avatar.team-b{border-color:var(--blue)}
+.pplayer:hover .pplayer-avatar{transform:scale(1.15);border-color:var(--gold)}
+.pplayer-badge{position:absolute;top:-7px;right:-8px;color:#1a1206;font-family:'Bebas Neue',sans-serif;
+  font-size:.5rem;padding:1px 4px;border-radius:8px;font-weight:700;box-shadow:0 1px 4px rgba(0,0,0,.5)}
+.pplayer-badge.mvp-1{background:linear-gradient(135deg,var(--gold),#f8d84a)}
+.pplayer-badge.mvp-2{background:linear-gradient(135deg,#c0c8c0,#e4e8e4)}
+.pplayer-badge.mvp-3{background:linear-gradient(135deg,#c08040,#e0a868)}
+.pplayer-name{font-size:.6rem;font-weight:600;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.7);white-space:nowrap;text-align:center}
+.pplayer-role{font-size:.52rem;color:rgba(255,255,255,.6);text-transform:uppercase;letter-spacing:.5px;text-align:center}
+.formation-legend{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px;padding-top:12px;border-top:1px solid var(--border);font-size:.7rem;color:var(--text2)}
+.formation-legend span{display:inline-flex;align-items:center;gap:5px}
+.formation-legend i{width:12px;height:12px;border-radius:50%;display:inline-block}
+.pp-tip{position:fixed;z-index:999;background:#0d1a0f;border:1px solid rgba(57,211,83,.3);border-radius:8px;padding:9px 13px;
+  font-family:'Barlow Condensed',sans-serif;pointer-events:none;opacity:0;transition:opacity .1s;font-size:.75rem;line-height:1.5;
+  box-shadow:0 4px 20px rgba(0,0,0,.8);min-width:170px;max-width:240px}
+.pp-tip .tip-name{color:var(--text);font-size:.9rem;font-weight:700;font-family:'Bebas Neue',sans-serif;letter-spacing:.5px}
+.pp-tip .tip-role{color:var(--muted);font-size:.6rem;text-transform:uppercase;letter-spacing:.6px;margin-bottom:5px}
+.pp-tip .stat-row{display:flex;justify-content:space-between;gap:16px}
+.pp-tip .stat-row span:last-child{color:var(--lime);font-weight:600}
+.pp-tip .stat-row.highlighted{color:var(--gold)}
+.pp-tip .stat-row.highlighted span:first-child{color:var(--gold);font-weight:700}
+.pp-tip .stat-row.highlighted span:last-child{color:var(--gold)}
+
 .detail-table{width:100%;border-collapse:collapse;font-size:.8rem}
 .detail-table th{padding:6px 10px;text-align:left;color:var(--muted);font-weight:500;
   font-family:'Barlow Condensed',sans-serif;letter-spacing:.5px;text-transform:uppercase;border-bottom:1px solid var(--border)}
@@ -213,17 +258,6 @@ body::after{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;opac
 .pchip .cr{font-family:'Bebas Neue',sans-serif;font-size:.95rem;opacity:.6}
 .pchip .inj{font-size:.65rem;background:rgba(240,160,48,.2);color:var(--amber);
   border-radius:3px;padding:0 4px;margin-left:2px}
-.pchip .lock-icon{font-size:.72rem;opacity:.35;cursor:pointer;padding:1px 2px;border-radius:3px;line-height:1;transition:opacity .15s}
-.pchip .lock-icon:hover{opacity:.9}
-.pchip .lock-icon.lock-a{opacity:1;color:var(--green)}
-.pchip .lock-icon.lock-b{opacity:1;color:var(--blue)}
-#advanced-panel[open] summary .adv-caret{transform:rotate(90deg)}
-#advanced-panel summary::-webkit-details-marker{display:none}
-#advanced-panel summary::marker{content:''}
-#advanced-panel summary:hover{color:var(--text2)}
-.chem-pairs-details[open] summary .chem-caret{transform:rotate(90deg)}
-.chem-pairs-details summary::-webkit-details-marker{display:none}
-.chem-pairs-details summary::marker{content:''}
 .team-box{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:18px;transition:border-color .15s,background .15s}
 .team-box.ta{border-top:3px solid var(--green)}
 .team-box.tb{border-top:3px solid var(--blue)}
@@ -634,17 +668,12 @@ canvas.spider{display:block;margin:0 auto}
 <div class="page" id="page-teams">
   <div class="section-hd"><h2>Team Builder</h2><span>Select players · Auto-balance by ability &amp; role · Drag to adjust</span></div>
 
-  <!-- Player pool -->
   <div style="margin-bottom:14px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:8px">
-      <div style="font-size:.8rem;color:var(--muted);font-family:'Barlow Condensed',sans-serif;letter-spacing:1px;text-transform:uppercase">Players<span id="team-player-count" style="color:var(--lime)"></span></div>
-      <div style="display:flex;gap:6px">
-        <button class="btn-secondary" onclick="selectRegulars()" title="Select the usual regulars" style="padding:5px 12px;font-size:.78rem">⭐ Regulars</button>
-        <button onclick="openCustomPlayerModal()" style="padding:5px 12px;border-radius:7px;cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-size:.78rem;letter-spacing:.5px;text-transform:uppercase;border:1px solid var(--amber);background:rgba(240,160,48,.1);color:var(--amber)">+ Custom</button>
-      </div>
+      <div style="font-size:.8rem;color:var(--muted);font-family:'Barlow Condensed',sans-serif;letter-spacing:1px;text-transform:uppercase">Available Players — click to select<span id="team-player-count" style="color:var(--lime)"></span></div>
+      <button onclick="openCustomPlayerModal()" style="padding:5px 12px;border-radius:7px;cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-size:.78rem;letter-spacing:.5px;text-transform:uppercase;border:1px solid var(--amber);background:rgba(240,160,48,.1);color:var(--amber)">+ Custom Player</button>
     </div>
     <div class="avail-pool" id="avail-pool"></div>
-    <div style="font-size:.68rem;color:var(--muted);margin-top:6px">Tap a player to select · tap the lock icon to pin them to Team A or B before balancing</div>
   </div>
 
   <!-- Custom Player Modal -->
@@ -667,77 +696,63 @@ canvas.spider{display:block;margin:0 auto}
     </div>
   </div>
 
-  <!-- Primary actions — always visible, minimal -->
-  <div style="display:flex;gap:10px;margin-bottom:10px;flex-wrap:wrap;align-items:center">
+  <div class="notes-section" id="notes-section" style="display:none">
+    <div class="notes-title" style="display:flex;align-items:center;justify-content:space-between">
+      <span>Player Notes &amp; Buffs</span>
+      <span style="font-size:.68rem;color:var(--muted);font-family:'Barlow',sans-serif;text-transform:none;letter-spacing:0;font-weight:400">Buff adjusts rating for balancing only</span>
+    </div>
+    <div id="notes-rows"></div>
+  </div>
+
+  <div style="display:flex;gap:10px;margin-bottom:8px;flex-wrap:wrap;align-items:center">
     <button class="btn-primary" onclick="autoBalance()">⚖ Smart Balance</button>
     <button class="btn-secondary" onclick="shuffleTeams()" title="Randomly redistribute selected players into two equal teams">🔀 Shuffle</button>
     <button class="btn-secondary" onclick="clearTeams()">Clear</button>
+    <button class="btn-secondary" onclick="selectRegulars()" title="Select the usual regulars">⭐ Regulars</button>
+    <button id="streak-aug-btn" onclick="toggleStreakAugment()"
+      style="padding:6px 14px;border-radius:7px;cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-size:.82rem;letter-spacing:.5px;text-transform:uppercase;border:1px solid var(--border);background:transparent;color:var(--muted);transition:all .15s"
+      title="Adjusts player ratings based on win rate — high win rate gets a small nerf, low win rate gets a small buff">
+      ⚖ Win Rate Balance: OFF
+    </button>
+    <div id="winrate-strength-wrap" style="display:flex;align-items:center;gap:6px;font-family:'Barlow Condensed',sans-serif;font-size:.78rem;color:var(--muted)">
+      <span style="white-space:nowrap">Strength</span>
+      <input type="range" min="0.05" max="0.40" step="0.05" value="0.20"
+        oninput="winRateAugStrength=parseFloat(this.value);document.getElementById('winrate-strength-val').textContent=Math.round(this.value*100)+'%';if(teamA.length||teamB.length)renderTeamResult(teamA,teamB)"
+        style="width:70px;accent-color:var(--lime)">
+      <span id="winrate-strength-val" style="color:var(--lime);min-width:28px">20%</span>
+    </div>
+    <div style="font-size:.78rem;color:var(--muted);margin-left:4px">Balance considers attacking, defensive &amp; playmaking roles</div>
   </div>
 
-  <!-- Advanced settings — collapsed by default to keep the page uncluttered -->
-  <details id="advanced-panel" style="background:var(--card2);border:1px solid var(--border);border-radius:10px;margin-bottom:12px">
-    <summary style="cursor:pointer;padding:10px 14px;font-family:'Barlow Condensed',sans-serif;font-size:.78rem;letter-spacing:1px;text-transform:uppercase;color:var(--muted);list-style:none;display:flex;align-items:center;gap:6px;user-select:none">
-      <span style="display:inline-block;transition:transform .15s" class="adv-caret">▸</span> Advanced Settings
-    </summary>
-    <div style="padding:4px 14px 16px">
-
-      <!-- Win rate balance -->
-      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 0;border-bottom:1px solid var(--border)">
-        <button id="streak-aug-btn" onclick="toggleStreakAugment()"
-          style="padding:6px 14px;border-radius:7px;cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-size:.82rem;letter-spacing:.5px;text-transform:uppercase;border:1px solid var(--border);background:transparent;color:var(--muted);transition:all .15s"
-          title="Adjusts player ratings based on win rate — high win rate gets a small nerf, low win rate gets a small buff">
-          ⚖ Win Rate Balance: OFF
-        </button>
-        <div id="winrate-strength-wrap" style="display:flex;align-items:center;gap:6px;font-family:'Barlow Condensed',sans-serif;font-size:.78rem;color:var(--muted)">
-          <span style="white-space:nowrap">Strength</span>
-          <input type="range" min="0.05" max="0.40" step="0.05" value="0.20"
-            oninput="winRateAugStrength=parseFloat(this.value);document.getElementById('winrate-strength-val').textContent=Math.round(this.value*100)+'%';if(teamA.length||teamB.length)renderTeamResult(teamA,teamB)"
-            style="width:70px;accent-color:var(--lime)">
-          <span id="winrate-strength-val" style="color:var(--lime);min-width:28px">20%</span>
+  <!-- Shuffle options -->
+  <div id="shuffle-options" style="background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:12px 16px;margin-bottom:12px">
+    <div style="font-family:'Barlow Condensed',sans-serif;font-size:.72rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:10px">🔀 Shuffle Options</div>
+    <div style="display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start">
+      <!-- Enforcer threshold -->
+      <div style="display:flex;align-items:center;gap:8px;font-family:'Barlow Condensed',sans-serif;font-size:.8rem;color:var(--muted)">
+        <span>🛡 Max enforcer gap</span>
+        <input type="range" id="enf-threshold" min="1" max="15" step="1" value="3"
+          oninput="document.getElementById('enf-threshold-val').textContent=this.value"
+          style="width:80px;accent-color:var(--amber)">
+        <span id="enf-threshold-val" style="color:var(--amber);min-width:20px;font-size:.9rem">3</span>
+      </div>
+      <!-- Keep apart -->
+      <div style="flex:1;min-width:200px">
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:.75rem;color:var(--muted);margin-bottom:5px">⛔ Keep on opposite teams</div>
+        <div id="keep-apart-list" style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px"></div>
+        <div style="display:flex;gap:6px;align-items:center">
+          <select id="keep-apart-a" style="flex:1;background:var(--card);border:1px solid var(--border);border-radius:5px;color:var(--text);font-family:'Barlow Condensed',sans-serif;font-size:.78rem;padding:4px 6px">
+            <option value="">Player A…</option>
+          </select>
+          <span style="font-size:.7rem;color:var(--muted)">vs</span>
+          <select id="keep-apart-b" style="flex:1;background:var(--card);border:1px solid var(--border);border-radius:5px;color:var(--text);font-family:'Barlow Condensed',sans-serif;font-size:.78rem;padding:4px 6px">
+            <option value="">Player B…</option>
+          </select>
+          <button onclick="addKeepApart()" style="padding:4px 10px;border-radius:5px;border:1px solid var(--border);background:var(--card);color:var(--green);font-family:'Barlow Condensed',sans-serif;font-size:.8rem;cursor:pointer">+ Add</button>
         </div>
       </div>
-
-      <!-- Shuffle options -->
-      <div style="padding:12px 0;border-bottom:1px solid var(--border)">
-        <div style="font-family:'Barlow Condensed',sans-serif;font-size:.72rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:10px">🔀 Shuffle Options</div>
-        <div style="display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start">
-          <!-- Enforcer threshold -->
-          <div style="display:flex;align-items:center;gap:8px;font-family:'Barlow Condensed',sans-serif;font-size:.8rem;color:var(--muted)">
-            <span>🛡 Max enforcer gap</span>
-            <input type="range" id="enf-threshold" min="1" max="15" step="1" value="3"
-              oninput="document.getElementById('enf-threshold-val').textContent=this.value"
-              style="width:80px;accent-color:var(--amber)">
-            <span id="enf-threshold-val" style="color:var(--amber);min-width:20px;font-size:.9rem">3</span>
-          </div>
-          <!-- Keep apart -->
-          <div style="flex:1;min-width:200px">
-            <div style="font-family:'Barlow Condensed',sans-serif;font-size:.75rem;color:var(--muted);margin-bottom:5px">⛔ Keep on opposite teams</div>
-            <div id="keep-apart-list" style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px"></div>
-            <div style="display:flex;gap:6px;align-items:center">
-              <select id="keep-apart-a" style="flex:1;background:var(--card);border:1px solid var(--border);border-radius:5px;color:var(--text);font-family:'Barlow Condensed',sans-serif;font-size:.78rem;padding:4px 6px">
-                <option value="">Player A…</option>
-              </select>
-              <span style="font-size:.7rem;color:var(--muted)">vs</span>
-              <select id="keep-apart-b" style="flex:1;background:var(--card);border:1px solid var(--border);border-radius:5px;color:var(--text);font-family:'Barlow Condensed',sans-serif;font-size:.78rem;padding:4px 6px">
-                <option value="">Player B…</option>
-              </select>
-              <button onclick="addKeepApart()" style="padding:4px 10px;border-radius:5px;border:1px solid var(--border);background:var(--card);color:var(--green);font-family:'Barlow Condensed',sans-serif;font-size:.8rem;cursor:pointer">+ Add</button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Player Notes & Buffs -->
-      <div id="notes-section" style="display:none;padding-top:12px">
-        <div class="notes-title" style="display:flex;align-items:center;justify-content:space-between">
-          <span>Player Notes &amp; Buffs</span>
-          <span style="font-size:.68rem;color:var(--muted);font-family:'Barlow',sans-serif;text-transform:none;letter-spacing:0;font-weight:400">Buff adjusts rating for balancing only</span>
-        </div>
-        <div id="notes-rows"></div>
-      </div>
-
     </div>
-  </details>
+  </div>
 
   <div id="balance-msg-area"></div>
 
@@ -770,24 +785,9 @@ canvas.spider{display:block;margin:0 auto}
     </div>
   </div>
 
-  <!-- Drag hint + export -->
-  <div id="team-actions-row" style="display:none;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:10px;padding:6px 0">
-    <div style="font-size:.78rem;color:var(--muted)">🤏 Drag any player card between teams to adjust</div>
-    <button class="btn-secondary" onclick="downloadTeamsJpg()" title="Download a simple image of the two team lists">⬇ Download Teams</button>
-  </div>
-
-  <!-- Predicted Result -->
-  <div id="predict-section" style="display:none;margin-top:16px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:18px">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
-      <div style="font-family:'Barlow Condensed',sans-serif;font-size:.85rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted)">🔮 Predicted Result</div>
-      <label style="display:flex;align-items:center;gap:6px;font-size:.72rem;color:var(--muted);cursor:pointer;user-select:none">
-        <input type="checkbox" id="chem-affects-prediction-toggle" checked
-          onchange="chemistryAffectsPrediction=this.checked;if(teamA.length&&teamB.length)predictResult(teamA,teamB)"
-          style="accent-color:var(--lime);cursor:pointer">
-        Chemistry affects prediction
-      </label>
-    </div>
-    <div id="predict-content"></div>
+  <!-- Drag hint -->
+  <div id="drag-hint" style="display:none;text-align:center;font-size:.78rem;color:var(--muted);margin-top:8px;padding:6px">
+    🤏 Drag any player card between teams to adjust
   </div>
 
   <!-- Team Synergy Breakdown -->
@@ -796,11 +796,10 @@ canvas.spider{display:block;margin:0 auto}
     <div id="synergy-content"></div>
   </div>
 
-  <!-- Suggested Pairings — profile-based, doesn't require shared game history -->
-  <div id="suggested-pairings-section" style="display:none;margin-top:16px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:18px">
-    <div style="font-family:'Barlow Condensed',sans-serif;font-size:.85rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:6px">🧩 Suggested Pairings</div>
-    <div style="font-size:.68rem;color:var(--muted);margin-bottom:14px;line-height:1.4">Based on each player's own stat profile — who might complement who, even if they haven't played together much yet.</div>
-    <div id="suggested-pairings-content"></div>
+  <!-- Predicted Result -->
+  <div id="predict-section" style="display:none;margin-top:16px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:18px">
+    <div style="font-family:'Barlow Condensed',sans-serif;font-size:.85rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:14px">🔮 Predicted Result</div>
+    <div id="predict-content"></div>
   </div>
 
   <!-- Attack combo predictions -->
@@ -2435,32 +2434,8 @@ let matchList = [];
 var customStats = window.customStats || {};
 let playerNotes = {};
 let playerBuffs = {}; // name → flat rating bonus (can be negative)
-// name -> percentage multiplier applied to ALL of a player's per-game stats
-// (goals, assists, shots, tackles, interceptions, blocks, key_passes, GK saves)
-// before anything downstream (rating, role tags, attack/defense/playmaking
-// dimensions, chemistry expectations) is computed. Different from playerBuffs
-// above, which only nudges the final rating NUMBER — this scales the whole
-// underlying stat profile, so it flows through to role classification and
-// team dimension totals too, not just the headline rating.
-// Stored as e.g. 15 for +15%, -20 for -20%. 0/absent = no scaling.
-let playerStatMultipliers = {};
 let playerGifs = {};
 let selectedForTeams = new Set();
-// Small-sample shrinkage for chemistry pair deltas (used by both the main and
-// filtered chemistry builders, plus predictResult's chemistry nudge). A pair's raw
-// delta (win rate together vs their individual baselines) is extremely noisy on a
-// handful of games — a single lucky/unlucky result can swing it ±50%+. This pulls
-// the delta toward 0 ("no evidence of an effect yet"), fading out as more shared
-// games accumulate. Declared here (script block 1) since filtChemList is built
-// earlier in the file than the team-builder code in script block 2.
-const CHEM_MIN_GAMES = 3;   // pairs below this don't get a delta at all — not enough data to say anything
-const CHEM_SHRINK_K = 6;    // games at which a pair's delta is trusted ~50/50 vs 0
-function shrinkChemDelta(delta, games) {
-  const g = Math.max(games || 0, 0);
-  const trust = g / (g + CHEM_SHRINK_K);
-  return delta * trust;
-}
-let lockedTeam = {}; // playerName -> 'A' | 'B' — pins a player to a side before balancing/shuffling
 let teamA = [], teamB = [];
 let currentPage = 'matches';
 let currentProfileName = null; // track which profile is open for heatmap re-render
@@ -2715,11 +2690,6 @@ function updateAdminUI() {
   updateDraftBanner();
   // Re-render everything so ratings show/hide
   renderAll();
-  // If a team split is already on screen, re-render it too — admin-only sections
-  // (head-to-head counters, volatile chemistry) only show/hide on this call otherwise
-  if (currentPage === 'teams' && (teamA.length || teamB.length)) {
-    renderTeamResult(teamA, teamB);
-  }
 }
 
 // Returns a rating display string — blank if not admin
@@ -3133,12 +3103,6 @@ function computeWinLoss(playerMap, matches) {
 function computeRating(s, cs) {
   const g = Math.max(s.games, 1);
   const enforcer = cs ? n(cs.enforcer) : 0;
-  // NOTE: this event-derived stamina override is used here (profile/leaderboard
-  // rating) but INTENTIONALLY NOT in computeWeightedRating (team builder rating) —
-  // event-log stamina isn't reliable/fully sorted out yet, so the team builder
-  // deliberately sticks to the manual Stamina slider only. Don't "fix" this
-  // inconsistency by adding the override to computeWeightedRating without
-  // revisiting whether computeStaminaFromEvents is trustworthy first.
   const staminaComputed = computeStaminaFromEvents(s.player);
   const stamina = staminaComputed?.matches >= 2
     ? staminaComputed.score
@@ -6697,30 +6661,6 @@ function getPlayerMilestones(name, topOthers = 5) {
   return goalsEntry ? [goalsEntry, ...others] : others;
 }
 
-// Head-to-head record for one SPECIFIC pair of players when they were on opposing
-// teams (as opposed to getPlayerOpponentRecords, which finds a player's single best/
-// worst opponent). Used for "counters" — does player A have a real historical edge
-// over player B specifically, regardless of who else was on the pitch.
-function getHeadToHeadRecord(nameA, nameB, minGames = 3) {
-  const ps = playerStats[nameA];
-  if (!ps || !ps.matches || !ps.matches.length) return null;
-  const seen = new Set();
-  let wins = 0, draws = 0, losses = 0;
-  ps.matches.forEach(r => {
-    const m = matchList.find(x => x.id === r.match_id);
-    if (!m || seen.has(r.match_id)) return;
-    const oppTeam = r.team === 'A' ? m.teamB : m.teamA;
-    if (!oppTeam || !oppTeam.some(row => row.player === nameB)) return;
-    seen.add(r.match_id);
-    if (m.winnerTeam === r.team) wins++;
-    else if (m.winnerTeam === 'draw') draws++;
-    else losses++;
-  });
-  const games = wins + draws + losses;
-  if (games < minGames) return null;
-  return { games, wins, draws, losses, winRate: Math.round(wins / games * 100) };
-}
-
 // Favourite Matchup / Nemesis — for a given player, which opponent they've faced most
 // successfully vs least successfully (by win rate), requiring a minimum number of shared
 // matches so a fluke 1-0 record doesn't get crowned. "Faced" means on the opposing team in
@@ -7338,9 +7278,6 @@ function getSpiderValues(s, cs) {
 function loadData(csv) {
   allRows = parseCSV(csv);
   playerStats = buildPlayerStats(allRows);
-  if (typeof invalidateRoleBaselineCache === 'function') invalidateRoleBaselineCache();
-  if (typeof invalidateRatingBaselineCache === 'function') invalidateRatingBaselineCache();
-  if (typeof invalidateMatchOnlyBaselineCache === 'function') invalidateMatchOnlyBaselineCache();
   matchList = buildMatches(allRows);
   computeWinLoss(playerStats, matchList);
   computeSpiderMaxima();
@@ -7564,51 +7501,16 @@ function computeFilteredStats() {
         }
       }
     });
-
-    // Defensive coverage (goals conceded together vs apart) — same approach as the
-    // main chemistry builder, scoped to the filtered match set.
-    const teamAConceded = m.goalsB, teamBConceded = m.goalsA;
-    const onTeam = (name) => m.teamA.some(r=>r.player===name) ? 'A' : m.teamB.some(r=>r.player===name) ? 'B' : null;
-    const matchPlayers = [...new Set([...m.teamA, ...m.teamB].map(r=>r.player))];
-    for (let i=0;i<matchPlayers.length;i++) for (let j=i+1;j<matchPlayers.length;j++) {
-      const pa = matchPlayers[i], pb = matchPlayers[j];
-      const ta = onTeam(pa), tb = onTeam(pb);
-      if (!ta || !tb) continue;
-      const key = [pa,pb].sort().join('|||');
-      if (ta === tb) {
-        if (!filtChemMap[key]) filtChemMap[key] = {p1:pa,p2:pb,games:0,wins:0};
-        if (!filtChemMap[key].concededTogether) { filtChemMap[key].concededTogether = 0; filtChemMap[key].concededTogetherGames = 0; }
-        filtChemMap[key].concededTogether += (ta === 'A' ? teamAConceded : teamBConceded);
-        filtChemMap[key].concededTogetherGames += 1;
-      } else {
-        if (!filtChemMap[key]) continue;
-        if (!filtChemMap[key].concededApart) { filtChemMap[key].concededApart = 0; filtChemMap[key].concededApartGames = 0; }
-        filtChemMap[key].concededApart += ((teamAConceded + teamBConceded) / 2);
-        filtChemMap[key].concededApartGames += 1;
-      }
-    }
   });
 
   const filtChemList = Object.values(filtChemMap)
-    .filter(c => c.games >= CHEM_MIN_GAMES) // below this, there's not enough evidence to say anything about the pair
+    .filter(c => c.games >= 1)
     .map(c => ({
       ...c,
       winRate: Math.round(c.wins / c.games * 100),
       baseline: Math.round(((filtWinRate[c.p1]||0) + (filtWinRate[c.p2]||0)) / 2 * 100),
     }))
-    .map(c => {
-      const rawDelta = c.winRate - c.baseline;
-      return { ...c, rawDelta, delta: Math.round(shrinkChemDelta(rawDelta, c.games)) };
-    })
-    .map(c => {
-      const cgAvg = c.concededTogetherGames >= CHEM_MIN_GAMES ? c.concededTogether / c.concededTogetherGames : null;
-      const caAvg = c.concededApartGames >= CHEM_MIN_GAMES ? c.concededApart / c.concededApartGames : null;
-      const defenseRawDelta = (cgAvg !== null && caAvg !== null) ? parseFloat((cgAvg - caAvg).toFixed(2)) : null;
-      const defenseDelta = defenseRawDelta !== null
-        ? parseFloat(shrinkChemDelta(defenseRawDelta, Math.min(c.concededTogetherGames, c.concededApartGames)).toFixed(2))
-        : null;
-      return { ...c, concededTogetherPerGame: cgAvg, concededApartPerGame: caAvg, defenseRawDelta, defenseDelta };
-    });
+    .map(c => ({ ...c, delta: c.winRate - c.baseline }));
 
   // Update synergy scores on newStats using filtered chemistry
   const filtSynergyMap = {};
@@ -8009,6 +7911,10 @@ function renderMatches() {
 }
 
 function buildSingleMatchCardHtml(m) {
+    // Registers this match object by its DOM-safe id so the Formation tab (added below) can
+    // retrieve teamA/teamB and other match fields without re-fetching or duplicating data.
+    window.__matchById = window.__matchById || {};
+    window.__matchById[m.id.replace(/[#]/g,'__')] = m;
     const goalsA = m.goalsA;
     const goalsB = m.goalsB;
     const ogList = [...m.teamA,...m.teamB].filter(r=>n(r.own_goals)>0).map(r=>`${r.player} (OG)`);
@@ -8323,6 +8229,14 @@ function buildSingleMatchCardHtml(m) {
 
 
 
+        <!--MATCHTAB-SECTION-START-->
+        <div class="matchtab-bar" onclick="event.stopPropagation()">
+          <button class="matchtab-btn active" onclick="switchMatchTab('${m.id.replace(/[#]/g,'__')}','overview',this)">Overview</button>
+          <button class="matchtab-btn" onclick="switchMatchTab('${m.id.replace(/[#]/g,'__')}','formation',this)">⚽ Formation</button>
+        </div>
+
+        <div class="matchtab-panel active" id="matchtab-overview-${m.id.replace(/[#]/g,'__')}">
+
         <!-- Desktop stats table -->
         <div class="mobile-hide" style="overflow-x:auto">
           <table class="detail-table" style="min-width:700px">
@@ -8588,24 +8502,53 @@ function buildSingleMatchCardHtml(m) {
           <button class="print-btn" onclick="event.stopPropagation();deleteMatch('${m.id.replace(/'/g,"\\'")}','${m.date}')" style="color:var(--red);border-color:rgba(240,96,96,.3)">🗑 Delete</button>
           ` : ''}
         </div>
-      </div>
-    </div>`;
+
+        </div>
+
+        <div class="matchtab-panel" id="matchtab-formation-${m.id.replace(/[#]/g,'__')}">
+          <div class="two-pitch">
+            <div class="pitch-col">
+              <div class="pitch-col-label a">TEAM A ▲</div>
+              <div class="mini-pitch-wrap" id="wrapA-${m.id.replace(/[#]/g,'__')}">
+                <canvas class="mini-canvas" id="canvasA-${m.id.replace(/[#]/g,'__')}"></canvas>
+                <div class="mini-players" id="playersA-${m.id.replace(/[#]/g,'__')}"></div>
+              </div>
+            </div>
+            <div class="pitch-col">
+              <div class="pitch-col-label b">TEAM B ▲</div>
+              <div class="mini-pitch-wrap" id="wrapB-${m.id.replace(/[#]/g,'__')}">
+                <canvas class="mini-canvas" id="canvasB-${m.id.replace(/[#]/g,'__')}"></canvas>
+                <div class="mini-players" id="playersB-${m.id.replace(/[#]/g,'__')}"></div>
+              </div>
+            </div>
+          </div>
+          <div class="formation-legend">
+            <span>👑 🥈 🥉 Top 3 MVP</span>
+            <span>Hover a player to see which stats they led the team in this match (highlighted in gold)</span>
+          </div>
+        </div>
+      </div><!--END-MATCH-DETAIL-PANEL-->
+    </div><!--END-MATCH-CARD-->`;
 }
 
 function buildTwoGameCardHtml(m1, m2) {
   const wormSection = buildCombinedWormSection(m1, m2);
   const gameSection = (m, label) => {
     const oldCard = buildSingleMatchCardHtml(m);
-    // Pull everything from the stats table onward (table, mobile cards, DNP/swap note,
-    // video section, and the print/report/edit/delete buttons) out of the normal
-    // single-match card — we only skip its own Goal Timeline/momentum chart, since the
-    // pair card supplies ONE combined chart above instead. Strip the two outer closing
-    // </div> tags (match-detail-panel, match-card) that belonged to that standalone card,
-    // since this content is being nested inside the pair card's own wrappers instead.
-    const startMarker = '<!-- Desktop stats table -->';
+    // Pull everything from the tabbed stats section onward (tab bar, table, mobile cards,
+    // DNP/swap note, video section, print/report/edit/delete buttons, and the Formation tab)
+    // out of the normal single-match card — we only skip its own Goal Timeline/momentum chart,
+    // since the pair card supplies ONE combined chart above instead. The two outer closing
+    // </div> tags (match-detail-panel, match-card) that belonged to that standalone card are
+    // removed by their explicit END markers rather than by counting trailing </div> tags —
+    // counting broke once the Formation tab added its own extra closing divs.
+    const startMarker = '<!--MATCHTAB-SECTION-START-->';
     const startIdx = oldCard.indexOf(startMarker);
     let tablesHtml = startIdx >= 0 ? oldCard.slice(startIdx) : '';
-    tablesHtml = tablesHtml.replace(/\s*<\/div>\s*<\/div>\s*$/, '');
+    tablesHtml = tablesHtml
+      .replace('<!--END-MATCH-DETAIL-PANEL-->', '')
+      .replace('<!--END-MATCH-CARD-->', '')
+      .replace(/<\/div>\s*<\/div>\s*$/, ''); // still strip the (now unlabeled) trailing tags themselves
     return `<div style="margin-top:18px;padding-top:14px;border-top:1px solid var(--border)">
       <div style="font-family:'Barlow Condensed',sans-serif;font-size:.9rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--lime);margin-bottom:10px">${label} — ${m.date}${m.swappedPlayers?.length ? ` <span style="font-size:.68rem;background:rgba(96,165,250,.12);border:1px solid rgba(96,165,250,.3);color:#60a5fa;border-radius:4px;padding:1px 7px;margin-left:6px">🔄 SWAP</span>` : ''}</div>
       ${tablesHtml}
@@ -8636,6 +8579,282 @@ function buildTwoGameCardHtml(m1, m2) {
     </div>`;
 }
 
+// ============================================================
+// FORMATION TAB — added. Reads m.teamA/m.teamB (already correctly shaped) via
+// window.__matchById, and real per-player GK time from log.timeStats.playerStats[player]
+// .gkTimeSecs (already computed by computeTimeStats() from your GK On/GK Removed events —
+// no new data collection or reconstruction needed).
+// ============================================================
+const FORM_STAT_ICONS = {
+  goals:'⚽', assists:'🅰️', key_passes:'🔑', total_shots:'💥', shots_on_target:'🎪',
+  tackles:'🛡', interceptions:'✋', blocks:'◆', goalkeeper_saves:'🧤', nutmegs:'🌀'
+};
+const FORM_STAT_LABELS = {
+  goals:'Goals', assists:'Assists', key_passes:'Key Passes', total_shots:'Shots',
+  shots_on_target:'On Target', tackles:'Tackles', interceptions:'Interceptions',
+  blocks:'Blocks', goalkeeper_saves:'GK Saves', nutmegs:'Nutmegs'
+};
+
+function switchMatchTab(safeId, tabName, btn){
+  const bar = btn.closest('.matchtab-bar');
+  const panelHost = bar.parentElement;
+  bar.querySelectorAll('.matchtab-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  panelHost.querySelectorAll('.matchtab-panel').forEach(p=>p.classList.remove('active'));
+  const target = document.getElementById(`matchtab-${tabName}-${safeId}`);
+  if (target) target.classList.add('active');
+  if (tabName === 'formation') renderFormationTab(safeId);
+}
+
+function formGkSecondsMap(matchId){
+  try {
+    const logs = JSON.parse(localStorage.getItem('aero_event_logs') || '{}');
+    const ps = logs[matchId]?.timeStats?.playerStats || {};
+    const out = {};
+    Object.entries(ps).forEach(([player, stat]) => { out[player] = stat.gkTimeSecs || 0; });
+    return out;
+  } catch(e) { return {}; }
+}
+
+function formAttackScore(p){
+  const off = n(p.goals)*2 + n(p.shots_on_target)*0.6 + n(p.assists)*1.4 + n(p.key_passes)*0.5;
+  const def = n(p.tackles)*0.8 + n(p.interceptions)*0.35 + n(p.blocks)*0.8 + n(p.goalkeeper_saves)*0.5;
+  return off - def;
+}
+
+function formComputeMatchHighs(teamRows){
+  const highs = {};
+  Object.keys(FORM_STAT_ICONS).forEach(stat=>{
+    const max = Math.max(...teamRows.map(p=>n(p[stat])));
+    highs[stat] = max > 0 ? max : null;
+  });
+  return highs;
+}
+
+// Real season shot-side data: bucket every one of a player's Goals/OG shots (across ALL
+// matches, from aero_event_logs) into left(<0.4)/mid(0.4-0.6)/right(>=0.6) using Shot Y, and
+// return their most frequent zone (MODE, not average — averaging a bimodal shooter who shoots
+// mostly from both edges and rarely the middle collapses into a fake center position). Cached
+// per player since this scans every match's event log.
+const _formShotZoneCache = {};
+function formGetPlayerShotZone(playerName){
+  if (_formShotZoneCache[playerName] !== undefined) return _formShotZoneCache[playerName];
+  let logs;
+  try { logs = JSON.parse(localStorage.getItem('aero_event_logs') || '{}'); }
+  catch(e) { _formShotZoneCache[playerName] = null; return null; }
+
+  const ys = [];
+  Object.values(logs).forEach(log => {
+    (log.events || []).forEach(e => {
+      if ((e.event === 'Goals' || e.event === 'OG') && e.player === playerName && e.shotY != null) {
+        ys.push(e.shotY);
+      }
+    });
+  });
+
+  const MIN_SAMPLE = 3; // a "usual side" from 1-2 shots isn't a real tendency
+  if (ys.length < MIN_SAMPLE) { _formShotZoneCache[playerName] = null; return null; }
+
+  let left = 0, mid = 0, right = 0;
+  ys.forEach(y => { if (y < 0.4) left++; else if (y < 0.6) mid++; else right++; });
+  const counts = { left, mid, right };
+  const zone = Object.entries(counts).sort((a,b)=>b[1]-a[1])[0][0];
+  const result = { zone, count: counts[zone], sampleN: ys.length };
+  _formShotZoneCache[playerName] = result;
+  return result;
+}
+
+function formPlaceTeam(teamRowsRaw, matchId, pitchW, pitchH){
+  const gkSeconds = formGkSecondsMap(matchId);
+  const teamRows = teamRowsRaw.filter(r => r.team !== 'DNP' && r.team !== '-');
+  const scored = teamRows.map(p => ({ ...p, score: formAttackScore(p), _shotZone: formGetPlayerShotZone(p.player) }));
+  const min = Math.min(...scored.map(p=>p.score));
+  const max = Math.max(...scored.map(p=>p.score));
+  const range = (max-min) || 1;
+  scored.forEach(p => p.norm = (p.score-min)/range);
+
+  const GK_MIN_SECONDS = 300; // 5 minutes — a brief stint shouldn't tag someone as "the GK"
+  const gkCandidate = [...scored].sort((a,b)=>(gkSeconds[b.player]||0)-(gkSeconds[a.player]||0))[0];
+  scored.forEach(p => p.isGK = gkCandidate && p.player===gkCandidate.player && (gkSeconds[gkCandidate.player]||0) >= GK_MIN_SECONDS);
+
+  const outfield = scored.filter(p=>!p.isGK);
+  const gk = scored.find(p=>p.isGK);
+  outfield.forEach(p=>{ p._role = p.norm>0.66?'Forward':p.norm>0.33?'Midfield':'Defence'; });
+
+  const arcR = pitchW*0.28;
+  const gkMaxFy = (pitchH-3-arcR)/pitchH;
+  const GK_FY = gkMaxFy - 0.008;
+  const ZONE_Y = { Forward:0.18, Midfield:0.50, Defence: gk?0.665:0.76 };
+  const ROLE_X_BANDS = { Defence:[0.30,0.70,0.5], Midfield:[0.5,0.25,0.75], Forward:[0.32,0.68,0.5] };
+  const ZONE_VALUE = { left:0, mid:1, right:2 };
+  const FORWARD_ZONE_X_SOLO = { left:0.3, mid:0.5, right:0.7 };
+  const byRole = { Defence:[], Midfield:[], Forward:[] };
+  outfield.forEach(p => byRole[p._role].push(p));
+
+  Object.entries(byRole).forEach(([role, group])=>{
+    group.sort((a,b)=>b.norm-a.norm);
+    const bandXs = ROLE_X_BANDS[role];
+    if (role === 'Forward') {
+      // Real season shot-zone mode drives left-right position (not the generic role band) —
+      // players with too few tracked shots (<3) fall back to the role band below.
+      const withZone = group.filter(p => p._shotZone != null);
+      const withoutZone = group.filter(p => p._shotZone == null);
+      if (withZone.length > 0) {
+        withZone.sort((a,b)=> ZONE_VALUE[a._shotZone.zone]-ZONE_VALUE[b._shotZone.zone] || a._shotZone.count-b._shotZone.count);
+        if (withZone.length === 1) {
+          withZone[0]._fx = FORWARD_ZONE_X_SOLO[withZone[0]._shotZone.zone];
+        } else if (withZone.length === 2) {
+          const SLOTS_2 = [0.34, 0.66];
+          withZone.forEach((p,i)=>{ p._fx = SLOTS_2[i]; });
+        } else {
+          const xMin=0.16, xMax=0.84;
+          withZone.forEach((p,i)=>{ p._fx = xMin + i*((xMax-xMin)/(withZone.length-1)); });
+        }
+        withoutZone.forEach((p,i)=>{ p._fx = bandXs[i%bandXs.length]; p._yJitter = Math.floor(i/bandXs.length)*(70/pitchH); });
+        return;
+      }
+    }
+    group.forEach((p,i)=>{ p._fx = bandXs[i%bandXs.length]; p._yJitter = Math.floor(i/bandXs.length)*(70/pitchH); });
+  });
+
+  outfield.forEach(p=>{ p._fy = ZONE_Y[p._role] + (p._yJitter||0); });
+  if (gk){ gk._fx = 0.5; gk._fy = GK_FY; gk._role = 'GK'; }
+  return gk ? [...outfield, gk] : outfield;
+}
+
+function formDrawMiniCourt(ctx, W, H){
+  ctx.fillStyle = '#1a7a32';
+  ctx.beginPath();
+  if (ctx.roundRect) ctx.roundRect(0,0,W,H,6); else ctx.rect(0,0,W,H);
+  ctx.fill();
+  for (let i=0;i<12;i++){
+    ctx.fillStyle = i%2 ? 'rgba(0,0,0,0.04)' : 'rgba(255,255,255,0.015)';
+    ctx.fillRect(0, i*(H/12), W, H/12);
+  }
+  const sh = H*0.18;
+  ctx.fillStyle = '#080e1a';
+  ctx.fillRect(0, H*0.5-sh/2, W, sh);
+  ctx.strokeStyle = 'rgba(255,215,0,0.92)'; ctx.lineWidth = 2;
+  ctx.strokeRect(3,3,W-6,H-6);
+  const zy1 = H*0.5 - H*0.34*0.62, zy2 = H*0.5 + H*0.34*0.62;
+  ctx.beginPath(); ctx.moveTo(3,zy1); ctx.lineTo(W-3,zy1); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(3,zy2); ctx.lineTo(W-3,zy2); ctx.stroke();
+  const arcR = W*0.28;
+  ctx.lineWidth = 2.5;
+  ctx.beginPath(); ctx.arc(W/2,H-3,arcR,0,Math.PI); ctx.stroke();
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(W/2,H/2,W*0.09,0,Math.PI*2); ctx.stroke();
+  ctx.fillStyle = 'rgba(255,255,255,0.9)';
+  ctx.beginPath(); ctx.arc(W/2,H/2,3,0,Math.PI*2); ctx.fill();
+  const goalW = W*0.22, goalD = H*0.02;
+  ctx.strokeStyle = 'rgba(255,255,255,0.95)'; ctx.lineWidth = 2.5;
+  ctx.strokeRect(W/2-goalW/2, H-3-goalD, goalW, goalD);
+  ctx.fillStyle = 'rgba(57,211,83,0.75)';
+  ctx.font = `bold ${Math.max(7, Math.round(W*0.075))}px 'Barlow Condensed',sans-serif`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  ctx.fillText('ATTACK ▲', W/2, H*0.03);
+  ctx.textBaseline = 'alphabetic';
+}
+
+function formInitials(name){ return name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase(); }
+
+let formTipData = {};
+
+function formBuildTipHtml(p){
+  const highs = p._matchHighs || {};
+  const line = (statKey, val) => {
+    const meta = FORM_STAT_ICONS[statKey];
+    const label = FORM_STAT_LABELS[statKey];
+    const isHigh = meta && highs[statKey] != null && val === highs[statKey];
+    const prefix = isHigh ? `${meta} ` : '';
+    return `<div class="stat-row${isHigh?' highlighted':''}"${isHigh?` title="Match-high ${label}"`:''}><span>${prefix}${label}</span><span>${val}</span></div>`;
+  };
+  let h = `<div class="tip-name">${p.player}</div><div class="tip-role">${p._role}</div>`;
+  ['goals','assists','key_passes','total_shots','shots_on_target','tackles','interceptions','blocks'].forEach(stat=>{
+    h += line(stat, n(p[stat]));
+  });
+  if (n(p.goalkeeper_saves) > 0) h += line('goalkeeper_saves', n(p.goalkeeper_saves));
+  h += line('nutmegs', n(p.nutmegs));
+  return h;
+}
+
+function formShowTip(ev, tipId){
+  const p = formTipData[tipId];
+  if (!p) return;
+  let tip = document.getElementById('pp-tip-global');
+  if (!tip) {
+    tip = document.createElement('div');
+    tip.id = 'pp-tip-global';
+    tip.className = 'pp-tip';
+    document.body.appendChild(tip);
+  }
+  tip.innerHTML = formBuildTipHtml(p);
+  tip.style.opacity = '1';
+  const ow = tip.offsetWidth || 170;
+  let left = ev.clientX + 14;
+  if (left + ow > window.innerWidth) left = ev.clientX - ow - 8;
+  tip.style.left = left + 'px';
+  tip.style.top = (ev.clientY - 10) + 'px';
+}
+function formHideTip(){
+  const tip = document.getElementById('pp-tip-global');
+  if (tip) tip.style.opacity = '0';
+}
+
+function formRenderTeamPitch(matchId, safeId, teamKey, teamRows, mvpList){
+  const wrap = document.getElementById(`wrap${teamKey}-${safeId}`);
+  const cv = document.getElementById(`canvas${teamKey}-${safeId}`);
+  if (!wrap || !cv) return;
+  const dpr = window.devicePixelRatio || 1;
+  const W = wrap.getBoundingClientRect().width || 460;
+  const H = Math.round(W * 1.3);
+  cv.width = W*dpr; cv.height = H*dpr;
+  cv.style.width = W+'px'; cv.style.height = H+'px';
+  const ctx = cv.getContext('2d');
+  ctx.clearRect(0,0,cv.width,cv.height);
+  ctx.save(); ctx.scale(dpr,dpr);
+  formDrawMiniCourt(ctx, W, H);
+  ctx.restore();
+
+  if (!teamRows || !teamRows.length) { document.getElementById(`players${teamKey}-${safeId}`).innerHTML = ''; return; }
+
+  const placed = formPlaceTeam(teamRows, matchId, W, H);
+  const matchHighs = formComputeMatchHighs(teamRows);
+  const medals = ['👑','🥈','🥉'];
+  const container = document.getElementById(`players${teamKey}-${safeId}`);
+  let html = '';
+  placed.forEach(p=>{
+    // Match the same gold/silver/bronze medal ranking used everywhere else in the app
+    // (m.mvpList, index 0-2), instead of only ever highlighting the #1 MVP.
+    const mvpIdx = mvpList ? mvpList.findIndex(e => e.player === p.player) : -1;
+    const badges = mvpIdx >= 0 && mvpIdx < 3 ? `<span class="pplayer-badge mvp-${mvpIdx+1}">${medals[mvpIdx]}</span>` : '';
+    const tipId = `${safeId}_${teamKey}_${p.player}`.replace(/[^a-zA-Z0-9_]/g,'');
+    formTipData[tipId] = { ...p, _matchHighs: matchHighs };
+    const teamCls = teamKey==='A' ? 'team-a' : 'team-b';
+    html += `<div class="pplayer" style="left:${(p._fx*100).toFixed(2)}%;top:${(p._fy*100).toFixed(2)}%"
+      onmousemove="formShowTip(event,'${tipId}')" onmouseleave="formHideTip()">
+      <div class="pplayer-avatar ${teamCls}">${formInitials(p.player)}${badges}</div>
+      <div class="pplayer-name">${p.player}</div>
+      <div class="pplayer-role">${p._role}</div>
+    </div>`;
+  });
+  container.innerHTML = html;
+}
+
+function renderFormationTab(safeId){
+  const m = window.__matchById?.[safeId];
+  if (!m) return;
+  formRenderTeamPitch(m.id, safeId, 'A', m.teamA, m.mvpList);
+  formRenderTeamPitch(m.id, safeId, 'B', m.teamB, m.mvpList);
+}
+
+window.addEventListener('resize', () => {
+  document.querySelectorAll('.matchtab-panel.active[id^="matchtab-formation-"]').forEach(panel=>{
+    const safeId = panel.id.replace('matchtab-formation-', '');
+    renderFormationTab(safeId);
+  });
+});
+
 function editMatchDate(matchId, currentDate) {
   const modal = document.createElement('div');
   modal.style.cssText = 'position:fixed;inset:0;z-index:500;background:rgba(0,0,0,.8);display:flex;align-items:center;justify-content:center;padding:20px';
@@ -8662,9 +8881,6 @@ function confirmEditMatchDate(matchId, newDate) {
   allRows.forEach(r => { if (r.match_id === matchId) r.match_date = newDate; });
   // Rebuild everything
   playerStats = buildPlayerStats(allRows);
-  if (typeof invalidateRoleBaselineCache === 'function') invalidateRoleBaselineCache();
-  if (typeof invalidateRatingBaselineCache === 'function') invalidateRatingBaselineCache();
-  if (typeof invalidateMatchOnlyBaselineCache === 'function') invalidateMatchOnlyBaselineCache();
   matchList = buildMatches(allRows);
   computeWinLoss(playerStats, matchList);
   computeSpiderMaxima();
@@ -8687,9 +8903,6 @@ function deleteMatch(matchId, matchDate) {
   saveVideos();
   // Rebuild everything
   playerStats = buildPlayerStats(allRows);
-  if (typeof invalidateRoleBaselineCache === 'function') invalidateRoleBaselineCache();
-  if (typeof invalidateRatingBaselineCache === 'function') invalidateRatingBaselineCache();
-  if (typeof invalidateMatchOnlyBaselineCache === 'function') invalidateMatchOnlyBaselineCache();
   matchList = buildMatches(allRows);
   computeWinLoss(playerStats, matchList);
   computeSpiderMaxima();
@@ -8728,9 +8941,6 @@ function restoreFromBackup() {
 
     // Rebuild everything
     playerStats = buildPlayerStats(allRows);
-    if (typeof invalidateRoleBaselineCache === 'function') invalidateRoleBaselineCache();
-    if (typeof invalidateRatingBaselineCache === 'function') invalidateRatingBaselineCache();
-    if (typeof invalidateMatchOnlyBaselineCache === 'function') invalidateMatchOnlyBaselineCache();
     matchList = buildMatches(allRows);
     computeWinLoss(playerStats, matchList);
     computeSpiderMaxima();
@@ -11517,26 +11727,18 @@ function renderTeamBuilder() {
   const regularChips = players.map(p => {
     const note = playerNotes[p.player];
     const cls = selectedForTeams.has(p.player) ? 'pchip sel-a' : 'pchip';
-    const lock = lockedTeam[p.player];
-    const lockIcon = lock === 'A' ? '🔒A' : lock === 'B' ? '🔒B' : '🔓';
-    const lockCls = lock === 'A' ? 'lock-icon lock-a' : lock === 'B' ? 'lock-icon lock-b' : 'lock-icon';
     return `<div class="${cls}" onclick="toggleTeamPlayer('${p.player}')">
       ${p.player}
       ${adminMode ? `<span class="cr">${p.rating}</span>` : ''}
       ${note ? `<span class="inj" title="${note}">⚠</span>` : ''}
-      <span class="${lockCls}" onclick="event.stopPropagation();cyclePlayerLock('${p.player}')" title="Pin to a team before balancing/shuffling">${lockIcon}</span>
     </div>`;
   }).join('');
 
   const customChips = Object.values(customPlayers).map(p => {
     const cls = selectedForTeams.has(p.player) ? 'pchip sel-a' : 'pchip';
-    const lock = lockedTeam[p.player];
-    const lockIcon = lock === 'A' ? '🔒A' : lock === 'B' ? '🔒B' : '🔓';
-    const lockCls = lock === 'A' ? 'lock-icon lock-a' : lock === 'B' ? 'lock-icon lock-b' : 'lock-icon';
     return `<div class="${cls}" onclick="toggleTeamPlayer('${p.player}')" style="border-color:var(--amber);position:relative">
       <span style="color:var(--amber)">★</span> ${p.player}
       ${adminMode ? `<span class="cr">${p.rating}</span>` : ''}
-      <span class="${lockCls}" onclick="event.stopPropagation();cyclePlayerLock('${p.player}')" title="Pin to a team before balancing/shuffling">${lockIcon}</span>
       <span onclick="openEditCustomPlayer('${p.player}',event)" title="Edit" style="margin-left:4px;opacity:.6;font-size:.7rem;cursor:pointer">✏</span>
       <span onclick="removeCustomPlayer('${p.player}',event)" title="Remove" style="margin-left:2px;opacity:.6;font-size:.7rem;cursor:pointer;color:var(--red)">✕</span>
     </div>`;
@@ -11560,9 +11762,6 @@ function renderTeamBuilder() {
       const buff = playerBuffs[name] || 0;
       const buffCol = buff > 0 ? 'var(--green)' : buff < 0 ? 'var(--red,#f87171)' : 'var(--muted)';
       const buffDisplay = buff > 0 ? `+${buff}` : `${buff}`;
-      const statMult = playerStatMultipliers[name] || 0;
-      const statMultCol = statMult > 0 ? 'var(--green)' : statMult < 0 ? 'var(--red,#f87171)' : 'var(--muted)';
-      const statMultDisplay = statMult > 0 ? `+${statMult}%` : `${statMult}%`;
       return `
       <div class="note-row">
         <span class="note-player-name">${name}</span>
@@ -11575,11 +11774,6 @@ function renderTeamBuilder() {
           <button class="buff-btn" onclick="adjustPlayerBuff('${name}',-1)">−</button>
           <span class="buff-val" style="color:${buffCol}">${buffDisplay}</span>
           <button class="buff-btn" onclick="adjustPlayerBuff('${name}',+1)">+</button>
-        </div>
-        <div class="buff-stepper" data-tip="Stat scaling — multiplies ALL of this player's per-game stats (goals, assists, tackles, saves, etc.) up or down, so it flows through to their role, rating, and team dimension totals — not just the final rating number">
-          <button class="buff-btn" onclick="adjustPlayerStatMultiplier('${name}',-5)">−</button>
-          <span class="buff-val" style="color:${statMultCol}">${statMultDisplay}</span>
-          <button class="buff-btn" onclick="adjustPlayerStatMultiplier('${name}',+5)">+</button>
         </div>
       </div>`;
     }).join('');
@@ -11602,20 +11796,6 @@ function toggleTeamPlayer(name) {
   updateKeepApartDropdowns();
 }
 
-// Cycles a player through unlocked -> pinned to A -> pinned to B -> unlocked.
-// Locking a player auto-selects them (locking implies you want them in the pool).
-// autoBalance/shuffleTeams place locked players first, then optimize/randomize
-// only the remaining unlocked players around them.
-function cyclePlayerLock(name) {
-  const cur = lockedTeam[name];
-  if (!cur) lockedTeam[name] = 'A';
-  else if (cur === 'A') lockedTeam[name] = 'B';
-  else delete lockedTeam[name];
-  if (lockedTeam[name]) selectedForTeams.add(name);
-  renderTeamBuilder();
-  updateKeepApartDropdowns();
-}
-
 function savePlayerNote(name, val, rebalance = false) {
   playerNotes[name] = val;
   const pool = document.getElementById('avail-pool');
@@ -11625,14 +11805,10 @@ function savePlayerNote(name, val, rebalance = false) {
     pool.innerHTML = players.map(p => {
       const note = playerNotes[p.player];
       const cls = selectedForTeams.has(p.player) ? 'pchip sel-a' : 'pchip';
-      const lock = lockedTeam[p.player];
-      const lockIcon = lock === 'A' ? '🔒A' : lock === 'B' ? '🔒B' : '🔓';
-      const lockCls = lock === 'A' ? 'lock-icon lock-a' : lock === 'B' ? 'lock-icon lock-b' : 'lock-icon';
       return `<div class="${cls}" onclick="toggleTeamPlayer('${p.player}')">
         ${p.player}
         ${adminMode ? `<span class="cr">${p.rating}</span>` : ''}
         ${note ? `<span class="inj" title="${note}">⚠</span>` : ''}
-        <span class="${lockCls}" onclick="event.stopPropagation();cyclePlayerLock('${p.player}')" title="Pin to a team before balancing/shuffling">${lockIcon}</span>
       </div>`;
     }).join('');
   }
@@ -11655,40 +11831,16 @@ function adjustPlayerBuff(name, delta) {
   }
 }
 
-// Adjusts a player's stat multiplier in 5% steps (±50% range). Unlike
-// adjustPlayerBuff (a flat addition to the final rating number only), this
-// scales the player's entire underlying stat profile — see getScaledPlayer —
-// so it flows through to role classification, team dimension totals
-// (attack/defense/playmaking), and chemistry expectations, not just rating.
-function adjustPlayerStatMultiplier(name, delta) {
-  const current = playerStatMultipliers[name] || 0;
-  const next = Math.max(-50, Math.min(50, current + delta));
-  if (next === 0) delete playerStatMultipliers[name];
-  else playerStatMultipliers[name] = next;
-  saveStatMultipliers();
-  renderTeamBuilder();
-  if (teamA.length || teamB.length) {
-    // A stat multiplier changes the underlying pool (roles/dimensions), not
-    // just one player's rating — rebalance rather than just re-render so the
-    // split actually reflects the new scaled stats, same as an injury note.
-    autoBalance(true); // rebalanceOnly — skip enforcer gate, matches savePlayerNote's pattern
-  }
-}
-
 function clearTeams() {
   selectedForTeams.clear();
-  lockedTeam = {};
   teamA = []; teamB = [];
-  lastBalanceExplanation = null;
   document.getElementById('teams-grid').style.display = 'none';
   document.getElementById('balance-msg-area').innerHTML = '';
-  document.getElementById('team-actions-row').style.display = 'none';
+  document.getElementById('drag-hint').style.display = 'none';
   const ps = document.getElementById('predict-section');
   if (ps) ps.style.display = 'none';
   const ss = document.getElementById('synergy-section');
   if (ss) ss.style.display = 'none';
-  const sps = document.getElementById('suggested-pairings-section');
-  if (sps) sps.style.display = 'none';
   renderTeamBuilder();
 }
 
@@ -11975,54 +12127,10 @@ function computeStaminaFromEvents(playerName) {
   };
 }
 
-// Returns a scaled COPY of a player's stats object with every per-game stat
-// multiplied by (1 + pct/100) — goals, assists, shots, tackles, interceptions,
-// blocks, key_passes, GK saves, nutmegs. Games/wins/losses/matches are left
-// untouched (scaling rates, not sample size). Used as a single choke point so
-// every downstream calculation (rating, roles, dimensions, chemistry) that
-// reads from this player object automatically reflects the multiplier,
-// instead of needing every one of the ~60 call sites that read raw stats to
-// be individually updated. Returns the original object unchanged if no
-// multiplier is set (0/absent), so this is always safe to call.
-const SCALABLE_STAT_FIELDS = ['goals','assists','total_shots','shots_on_target','shots_off_target',
-  'tackles','interceptions','blocks','key_passes','goalkeeper_saves','nutmegs','post'];
-function getScaledPlayer(p, playerName) {
-  const pct = playerStatMultipliers[playerName];
-  if (!pct) return p;
-  const factor = 1 + (pct / 100);
-  const scaled = { ...p };
-  SCALABLE_STAT_FIELDS.forEach(field => {
-    if (typeof p[field] === 'number') scaled[field] = p[field] * factor;
-  });
-  // .matches holds per-match rows used by computeWeightedRating/getPlayerVolatility —
-  // scale those too so the weighted-last-10 and volatility calculations stay
-  // consistent with the scaled totals, not just the aggregate fields.
-  if (Array.isArray(p.matches)) {
-    scaled.matches = p.matches.map(r => {
-      const sr = { ...r };
-      SCALABLE_STAT_FIELDS.forEach(field => {
-        if (typeof r[field] === 'number') sr[field] = r[field] * factor;
-      });
-      return sr;
-    });
-  }
-  scaled._statMultiplierPct = pct; // so UI can show "scaled by +15%" somewhere if useful
-  return scaled;
-}
-
 function computeWeightedRating(playerName) {
-  const rawP = playerStats[playerName];
-  if (!rawP) return 0;
-  // Apply the stat multiplier (if any) at this single choke point — every
-  // downstream read of `p` below uses the scaled copy, so a +15% multiplier
-  // flows through to the rating exactly as if the player's real stats were
-  // 15% higher, without needing to touch each individual stat weight.
-  const p = getScaledPlayer(rawP, playerName);
+  const p = playerStats[playerName];
   const cs = customStats[playerName] || {};
-  // Uses cs.stamina (the manual slider) directly — deliberately does NOT fall back
-  // to computeStaminaFromEvents like computeRating does. Event-derived stamina isn't
-  // reliable enough yet to drive team-builder balancing; revisit this once that's
-  // sorted out, but don't change it as a "consistency fix" before then.
+  if (!p) return 0;
 
   // Sort matches newest first, take last 10 — exclude DNP rows
   const sorted = [...p.matches]
@@ -12062,363 +12170,19 @@ function computeWeightedRating(playerName) {
   return parseFloat((weightedBase + strikerBuff).toFixed(2));
 }
 
-// Breaks a player's rating into "earned from actual match performance" vs "manual
-// enforcer/stamina input" vs "striker buff" — so the team builder can show WHY two
-// players ended up close in rating, instead of one opaque number.
-//
-// IMPORTANT: this must mirror what's actually DISPLAYED (the shrunk effectiveRating),
-// not the raw pre-shrinkage weightedRating — otherwise the breakdown's components
-// don't sum to the number shown next to it, which is worse than no breakdown at all.
-// Per the earlier product decision, manual enforcer/stamina is NOT subject to
-// small-sample shrinkage (it's your own assessment, not a noisy stat). The SAME
-// combined total that shrinkRatingForBalance actually shrinks is shrunk here too
-// (not matchOnly and manualBonus separately, then added back — shrinkage isn't
-// linear, so that would silently drift out of sync with the real displayed number).
-// invalidateMatchOnlyBaselineCache is kept as a harmless no-op so the cache-clearing
-// call sites elsewhere don't need touching if this ever needs the baseline back.
-function invalidateMatchOnlyBaselineCache() {}
-
-function getRatingBreakdown(playerName) {
-  const p = playerStats[playerName];
-  const cs = customStats[playerName] || {};
-  if (!p) return null;
-  const manualBonus = n(cs.enforcer || 0) * 0.5 + n(cs.stamina || 0) * 0.4;
-  const rawTotal = computeWeightedRating(playerName);
-  const rawMatchOnly = rawTotal - manualBonus;
-
-  // Shrinks ONLY the match-performance component (via shrinkPlayerRating, the
-  // same function used for actual balancing) toward the match-only league
-  // baseline, then adds this player's own manual bonus back at full strength.
-  // matchOnly + manualBonus === total by construction, so the breakdown can
-  // never silently drift out of sync with what's actually displayed/balanced on.
-  const shrunkMatchOnly = shrinkRatingForBalance(rawMatchOnly, p.games, p);
-  const matchOnly = parseFloat(shrunkMatchOnly.toFixed(2));
-  const shrunkManualBonus = parseFloat(manualBonus.toFixed(2));
-  const total = parseFloat((shrunkMatchOnly + manualBonus).toFixed(2));
-  return {
-    matchOnly,                          // shrunk rating from match performance alone
-    manualBonus: shrunkManualBonus,     // from Enforcer/Stamina sliders — NOT shrunk (intentional)
-    total,                               // == shrinkPlayerRating(...) — matches what's shown as "Base"
-    enforcer: n(cs.enforcer || 0),
-    stamina: n(cs.stamina || 0),
-  };
-}
-
-// Small-sample shrinkage for team-builder balancing only. A player's raw rating
-// (computeRating/computeWeightedRating) treats every player's per-game average as
-// equally reliable, but someone with 1-4 games can have a wildly noisy rating (one
-// hat-trick, one big save game) that the balancer would otherwise trust as much as
-// a 40-game regular. This pulls low-sample ratings toward a baseline, with the pull
-// fading out as games accumulate — used only when deciding team splits, never shown
-// as the player's displayed rating elsewhere in the app.
-//
-// Shrinks toward a FIXED league-wide rating baseline (see getLeagueRatingBaseline),
-// not the currently selected pool's average — pulling toward "whoever you happened
-// to pick today" meant a low-sample player's rating could be inflated just by being
-// selected alongside strong players (their inflated pool average became the anchor),
-// or deflated alongside weak ones. A fixed baseline means the shrinkage target
-// doesn't move depending on today's selection.
-//
-// Shrinkage strength also scales with the player's own CONSISTENCY (via
-// getPlayerVolatility's coefficient of variation), not just games played: a new
-// player who's been consistently excellent (or consistently poor) across their
-// few games is a clearer signal than someone bouncing wildly game to game, and
-// should be trusted sooner even at the same low game count. A genuinely elite
-// newcomer performing like your top players, or a genuinely weak one performing
-// like your bottom players, should be recognized as such rather than dragged
-// toward "average" just because they're new.
-const SHRINK_K = 0; // games required before a player is judged fully on their own rating — set to 0 so EVERY player gets full trust immediately, even at 1 game (per explicit product decision). Kept as a named constant (not deleted) so this can be dialed back up later without rebuilding the mechanism.
-function shrinkRatingForBalance(rating, games, player) {
-  const g = Math.max(games || 0, 0);
-
-  // Hard cutoff: at SHRINK_K games or more, trust the player's own rating
-  // completely — no blending with the league baseline at all. With
-  // SHRINK_K = 0 this fires for every player unconditionally (including a
-  // single game), so the blending logic below is currently dead code in
-  // practice — left in place rather than removed in case shrinkage is
-  // wanted again for very small samples down the line.
-  if (g >= SHRINK_K) return rating;
-
-  const baseline = getLeagueRatingBaseline();
-
-  // Consistency multiplier: low volatility (steady performer) shrinks the
-  // effective SHRINK_K down (reaches full trust sooner, though never past the
-  // hard cutoff above); high volatility stretches it out (stays distrusted
-  // longer within the pre-cutoff window). No volatility data yet (fewer than
-  // 5 games) -> neutral, no adjustment, fall back to games-only.
-  let consistencyFactor = 1.0;
-  if (player) {
-    const vol = getPlayerVolatility(player);
-    if (vol) {
-      const baselineCv = getVolatilityBaseline().mean || 0.3;
-      // ratio < 1 = more consistent than league average -> trust sooner (lower K)
-      // ratio > 1 = more volatile than league average -> trust later (higher K)
-      const ratio = baselineCv > 0 ? vol.cv / baselineCv : 1;
-      consistencyFactor = Math.max(0.4, Math.min(2.0, ratio)); // clamp to a sane range
-    }
-  }
-  const effectiveK = SHRINK_K * consistencyFactor;
-
-  const trust = g / (g + effectiveK);
-  return rating * trust + baseline * (1 - trust);
-}
-
-// Shrinks ONLY a player's match-performance rating toward the match-only league
-// baseline, then adds their own manual enforcer/stamina bonus back at full,
-// unshrunk strength. This is the function balancing/display code should call
-// (not shrinkRatingForBalance directly on a combined raw total) — shrinking the
-// combined total would dilute a low-sample player's OWN manual bonus along with
-// their match performance, which contradicts the explicit decision that manual
-// input isn't subject to small-sample shrinkage. Returns the final rating to use
-// as weightedRating/effectiveRating's base.
-function shrinkPlayerRating(playerName) {
-  const p = playerStats[playerName];
-  if (!p) return 0;
-  const cs = customStats[playerName] || {};
-  const manualBonus = n(cs.enforcer || 0) * 0.5 + n(cs.stamina || 0) * 0.4;
-  const rawTotal = computeWeightedRating(playerName);
-  const rawMatchOnly = rawTotal - manualBonus;
-  const shrunkMatchOnly = shrinkRatingForBalance(rawMatchOnly, p.games, p);
-  return parseFloat((shrunkMatchOnly + manualBonus).toFixed(2));
-}
-
-// Fixed league-wide rating baseline — the shrinkage "anchor" for low-sample
-// players, computed once from all regular players' MATCH-ONLY performance (5+
-// games, same threshold used for the role baseline) and cached for the session.
-// Same fix as getLeagueRoleBaseline: a player's shrinkage target shouldn't move
-// depending on who else is currently selected in the team builder.
-//
-// Deliberately excludes everyone's manual enforcer/stamina bonus from the
-// average: those are per-player subjective scores, not match performance, and
-// including them would mean a low-sample player gets pulled up (or down) by
-// OTHER players' manual physicality scores rather than by genuine on-pitch
-// form — which is a different, unintended kind of influence from what
-// shrinkage toward "typical match performance" is supposed to represent.
-let _leagueRatingBaselineCache = null;
-function getLeagueRatingBaseline() {
-  if (_leagueRatingBaselineCache != null) return _leagueRatingBaselineCache;
-  const regulars = Object.values(playerStats || {}).filter(p => p.games >= 5);
-  const matchOnlyRatings = regulars.map(p => {
-    const cs = customStats[p.player] || {};
-    const manualBonus = n(cs.enforcer || 0) * 0.5 + n(cs.stamina || 0) * 0.4;
-    return computeWeightedRating(p.player) - manualBonus;
-  }).filter(r => !isNaN(r));
-  _leagueRatingBaselineCache = matchOnlyRatings.length
-    ? matchOnlyRatings.reduce((s,r)=>s+r,0) / matchOnlyRatings.length
-    : 0;
-  return _leagueRatingBaselineCache;
-}
-function invalidateRatingBaselineCache() { _leagueRatingBaselineCache = null; }
-
-// (shrinkChemDelta / CHEM_MIN_GAMES / CHEM_SHRINK_K are declared earlier in script
-// block 1, alongside filtChemList, since that's built before this script block runs)
-
-// Multi-tag role classifier — a player can be more than one thing (e.g. a real
-// scorer who's also a real defender), which single-label classification couldn't
-// express. Thresholds are relative to a FIXED league-wide baseline (all regular
-// players' average rates — see getLeagueRoleBaseline), not the currently selected
-// pool: comparing against whoever you happen to have picked this session meant a
-// player's role could flip between team-builder sessions depending on who else was
-// selected (e.g. Lachlan reading as "defender" in one pool and "scorer" in another),
-// which undermines trusting the tag at all. A fixed baseline means a player's role
-// is a property of THEM, not of today's selection.
-//
-// leagueBaseline: { gpg, apg, kppg, defpg, savpg } — mean per-game rate across all
-// regular players (min games filter applied), computed once and cached.
-function computePoolAverages(players) {
-  const sums = { gpg:0, apg:0, kppg:0, defpg:0, savpg:0 };
-  players.forEach(p => {
-    const g = Math.max(p.games, 1);
-    sums.gpg   += p.goals / g;
-    sums.apg   += p.assists / g;
-    sums.kppg  += p.key_passes / g;
-    sums.defpg += (p.tackles + p.interceptions + p.blocks) / g;
-    sums.savpg += (p.goalkeeper_saves || 0) / g;
-  });
-  const count = Math.max(players.length, 1);
-  Object.keys(sums).forEach(k => sums[k] = sums[k] / count);
-  return sums;
-}
-
-// Fixed league-wide role baseline — computed once from ALL regular players (5+
-// games, so one-off guest appearances don't skew it), cached for the session.
-// This is what getPlayerRoles compares every player against, regardless of which
-// smaller pool is currently selected in the team builder.
-let _leagueRoleBaselineCache = null;
-function getLeagueRoleBaseline() {
-  if (_leagueRoleBaselineCache) return _leagueRoleBaselineCache;
-  const regulars = Object.values(playerStats || {}).filter(p => p.games >= 5);
-  _leagueRoleBaselineCache = computePoolAverages(regulars);
-  return _leagueRoleBaselineCache;
-}
-// Call this if playerStats gets rebuilt (e.g. new data loaded) so role baselines
-// don't go stale against an outdated roster.
-function invalidateRoleBaselineCache() { _leagueRoleBaselineCache = null; }
-
-function getPlayerRoles(p, poolAvg) {
+function getPlayerRole(p) {
+  const cs = customStats[p.player] || {};
   const g = Math.max(p.games, 1);
   const gpg = p.goals / g, apg = p.assists / g, kppg = p.key_passes / g;
   const defpg = (p.tackles + p.interceptions + p.blocks) / g;
   const savpg = (p.goalkeeper_saves || 0) / g;
-
-  // Always compare against the fixed league-wide baseline, NOT whichever pool is
-  // currently selected — a player's role shouldn't change depending on who else
-  // you picked. The poolAvg parameter is kept (some callers still pass one) but is
-  // now ignored in favour of the stable baseline; see comment above.
-  const avg = getLeagueRoleBaseline();
-
-  // Compute every category's strength relative to the baseline ONCE, then rank —
-  // this is what makes primary/secondary meaningful. roles[0] is the genuine
-  // primary, ranked by actual relative strength rather than a fixed if-chain order.
-  const THRESH = { goalkeeper: 1.6, scorer: 1.3, creator: 1.3, defender: 1.25 };
-  const ratios = [
-    { role: 'goalkeeper', ratio: avg.savpg > 0 ? savpg / avg.savpg : 0 },
-    { role: 'scorer',     ratio: avg.gpg > 0 ? gpg / avg.gpg : 0 },
-    { role: 'creator',    ratio: Math.max(avg.apg > 0 ? apg / avg.apg : 0, avg.kppg > 0 ? kppg / avg.kppg : 0) },
-    { role: 'defender',   ratio: avg.defpg > 0 ? defpg / avg.defpg : 0 },
-  ].sort((a, b) => b.ratio - a.ratio);
-
-  const tags = ratios.filter(r => r.ratio >= THRESH[r.role]).map(r => r.role);
-  if (tags.length) return tags;
-
-  // Nobody cleared a strong threshold — rather than dumping the player into a
-  // generic "allrounder" bucket (which contributes nothing to role-based
-  // balancing/coverage checks), find their single BEST category relative to
-  // the baseline and tag them with that. This matters because a player can sit
-  // just under a threshold (e.g. 1.55x on saves, just short of the 1.6x GK
-  // cutoff) while being clearly below average everywhere else — that's a
-  // real lean, not genuine all-round flatness, and should still count.
-  const best = ratios[0]; // already sorted descending
-
-  // Only a genuinely flat statline (best category still close to average)
-  // gets called a true all-rounder — everyone else gets their best lean.
-  if (best.ratio < 1.1) return ['allrounder'];
-  return [best.role];
-}
-
-// Convenience accessors — roles[0] is always the strongest relative category
-// (primary), roles[1] (if present) the next strongest (secondary). A player
-// who only cleared one threshold, or fell back to a single best-lean/
-// all-rounder tag, simply has no secondary — that's a real "just one thing"
-// profile, not a gap in the data.
-function getPrimaryRole(p, poolAvg) { return getPlayerRoles(p, poolAvg)[0]; }
-function getSecondaryRole(p, poolAvg) { return getPlayerRoles(p, poolAvg)[1] || null; }
-
-// Back-compat single-label wrapper — a few older display spots want one icon/label
-// per player rather than a full tag list. roles[0] is already the genuine primary
-// (ranked by relative strength in getPlayerRoles), so just take that directly.
-function getPlayerRole(p, poolAvg) {
-  return getPrimaryRole(p, poolAvg) || 'allrounder';
-}
-
-// ── Profile-based pairing suggestions ──────────────────────────────────
-// Different from win-rate/goal-combo chemistry (which need real shared-game
-// history): this looks at two players' STAT PROFILES and asks whether their
-// tendencies fill gaps in each other — e.g. a low-key-pass shooter paired
-// with a high-key-pass, lower-shot-volume creator. Works even for players
-// who've never actually played together, since it's derived purely from
-// each player's own individual rates, not any shared outcome.
-function getPairComplementarity(p1, p2, poolAvg) {
-  const g1 = Math.max(p1.games, 1), g2 = Math.max(p2.games, 1);
-  const stats1 = {
-    shots: p1.total_shots / g1, kp: p1.key_passes / g1, goals: p1.goals / g1,
-    assists: p1.assists / g1, def: (p1.tackles + p1.interceptions + p1.blocks) / g1,
-  };
-  const stats2 = {
-    shots: p2.total_shots / g2, kp: p2.key_passes / g2, goals: p2.goals / g2,
-    assists: p2.assists / g2, def: (p2.tackles + p2.interceptions + p2.blocks) / g2,
-  };
-  const roles1 = getPlayerRoles(p1, poolAvg);
-  const roles2 = getPlayerRoles(p2, poolAvg);
-
-  const reasons = [];
-  let score = 0;
-
-  // 1) Shooter <-> Creator, using each player's OWN shot:key-pass ratio (not
-  // absolute volume) — this is the fine-grained version of your original ask:
-  // "a player who doesn't shoot much paired with a prominent scorer" or
-  // "a heavy passer paired with someone who shoots often but doesn't pass much".
-  const ratio1 = stats1.shots - stats1.kp; // positive = shoots more than creates
-  const ratio2 = stats2.shots - stats2.kp;
-  if (Math.abs(ratio1 - ratio2) >= 4 && (ratio1 > 0) !== (ratio2 > 0)) {
-    const shooter = ratio1 > ratio2 ? p1 : p2;
-    const creator = ratio1 > ratio2 ? p2 : p1;
-    score += 2;
-    reasons.push({
-      type: 'shoot-create',
-      text: `${shooter.player} shoots often but creates little (${(shooter===p1?stats1:stats2).shots.toFixed(1)} shots/g, ${(shooter===p1?stats1:stats2).kp.toFixed(1)} KP/g) — ${creator.player} leans the other way (${(creator===p1?stats1:stats2).kp.toFixed(1)} KP/g vs ${(creator===p1?stats1:stats2).shots.toFixed(1)} shots/g)`
-    });
-  }
-
-  // 2) Attacker <-> Defender using role tags
-  const isAttacker = (roles) => roles.some(r => ['scorer','creator'].includes(r));
-  const isDefender = (roles) => roles.includes('defender');
-  if ((isAttacker(roles1) && isDefender(roles2)) || (isAttacker(roles2) && isDefender(roles1))) {
-    const att = isAttacker(roles1) ? p1 : p2;
-    const def = isAttacker(roles1) ? p2 : p1;
-    score += 1.5;
-    reasons.push({ type: 'attack-defend', text: `${att.player} pushes forward — ${def.player} covers behind (${(def===p1?stats1:stats2).def.toFixed(1)} def actions/g)` });
-  }
-
-  // 3) Scorer <-> Creator using role tags (broader than #1's raw ratio check —
-  // catches cases where both shoot/create a fair bit, but one clearly finishes
-  // and the other clearly sets up)
-  const isScorer = (roles) => roles.includes('scorer');
-  const isCreator = (roles) => roles.includes('creator');
-  if ((isScorer(roles1) && isCreator(roles2) && !isScorer(roles2)) || (isScorer(roles2) && isCreator(roles1) && !isScorer(roles1))) {
-    const scorer = isScorer(roles1) ? p1 : p2;
-    const creator = isScorer(roles1) ? p2 : p1;
-    score += 1;
-    reasons.push({ type: 'score-create', text: `${scorer.player} finishes (${(scorer===p1?stats1:stats2).goals.toFixed(1)} goals/g) — ${creator.player} supplies (${(creator===p1?stats1:stats2).assists.toFixed(1)} assists/g, ${(creator===p1?stats1:stats2).kp.toFixed(1)} KP/g)` });
-  }
-
-  return { score, reasons };
-}
-
-// ── Player volatility (game-to-game unpredictability) ──────────────────
-// Different from the sample-size shrinkage applied to ratings: shrinkage asks
-// "how much do we trust this rating given how few games we've seen", while
-// volatility asks "even with plenty of games, does this player swing wildly
-// from game to game, or produce steadily?" A boom-or-bust player and a
-// reliably-average player can have the SAME average rating but very
-// different risk profiles for a team relying on them.
-//
-// Computed as the coefficient of variation (stdDev / mean) of a per-match
-// performance score, using the same stat weights as computeRating. Needs at
-// least 5 FULL-row matches to produce a meaningful number — below that, a
-// player is treated as unknown/neutral volatility rather than guessing.
-// NOTE: like the existing X-Factor calculation elsewhere in the app, this
-// only sees FULL rows, so a player's swapped-team matches (1H/2H only, no
-// FULL row) aren't counted in their volatility sample.
-function getPlayerVolatility(p) {
-  if (!p || !p.matches || p.matches.length < 5) return null;
-  const perMatchScore = p.matches.map(r =>
-    n(r.goals) * 4.5 + n(r.assists) * 3 + n(r.total_shots) * 0.25 +
-    (n(r.interceptions) + n(r.tackles)) * 0.4 + n(r.goalkeeper_saves) * 0.3 +
-    n(r.key_passes) * 0.35 + n(r.blocks) * 0.3
-  );
-  const mean = perMatchScore.reduce((s,v)=>s+v,0) / perMatchScore.length;
-  if (mean <= 0) return null; // no meaningful output to measure variance against
-  const variance = perMatchScore.reduce((s,v)=>s+(v-mean)**2,0) / perMatchScore.length;
-  const stdDev = Math.sqrt(variance);
-  const cv = stdDev / mean; // coefficient of variation — scale-independent, comparable across players
-  return { cv, mean, matches: perMatchScore.length };
-}
-
-// League-wide volatility baseline, used to classify a player as "volatile"
-// relative to their peers rather than against an arbitrary fixed number.
-// Cached per session (recomputed if playerStats changes via nav) since it
-// scans every player's match history — not something to redo per pair.
-let _volatilityBaselineCache = null;
-function getVolatilityBaseline() {
-  if (_volatilityBaselineCache) return _volatilityBaselineCache;
-  const cvs = Object.values(playerStats)
-    .map(p => getPlayerVolatility(p))
-    .filter(v => v !== null)
-    .map(v => v.cv);
-  const mean = cvs.length ? cvs.reduce((s,v)=>s+v,0) / cvs.length : 0.6;
-  _volatilityBaselineCache = { mean, count: cvs.length };
-  return _volatilityBaselineCache;
+  const nmpg = p.nutmegs / g;
+  if (savpg >= 4) return 'goalkeeper';
+  if (gpg >= 1.5) return 'scorer';
+  if (apg >= 1.5 || kppg >= 5) return 'creator';
+  if (defpg >= 8) return 'defender';
+  if (nmpg >= 1.5) return 'flair';
+  return 'allrounder';
 }
 
 function teamDimensions(team) {
@@ -12477,7 +12241,6 @@ function teamDimensions(team) {
 
 let streakAugmentEnabled = false;
 let winRateAugStrength = 0.20; // max modifier — 0.20 = ±20% rating adjustment
-let chemistryAffectsPrediction = true; // toggle: does pair chemistry nudge Predicted Result?
 
 function toggleStreakAugment() {
   streakAugmentEnabled = !streakAugmentEnabled;
@@ -12491,19 +12254,8 @@ function toggleStreakAugment() {
   if (teamA.length || teamB.length) renderTeamResult(teamA, teamB);
 }
 
-// Keep-apart pairs for shuffle AND smart balance — pairs that must not end up
-// on the same team. Shared by both autoBalance() and shuffleTeams() so the
-// constraint behaves identically regardless of which one the user runs.
+// Keep-apart pairs for shuffle
 let keepApartPairs = [];
-
-function violatesKeepApart(a, b) {
-  const aNm = new Set(a.map(p => p.player));
-  const bNm = new Set(b.map(p => p.player));
-  return keepApartPairs.some(pair =>
-    (aNm.has(pair.a) && aNm.has(pair.b)) ||
-    (bNm.has(pair.a) && bNm.has(pair.b))
-  );
-}
 
 function updateKeepApartDropdowns() {
   const players = [...selectedForTeams];
@@ -12546,14 +12298,9 @@ function renderKeepApartList() {
 
 function shuffleTeams() {
   // Build rated player objects same way autoBalance does
-  const rawPool = [...selectedForTeams].map(name => customPlayers[name] || playerStats[name]).filter(Boolean);
-  const poolAvg = computePoolAverages(rawPool);
   const sel = [...selectedForTeams].map(name => {
-    const rawP = customPlayers[name] || playerStats[name];
-    if (!rawP) return null;
-    // Scaled copy so teamDimensions/getPlayerRoles/etc. reflect the stat
-    // multiplier too, not just the rating number — same reasoning as autoBalance.
-    const p = rawP._isCustom ? rawP : getScaledPlayer(rawP, name);
+    const p = customPlayers[name] || playerStats[name];
+    if (!p) return null;
     const cs = customStats[name] || {};
     p.rating = computeRating(p, cs);
     const weightedRating = p._isCustom ? computeRating(p, cs) : computeWeightedRating(name);
@@ -12581,28 +12328,25 @@ function shuffleTeams() {
       playerBuff: buff,
       enforcer: n(cs.enforcer || 0) * (1 - pen),
       enforcerRaw: n(cs.enforcer || 0),
-      role: getPlayerRole(p, poolAvg),
-      roles: getPlayerRoles(p, poolAvg)
+      role: getPlayerRole(p)
     };
   }).filter(Boolean);
 
   if (sel.length < 2) { alert('Add at least 2 players first.'); return; }
 
-  // Locked players are pinned to their side; only unlocked players get shuffled.
-  const lockedA = sel.filter(p => lockedTeam[p.player] === 'A');
-  const lockedB = sel.filter(p => lockedTeam[p.player] === 'B');
-  const unlocked = sel.filter(p => !lockedTeam[p.player]);
-
-  if (!unlocked.length && (lockedA.length || lockedB.length)) {
-    teamA = lockedA; teamB = lockedB;
-    lastBalanceExplanation = null;
-    renderTeamResult(teamA, teamB);
-    return;
-  }
-
   const total = sel.length;
-  const sizeA = Math.max(0, Math.ceil(total / 2) - lockedA.length);
+  const sizeA = Math.ceil(total / 2);
   const enfThreshold = parseInt(document.getElementById('enf-threshold')?.value || 3);
+
+  // Keep-apart constraint check
+  const violatesKeepApart = (a, b) => {
+    const aNm = new Set(a.map(p => p.player));
+    const bNm = new Set(b.map(p => p.player));
+    return keepApartPairs.some(pair =>
+      (aNm.has(pair.a) && aNm.has(pair.b)) ||
+      (bNm.has(pair.a) && bNm.has(pair.b))
+    );
+  };
 
   const shuffle = arr => {
     const a = [...arr];
@@ -12614,27 +12358,6 @@ function shuffleTeams() {
   };
 
   // Score a split using the same multi-dimensional balance as autoBalance
-  const poolAvgForRolesShuffle = computePoolAverages(sel);
-  const roleCoveragePenaltyShuffle = (a, b) => {
-    const rolesOf = (team) => {
-      const has = { scorer: false, creator: false, defender: false };
-      team.forEach(p => {
-        (p.roles || getPlayerRoles(p, poolAvgForRolesShuffle)).forEach(r => { if (r in has) has[r] = true; });
-      });
-      return has;
-    };
-    const hasA = rolesOf(a), hasB = rolesOf(b);
-    let penalty = 0;
-    ['scorer', 'creator', 'defender'].forEach(role => {
-      if (hasA[role] !== hasB[role]) penalty += 8;
-    });
-    return penalty;
-  };
-  const volBaselineShuffle = getVolatilityBaseline().mean || 0.3;
-  const volatilityScoreShuffle = (team) => team.reduce((s,p) => {
-    const v = getPlayerVolatility(p);
-    return s + (v ? v.cv : volBaselineShuffle);
-  }, 0);
   const scoreSplit = (a, b) => {
     const rA = a.reduce((s,p) => s+p.effectiveRating, 0);
     const rB = b.reduce((s,p) => s+p.effectiveRating, 0);
@@ -12643,7 +12366,6 @@ function shuffleTeams() {
     const gkB = b.reduce((s,p) => s + ((p.goalkeeper_saves||0)/Math.max(p.games,1)), 0);
     const eA  = a.reduce((s,p) => s + p.enforcer, 0);
     const eB  = b.reduce((s,p) => s + p.enforcer, 0);
-    const volA = volatilityScoreShuffle(a), volB = volatilityScoreShuffle(b);
     const abs = (x,y) => Math.abs(x-y);
     return (
       abs(rA,rB)          * 3.0 +
@@ -12652,9 +12374,7 @@ function shuffleTeams() {
       abs(dA.playmaking,dB.playmaking) * 1.0 +
       abs(gkA,gkB)        * 2.0 +
       abs(eA,eB)          * 1.2 +
-      Math.abs(dA.synergy - dB.synergy) * 5.0 +
-      roleCoveragePenaltyShuffle(a, b) +
-      abs(volA, volB) * 1.5
+      Math.abs(dA.synergy - dB.synergy) * 5.0
     );
   };
 
@@ -12662,9 +12382,9 @@ function shuffleTeams() {
   const candidates = [];
   const seen = new Set();
   for (let i = 0; i < 300; i++) {
-    const shuffled = shuffle(unlocked);
-    const a = [...lockedA, ...shuffled.slice(0, sizeA)];
-    const b = [...lockedB, ...shuffled.slice(sizeA)];
+    const shuffled = shuffle(sel);
+    const a = shuffled.slice(0, sizeA);
+    const b = shuffled.slice(sizeA);
     const key = a.map(p=>p.player).sort().join('|');
     if (seen.has(key)) continue;
     seen.add(key);
@@ -12679,9 +12399,9 @@ function shuffleTeams() {
   // If no valid split found, relax enforcer constraint but keep keep-apart
   if (!candidates.length) {
     for (let i = 0; i < 200; i++) {
-      const shuffled = shuffle(unlocked);
-      const a = [...lockedA, ...shuffled.slice(0, sizeA)];
-      const b = [...lockedB, ...shuffled.slice(sizeA)];
+      const shuffled = shuffle(sel);
+      const a = shuffled.slice(0, sizeA);
+      const b = shuffled.slice(sizeA);
       const key = a.map(p=>p.player).sort().join('|');
       if (seen.has(key)) continue;
       seen.add(key);
@@ -12693,9 +12413,9 @@ function shuffleTeams() {
   // Last resort — ignore all constraints
   if (!candidates.length) {
     for (let i = 0; i < 100; i++) {
-      const shuffled = shuffle(unlocked);
-      const a = [...lockedA, ...shuffled.slice(0, sizeA)];
-      const b = [...lockedB, ...shuffled.slice(sizeA)];
+      const shuffled = shuffle(sel);
+      const a = shuffled.slice(0, sizeA);
+      const b = shuffled.slice(sizeA);
       candidates.push({ a, b, score: scoreSplit(a, b) });
     }
   }
@@ -12707,7 +12427,6 @@ function shuffleTeams() {
 
   teamA = chosen.a;
   teamB = chosen.b;
-  lastBalanceExplanation = null; // shuffle is intentionally random — no "why" to show
 
   renderTeamResult(teamA, teamB); // sets balance-msg-area with balance bar + enforcer note
 
@@ -12726,35 +12445,13 @@ function shuffleTeams() {
 }
 
 function autoBalance(rebalanceOnly = false) {
-  // Gather raw weighted ratings for the selected pool. Shrinkage (see
-  // shrinkRatingForBalance) now pulls low-sample players toward a FIXED
-  // league-wide baseline plus a consistency check, not this pool's own
-  // average — so a low-sample player's rating doesn't depend on who else
-  // happens to be selected today.
-  const rawList = [...selectedForTeams].map(name => {
-    const rawP = customPlayers[name] || playerStats[name];
-    if (!rawP) return null;
-    // Apply the stat multiplier here too (not just inside computeWeightedRating) —
-    // this `p` becomes the actual team-builder player object via ...p further
-    // down, so teamDimensions/getPlayerRoles/etc. (which read stats directly,
-    // not through computeWeightedRating) also see the scaled stats.
-    const p = rawP._isCustom ? rawP : getScaledPlayer(rawP, name);
+  const sel = [...selectedForTeams].map(name => {
+    // Check custom players first, then regular player stats
+    const p = customPlayers[name] || playerStats[name];
+    if (!p) return null;
     const cs = customStats[name] || {};
-    const weightedRatingRaw = p._isCustom ? computeRating(p, cs) : computeWeightedRating(name);
-    return { name, p, cs, weightedRatingRaw, games: p.games || 0 };
-  }).filter(Boolean);
-  // Role thresholds now use a fixed league-wide baseline (getLeagueRoleBaseline),
-  // not this pool — kept for backward-compat call signatures only; getPlayerRoles
-  // ignores this parameter. See getPlayerRoles notes for why.
-  const poolAvg = computePoolAverages(rawList.map(r => r.p));
-
-  const sel = rawList.map(({ name, p, cs, weightedRatingRaw, games }) => {
     p.rating = computeRating(p, cs);
-    // Custom players are hand-entered (no match history to be noisy about),
-    // so only shrink real players with a real sample-size problem. Uses
-    // shrinkPlayerRating (shrinks match-only, adds manual bonus back unshrunk)
-    // rather than shrinking the combined raw total directly.
-    const weightedRating = p._isCustom ? weightedRatingRaw : shrinkPlayerRating(name);
+    const weightedRating = p._isCustom ? computeRating(p, cs) : computeWeightedRating(name);
     const note = (playerNotes[name] || '').toLowerCase();
     const pen = getPenalty(playerNotes[name]);
 
@@ -12797,40 +12494,15 @@ function autoBalance(rebalanceOnly = false) {
       playerBuff: buff,
       enforcer: n((customStats[name] || {}).enforcer || 0) * (1 - pen),
       enforcerRaw: n((customStats[name] || {}).enforcer || 0),
-      role: getPlayerRole(p, poolAvg),
-      roles: getPlayerRoles(p, poolAvg)
+      role: getPlayerRole(p)
     };
   }).filter(Boolean);
 
   if (sel.length < 2) { alert('Select at least 2 players to balance.'); return; }
 
-  // Split out locked players — they're placed on their pinned side unconditionally,
-  // and only the remaining unlocked players go through the balancing search below.
-  const lockedA = sel.filter(p => lockedTeam[p.player] === 'A');
-  const lockedB = sel.filter(p => lockedTeam[p.player] === 'B');
-  const unlocked = sel.filter(p => !lockedTeam[p.player]);
-
-  if (unlocked.length < 1 && (lockedA.length || lockedB.length)) {
-    // Everyone is locked — nothing to optimize, just use the pins as-is.
-    teamA = lockedA; teamB = lockedB;
-    renderTeamResult(teamA, teamB);
-    return;
-  }
-
-  const total = unlocked.length;
-  // Target sizes for the unlocked pool so the FINAL teams (locked + unlocked) end up
-  // as evenly sized as possible overall, not just the unlocked portion.
-  const totalAll = sel.length;
-  const finalSizeA = Math.ceil(totalAll / 2);
-  const finalSizeB = Math.floor(totalAll / 2);
-  let sizeA = Math.max(0, finalSizeA - lockedA.length);
-  let sizeB = Math.max(0, finalSizeB - lockedB.length);
-  // If locks alone already overfill/underfill relative to the ideal split, fall back
-  // to filling whatever's left as evenly as possible between the two sides.
-  if (sizeA + sizeB !== total) {
-    sizeA = Math.ceil(total / 2);
-    sizeB = Math.floor(total / 2);
-  }
+  const total = sel.length;
+  const sizeA = Math.ceil(total / 2);
+  const sizeB = Math.floor(total / 2);
   const uneven = sizeA !== sizeB;
 
   const totalEnforcer = sel.reduce((s, p) => s + p.enforcer, 0);
@@ -12841,42 +12513,6 @@ function autoBalance(rebalanceOnly = false) {
     chemLookup[`${c.p1}|||${c.p2}`] = c;
     chemLookup[`${c.p2}|||${c.p1}`] = c;
   });
-
-  // Role coverage: does each team have at least one real scorer/creator, rather
-  // than just balanced SUM totals (a team could match another's total playmaking
-  // number with zero individual playmakers if their attackers "share the load" —
-  // this catches that specific failure mode). Uses the pool-relative multi-tag
-  // role system (getPlayerRoles), computed once per selected pool.
-  const poolAvgForRoles = computePoolAverages(sel);
-  const roleCoveragePenalty = (a, b) => {
-    const rolesOf = (team) => {
-      const has = { scorer: false, creator: false, defender: false };
-      team.forEach(p => {
-        (p.roles || getPlayerRoles(p, poolAvgForRoles)).forEach(r => { if (r in has) has[r] = true; });
-      });
-      return has;
-    };
-    const hasA = rolesOf(a), hasB = rolesOf(b);
-    let penalty = 0;
-    ['scorer', 'creator', 'defender'].forEach(role => {
-      // Only penalise a team having ZERO of a role while the other has at least one —
-      // this is a coverage gap, not a small imbalance, so it's weighted heavily.
-      if (hasA[role] !== hasB[role]) penalty += 8;
-    });
-    return penalty;
-  };
-
-  // Volatility balance: teams with a similar TOTAL amount of "boom or bust" risk
-  // are preferable to one team hoarding all the unpredictable players. Uses the
-  // coefficient-of-variation based getPlayerVolatility, relative to the league
-  // baseline so it's meaningful regardless of absolute scoring rates.
-  const volBaseline = getVolatilityBaseline().mean || 0.3;
-  const volatilityScore = (team) => team.reduce((s,p) => {
-    const v = getPlayerVolatility(p);
-    // No reliable volatility data (too few games) -> treat as league-average, so
-    // unproven players don't get free-passed OR unfairly flagged either way.
-    return s + (v ? v.cv : volBaseline);
-  }, 0);
 
   // Secondary score: overall balance (rating + attack + defense + creative + gk + H2H synergy)
   const secondaryScore = (a, b) => {
@@ -12892,17 +12528,13 @@ function autoBalance(rebalanceOnly = false) {
     // Chemistry imbalance — heavily weighted so teams with stacked good pairs get split
     const synergyDiff = Math.abs(dA.synergy - dB.synergy) * 5.0;
 
-    const volA = volatilityScore(a), volB = volatilityScore(b);
-
     return (
       abs(rA, rB) * 3.0 +
       abs(dA.attack, dB.attack) * 1.5 +
       abs(dA.defense, dB.defense) * 1.5 +
       abs(dA.playmaking, dB.playmaking) * 1.0 +
       abs(gkA, gkB) * 2.0 +
-      synergyDiff +
-      roleCoveragePenalty(a, b) +
-      abs(volA, volB) * 1.5
+      synergyDiff
     );
   };
 
@@ -12922,15 +12554,15 @@ function autoBalance(rebalanceOnly = false) {
   let bestA = [], bestB = [], bestSecondary = Infinity;
 
   if (total <= 14) {
-    // Generate all combinations of the UNLOCKED players only, then add each side's
-    // locked players in before scoring — so balance/enforcer scoring always reflects
-    // the true final teams, not just the portion being optimized.
+    // Generate all combinations, two passes:
+    // Pass 1 — find the minimum enforcer diff achievable
+    // Pass 2 — from all splits at that min diff, pick best secondary score
     const allSplits = [];
     const combos = (arr, k, start, cur) => {
       if (cur.length === k) {
         const bSet = new Set(cur.map(p => p.player));
-        const bUnlocked = arr.filter(p => !bSet.has(p.player));
-        allSplits.push({ a: [...lockedA, ...cur], b: [...lockedB, ...bUnlocked] });
+        const b = sel.filter(p => !bSet.has(p.player));
+        allSplits.push({ a: [...cur], b });
         return;
       }
       for (let i = start; i < arr.length; i++) {
@@ -12939,19 +12571,13 @@ function autoBalance(rebalanceOnly = false) {
         cur.pop();
       }
     };
-    combos(unlocked, sizeA, 0, []);
+    combos(sel, sizeA, 0, []);
 
-    // Keep-apart pairs must never end up on the same team. Filter these out first;
-    // if that leaves nothing (constraint impossible given the locks/selection), fall
-    // back to considering all splits rather than silently producing no teams.
-    const validSplits = allSplits.filter(({ a, b }) => !violatesKeepApart(a, b));
-    const searchSplits = validSplits.length ? validSplits : allSplits;
-
-    // Phase 1: find minimum enforcer diff across all valid splits
+    // Phase 1: find minimum enforcer diff across all splits
     // Skip enforcer gate when rebalancing due to injury/note changes — just optimise balance
     let minEnfDiff = rebalanceOnly ? 0 : Infinity;
     if (!rebalanceOnly) {
-      searchSplits.forEach(({ a, b }) => {
+      allSplits.forEach(({ a, b }) => {
         const ed = enforcerDiff(a, b);
         if (ed < minEnfDiff) minEnfDiff = ed;
       });
@@ -12960,7 +12586,7 @@ function autoBalance(rebalanceOnly = false) {
     // Phase 2: from splits within tolerance of min enforcer diff, pick best secondary balance
     // Allow tolerance of 1 enforcer point above minimum to give some flexibility
     const tolerance = 1;
-    searchSplits.forEach(({ a, b }) => {
+    allSplits.forEach(({ a, b }) => {
       const ed = enforcerDiff(a, b);
       if (ed <= minEnfDiff + tolerance) {
         const sec = secondaryScore(a, b);
@@ -12971,58 +12597,25 @@ function autoBalance(rebalanceOnly = false) {
       }
     });
   } else {
-    // Large groups: greedy seed + swap-improve with enforcer as hard gate.
-    // Locked players are pre-placed on their pinned side and excluded from swapping —
-    // only the unlocked players are seeded/optimized around them.
-    unlocked.sort((a, b) => b.effectiveRating - a.effectiveRating);
-    let tA = [...lockedA], tB = [...lockedB];
-    let sumA = lockedA.reduce((s,p)=>s+p.effectiveRating,0);
-    let sumB = lockedB.reduce((s,p)=>s+p.effectiveRating,0);
-    const targetA = lockedA.length + sizeA;
-    unlocked.forEach(p => {
-      if (tA.length < targetA && (sumA <= sumB || tB.length >= lockedB.length + sizeB)) { tA.push(p); sumA += p.effectiveRating; }
+    // Large groups: greedy seed + swap-improve with enforcer as hard gate
+    sel.sort((a, b) => b.effectiveRating - a.effectiveRating);
+    let tA = [], tB = [];
+    let sumA = 0, sumB = 0;
+    sel.forEach(p => {
+      if (tA.length < sizeA && (sumA <= sumB || tB.length >= sizeB)) { tA.push(p); sumA += p.effectiveRating; }
       else { tB.push(p); sumB += p.effectiveRating; }
     });
-    const lockedNames = new Set([...lockedA, ...lockedB].map(p => p.player));
-    const swappableIdx = (team) => team.map((p,i)=>lockedNames.has(p.player)?-1:i).filter(i=>i>=0);
 
-    // Fix-up pass: if the initial greedy seed put a keep-apart pair on the same team,
-    // try swapping one of them (an unlocked player) to the other side to resolve it.
-    if (violatesKeepApart(tA, tB)) {
-      outer:
-      for (const pair of keepApartPairs) {
-        for (const [team, other, teamName] of [[tA, tB, 'A'], [tB, tA, 'B']]) {
-          const aIn = team.some(p => p.player === pair.a);
-          const bIn = team.some(p => p.player === pair.b);
-          if (!aIn || !bIn) continue;
-          // Try moving whichever of the pair is unlocked to the other side, swapping
-          // with the lowest-impact unlocked player there to keep team sizes even.
-          const moveName = !lockedNames.has(pair.a) ? pair.a : (!lockedNames.has(pair.b) ? pair.b : null);
-          if (!moveName) continue; // both locked to the same side — truly unsatisfiable, leave as-is
-          const moveIdx = team.findIndex(p => p.player === moveName);
-          const otherSwapIdx = swappableIdx(other)[0];
-          if (moveIdx === -1 || otherSwapIdx === undefined) continue;
-          const moved = team[moveIdx];
-          const swapped = other[otherSwapIdx];
-          team[moveIdx] = swapped;
-          other[otherSwapIdx] = moved;
-          if (!violatesKeepApart(tA, tB)) break outer;
-        }
-      }
-    }
-
-    // Find minimum enforcer diff achievable by swapping (locked players excluded,
-    // and swaps that would create a new keep-apart violation are rejected)
+    // Find minimum enforcer diff achievable by swapping
     let minEnfDiff = enforcerDiff(tA, tB);
     let improved = true, iters = 0;
     // First pass: swap to minimise enforcer
     while (improved && iters++ < 100) {
       improved = false;
-      for (const i of swappableIdx(tA)) {
-        for (const j of swappableIdx(tB)) {
+      for (let i = 0; i < tA.length; i++) {
+        for (let j = 0; j < tB.length; j++) {
           const nA = [...tA]; nA[i] = tB[j];
           const nB = [...tB]; nB[j] = tA[i];
-          if (violatesKeepApart(nA, nB)) continue;
           const ed = enforcerDiff(nA, nB);
           if (ed < minEnfDiff) {
             minEnfDiff = ed; tA = nA; tB = nB; improved = true;
@@ -13039,11 +12632,10 @@ function autoBalance(rebalanceOnly = false) {
     improved = true; iters = 0;
     while (improved && iters++ < 100) {
       improved = false;
-      for (const i of swappableIdx(bestA)) {
-        for (const j of swappableIdx(bestB)) {
+      for (let i = 0; i < bestA.length; i++) {
+        for (let j = 0; j < bestB.length; j++) {
           const nA = [...bestA]; nA[i] = bestB[j];
           const nB = [...bestB]; nB[j] = bestA[i];
-          if (violatesKeepApart(nA, nB)) continue;
           if (enforcerDiff(nA, nB) <= minEnfDiff + tolerance) {
             const sec = secondaryScore(nA, nB);
             if (sec < bestSecondary) {
@@ -13056,76 +12648,7 @@ function autoBalance(rebalanceOnly = false) {
   }
 
   teamA = bestA; teamB = bestB;
-  lastBalanceExplanation = explainBalance(bestA, bestB);
   renderTeamResult(teamA, teamB);
-}
-
-// Builds a short, plain-language summary of what Smart Balance actually optimized
-// for this split, from the real component diffs — so the reasoning behind a split
-// is visible instead of a black box. Called right after autoBalance picks a result.
-let lastBalanceExplanation = null;
-function explainBalance(tA, tB) {
-  if (!tA.length || !tB.length) return null;
-  const dA = teamDimensions(tA), dB = teamDimensions(tB);
-  const rA = tA.reduce((s,p)=>s+p.effectiveRating,0);
-  const rB = tB.reduce((s,p)=>s+p.effectiveRating,0);
-  const eA = tA.reduce((s,p)=>s+p.enforcer,0);
-  const eB = tB.reduce((s,p)=>s+p.enforcer,0);
-  const gkA = tA.reduce((s,p)=>s+((p.goalkeeper_saves||0)/Math.max(p.games,1)),0);
-  const gkB = tB.reduce((s,p)=>s+((p.goalkeeper_saves||0)/Math.max(p.games,1)),0);
-  const poolAvgExplain = computePoolAverages([...tA, ...tB]);
-  const volBaselineExplain = getVolatilityBaseline().mean || 0.3;
-  const volOf = (team) => team.reduce((s,p) => {
-    const v = getPlayerVolatility(p);
-    return s + (v ? v.cv : volBaselineExplain);
-  }, 0);
-  const volA = volOf(tA), volB = volOf(tB);
-
-  const pct = (x, y) => {
-    const t = x + y;
-    return t > 0 ? Math.round(Math.abs(x-y) / t * 100) : 0;
-  };
-  const factors = [
-    { label: 'overall rating',  gap: pct(rA, rB) },
-    { label: 'attacking output', gap: pct(dA.attack, dB.attack) },
-    { label: 'defensive output', gap: pct(dA.defense, dB.defense) },
-    { label: 'playmaking',       gap: pct(dA.playmaking, dB.playmaking) },
-    { label: 'chemistry',        gap: pct(Math.abs(dA.synergy)+50, Math.abs(dB.synergy)+50) },
-    { label: 'goalkeeping',      gap: gkA + gkB > 0 ? pct(gkA, gkB) : null },
-    { label: 'enforcer/physicality', gap: eA + eB > 0 ? pct(eA, eB) : null },
-    { label: 'consistency (volatility)', gap: volA + volB > 0 ? pct(volA, volB) : null },
-  ].filter(f => f.gap != null);
-
-  const lockedCount = tA.concat(tB).filter(p => lockedTeam[p.player]).length;
-  const tightest = [...factors].sort((a,b) => a.gap - b.gap).slice(0, 3).map(f => f.label);
-  const loosest = [...factors].sort((a,b) => b.gap - a.gap)[0];
-
-  let text = `Matched closely on ${tightest.join(', ')}.`;
-  if (loosest && loosest.gap > 15) {
-    text += ` Biggest remaining gap is ${loosest.label} (${loosest.gap}% split) — not always fully closeable alongside the other factors.`;
-  }
-
-  // Role coverage callout — a genuine gap (one team has zero of a role the
-  // other has) is worth naming explicitly, since it's a different kind of
-  // problem than a numeric imbalance and easy to miss otherwise.
-  const rolesOfExplain = (team) => {
-    const has = { scorer: false, creator: false, defender: false };
-    team.forEach(p => (p.roles || getPlayerRoles(p, poolAvgExplain)).forEach(r => { if (r in has) has[r] = true; }));
-    return has;
-  };
-  const hasA = rolesOfExplain(tA), hasB = rolesOfExplain(tB);
-  const roleLabelsExplain = { scorer: 'a real scorer', creator: 'a real creator', defender: 'a real defender' };
-  const missingGaps = ['scorer','creator','defender']
-    .filter(r => hasA[r] !== hasB[r])
-    .map(r => `Team ${hasA[r] ? 'B' : 'A'} has no ${roleLabelsExplain[r]}`);
-  if (missingGaps.length) {
-    text += ` ⚠ ${missingGaps.join('; ')} — couldn't be fully resolved with this player pool.`;
-  }
-
-  if (lockedCount > 0) {
-    text += ` ${lockedCount} player${lockedCount>1?'s were':' was'} pinned to a side and excluded from optimization.`;
-  }
-  return text;
 }
 
 // ---- Drag and drop between teams (mouse + touch) ----
@@ -13215,108 +12738,7 @@ function dropToTeam(toTeam, event) {
   to.push(moved);
   _dragPlayer = null;
   _dragFromTeam = null;
-  lastBalanceExplanation = null; // manual edit — the auto-balance reasoning no longer applies
   renderTeamResult(teamA, teamB);
-}
-
-// Renders a simple JPG of the two teams — names only, no stats — for sharing
-// in a group chat etc. Drawn on an offscreen canvas at 2x for crisp text,
-// then triggered as a browser download.
-function downloadTeamsJpg() {
-  if (!teamA.length && !teamB.length) return;
-
-  const DPR = 2;
-  const width = 720;
-  const rowH = 44;
-  const headerH = 90;
-  const footerH = 40;
-  const maxRows = Math.max(teamA.length, teamB.length, 1);
-  const height = headerH + maxRows * rowH + footerH;
-
-  const canvas = document.createElement('canvas');
-  canvas.width = width * DPR;
-  canvas.height = height * DPR;
-  const ctx = canvas.getContext('2d');
-  ctx.scale(DPR, DPR);
-
-  // Colors pulled from the app's theme so the export matches the UI
-  const COL_BG     = '#0d1a0f';
-  const COL_CARD   = '#162018';
-  const COL_BORDER = 'rgba(37,53,39,.8)';
-  const COL_GREEN  = '#39d353';
-  const COL_BLUE   = '#4fa3e8';
-  const COL_TEXT   = '#d4ead6';
-  const COL_MUTED  = '#6b8a6e';
-
-  // Background
-  ctx.fillStyle = COL_BG;
-  ctx.fillRect(0, 0, width, height);
-
-  const halfW = width / 2;
-
-  // Column backgrounds
-  ctx.fillStyle = COL_CARD;
-  ctx.fillRect(0, 0, halfW, height);
-  ctx.fillRect(halfW, 0, halfW, height);
-
-  // Top accent bars
-  ctx.fillStyle = COL_GREEN;
-  ctx.fillRect(0, 0, halfW, 4);
-  ctx.fillStyle = COL_BLUE;
-  ctx.fillRect(halfW, 0, halfW, 4);
-
-  // Center divider
-  ctx.strokeStyle = COL_BORDER;
-  ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.moveTo(halfW, 0); ctx.lineTo(halfW, height); ctx.stroke();
-
-  // Team headers
-  ctx.textBaseline = 'alphabetic';
-  ctx.font = "bold 30px 'Trebuchet MS', Helvetica, Arial, sans-serif";
-  ctx.fillStyle = COL_GREEN;
-  ctx.textAlign = 'center';
-  ctx.fillText('TEAM A', halfW / 2, 50);
-  ctx.fillStyle = COL_BLUE;
-  ctx.fillText('TEAM B', halfW + halfW / 2, 50);
-
-  // Header underline
-  ctx.strokeStyle = COL_BORDER;
-  ctx.beginPath(); ctx.moveTo(20, headerH - 20); ctx.lineTo(halfW - 20, headerH - 20); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(halfW + 20, headerH - 20); ctx.lineTo(width - 20, headerH - 20); ctx.stroke();
-
-  // Player rows — names only, as requested
-  const drawTeamNames = (team, xOffset) => {
-    ctx.font = "20px 'Trebuchet MS', Helvetica, Arial, sans-serif";
-    ctx.textAlign = 'left';
-    team.forEach((p, i) => {
-      const y = headerH + i * rowH + rowH / 2 + 7;
-      // Row separator
-      if (i > 0) {
-        ctx.strokeStyle = COL_BORDER;
-        ctx.beginPath();
-        ctx.moveTo(xOffset + 20, headerH + i * rowH);
-        ctx.lineTo(xOffset + halfW - 20, headerH + i * rowH);
-        ctx.stroke();
-      }
-      ctx.fillStyle = COL_TEXT;
-      ctx.fillText(p.player, xOffset + 26, y);
-    });
-  };
-  drawTeamNames(teamA, 0);
-  drawTeamNames(teamB, halfW);
-
-  // Footer
-  ctx.font = "13px 'Trebuchet MS', Helvetica, Arial, sans-serif";
-  ctx.fillStyle = COL_MUTED;
-  ctx.textAlign = 'center';
-  ctx.fillText('Aero Soccer · Team Builder', width / 2, height - 14);
-
-  // Trigger download as JPG
-  const link = document.createElement('a');
-  const dateStr = new Date().toISOString().slice(0, 10);
-  link.download = `teams-${dateStr}.jpg`;
-  link.href = canvas.toDataURL('image/jpeg', 0.92);
-  link.click();
 }
 
 // Parse injury penalty from a note string
@@ -13338,17 +12760,12 @@ function getPenalty(note) {
 }
 
 function renderTeamResult(tA, tB) {
-  // Recompute effectiveRating for all players in case notes/penalties changed.
-  // Uses the same small-sample shrinkage as autoBalance (see shrinkPlayerRating)
-  // so the displayed team ratings stay consistent with what the balancer actually
-  // optimized for, even after a manual drag-and-drop reshuffle. Shrinkage pulls
-  // toward a fixed match-only league baseline (not this pool), scaled by each
-  // player's own consistency, and never touches their own manual bonus.
+  // Recompute effectiveRating for all players in case notes/penalties changed
   const recomputeRating = (p) => {
     const pen = getPenalty(playerNotes[p.player]);
     const weightedRating = p._isCustom
       ? (p._ratingOverride || computeRating(p, customStats[p.player] || {}))
-      : shrinkPlayerRating(p.player);
+      : computeWeightedRating(p.player);
     const streakMod = p._isCustom ? 1.0 : (p.streakMod || 1.0);
     const buff = playerBuffs[p.player] || 0;
     p.effectiveRating = weightedRating * (1 - pen) * streakMod + buff;
@@ -13379,7 +12796,6 @@ function renderTeamResult(tA, tB) {
     <div style="display:flex;justify-content:space-between;font-size:.75rem;color:var(--muted);margin-bottom:10px">
       ${adminMode ? `<span style="color:var(--green)">Team A ${pctA}%</span><span style="color:var(--blue)">Team B ${pctB}%</span>` : '<span></span><span></span>'}
     </div>
-    ${lastBalanceExplanation ? `<div style="font-size:.74rem;color:var(--text2);background:var(--card2);border:1px solid var(--border);border-radius:7px;padding:8px 12px;margin-bottom:10px;line-height:1.5">🧠 ${lastBalanceExplanation}</div>` : ''}
     ${(() => {
       // Time-based balance: compare clutch, 2H trend and pressure across teams
       const getTimeVal = (team, key) => {
@@ -13435,19 +12851,12 @@ function renderTeamResult(tA, tB) {
       </div>`;
     })()}`;
 
-  const roleIcon = { scorer:'⚽', creator:'🎯', defender:'🛡️', goalkeeper:'🧤', allrounder:'⭐' };
-  const roleLabel = { scorer:'Scorer', creator:'Creator', defender:'Defender', goalkeeper:'Goalkeeper', allrounder:'All-Rounder' };
+  const roleIcon = { scorer:'⚽', creator:'🎯', defender:'🛡️', goalkeeper:'🧤', flair:'🪄', allrounder:'⭐' };
+  const roleLabel = { scorer:'Scorer', creator:'Creator', defender:'Defender', goalkeeper:'Goalkeeper', flair:'Flair', allrounder:'All-Rounder' };
 
   const renderRows = (team, teamKey) => team.map(p => {
     const note = playerNotes[p.player];
-    const roles = p.roles || getPlayerRoles(p);
-    const primary = roles[0], secondary = roles[1] || null;
-    const roleTitle = secondary
-      ? `Primary: ${roleLabel[primary]} · Secondary: ${roleLabel[secondary]}`
-      : `Primary: ${roleLabel[primary]}`;
-    const roleDisplay = secondary
-      ? `${roleIcon[primary]} ${roleLabel[primary]} <span style="opacity:.6">/ ${roleIcon[secondary]} ${roleLabel[secondary]}</span>`
-      : `${roleIcon[primary]} ${roleLabel[primary]}`;
+    const role = p.role || getPlayerRole(p);
     return `<div class="tp-row" draggable="true"
       ondragstart="startDrag('${p.player}','${teamKey}',this)"
       ondragend="endDrag(this)"
@@ -13456,10 +12865,9 @@ function renderTeamResult(tA, tB) {
       ontouchend="touchEndDrag(this,event)">
       <span style="font-size:.8rem;opacity:.5;cursor:grab;margin-right:2px">⠿</span>
       <span class="tp-name" onclick="nav('profile','${p.player}')" style="cursor:pointer">${p.player}</span>
-      <span style="font-size:.7rem;opacity:.55" title="${roleTitle}">${roleDisplay}</span>
+      <span style="font-size:.7rem;opacity:.55">${roleIcon[role]} ${roleLabel[role]}</span>
       ${p.streakLabel ? `<span style="font-size:.65rem;font-weight:600;padding:1px 6px;border-radius:4px;${p.streakLabel.type==='buff'?'background:rgba(96,165,250,.15);color:#60a5fa':'background:rgba(239,68,68,.12);color:#f87171'}" title="${p.streakLabel.type==='buff'?'Win rate is low — rating buffed to help balance teams':'Win rate is high — rating slightly nerfed to help balance teams'}">WR ${p.streakLabel.text}</span>` : ''}
       ${p.playerBuff ? `<span style="font-size:.65rem;font-weight:600;padding:1px 6px;border-radius:4px;${p.playerBuff>0?'background:rgba(74,222,128,.12);color:#4ade80':'background:rgba(248,113,113,.12);color:#f87171'}" data-tip="Manual buff applied — adjustable in Player Notes &amp; Buffs above">${p.playerBuff>0?'+':''}${p.playerBuff} buff</span>` : ''}
-      ${p._statMultiplierPct ? `<span style="font-size:.65rem;font-weight:600;padding:1px 6px;border-radius:4px;${p._statMultiplierPct>0?'background:rgba(74,222,128,.12);color:#4ade80':'background:rgba(248,113,113,.12);color:#f87171'}" data-tip="All of this player's stats are scaled ${p._statMultiplierPct>0?'up':'down'} by ${Math.abs(p._statMultiplierPct)}% — adjustable in Player Notes &amp; Buffs above">${p._statMultiplierPct>0?'+':''}${p._statMultiplierPct}% stats</span>` : ''}
       ${(() => {
         const ps = playerStats[p.player];
         if (!ps || ps.momentum == null || isNaN(ps.momentum)) return '';
@@ -13501,23 +12909,9 @@ function renderTeamResult(tA, tB) {
           ? ` · injury ${Math.round((1-(p.effectiveRating/(p.weightedRating*p.streakMod||1)))*100)}% off` : '';
         const wrNote = p.streakMod !== 1 ? ` · WR ${p.streakMod > 1 ? '+' : ''}${Math.round((p.streakMod-1)*100)}%` : '';
         const buffNote = p.playerBuff ? ` · buff ${p.playerBuff > 0 ? '+' : ''}${p.playerBuff}` : '';
-        // Breaks out how much of the BASE rating (before streak/injury/manual-buff
-        // adjustments) came from actual match performance vs manually-set
-        // Enforcer/Stamina — e.g. two players can land close together where one
-        // earned it on the pitch and the other got there partly from a manual
-        // physicality score. Both matchOnly and manualBonus are on the same shrunk
-        // scale as "Base", NOT the final "Effective" number (which has streak mod /
-        // injury penalty / manual buff layered on top) — the note is worded to make
-        // that explicit so the two numbers can't be silently mismatched again.
-        const rb = !p._isCustom ? getRatingBreakdown(p.player) : null;
-        const manualNote = rb && rb.manualBonus > 0.05
-          ? ` (of which match: ${rb.matchOnly.toFixed(1)}, enforcer/stamina: +${rb.manualBonus.toFixed(1)})` : '';
-        const tip = p._isCustom ? `Custom player · Effective: ${eff}` : `Base: ${base}${manualNote}${wrNote}${penNote}${buffNote} → Effective: ${eff}`;
+        const tip = p._isCustom ? `Custom player · Effective: ${eff}` : `Base: ${base}${wrNote}${penNote}${buffNote} → Effective: ${eff}`;
         const display = p._isCustom ? parseFloat(eff).toFixed(1) : eff;
-        const manualBadge = rb && rb.manualBonus > 0.05
-          ? `<span style="font-size:.6rem;color:var(--muted);opacity:.7;margin-left:3px" title="Of the Base rating (${base}), +${rb.manualBonus.toFixed(1)} comes from manually-set Enforcer/Stamina rather than match performance (match-only: ${rb.matchOnly.toFixed(1)})">(+${rb.manualBonus.toFixed(1)} manual)</span>`
-          : '';
-        return `<span data-tip="${tip}" style="cursor:help">${display}</span>${manualBadge}`;
+        return `<span data-tip="${tip}" style="cursor:help">${display}</span>`;
       })() : ''}</span>
     </div>`;
   }).join('');
@@ -13594,14 +12988,13 @@ function renderTeamResult(tA, tB) {
   document.getElementById('ta-total').textContent = sumA.toFixed(1);
   document.getElementById('tb-total').textContent = sumB.toFixed(1);
   document.getElementById('teams-grid').style.display = 'grid';
-  document.getElementById('team-actions-row').style.display = 'flex';
+  document.getElementById('drag-hint').style.display = 'block';
 
   // Append enforcer note under balance bar
   document.getElementById('balance-msg-area').innerHTML += enfNote;
 
   // Generate synergy breakdown and prediction
   renderTeamSynergy(tA, tB);
-  renderSuggestedPairings(tA, tB);
   predictResult(tA, tB);
   renderAttackComboPrediction(tA, tB);
 }
@@ -13673,48 +13066,19 @@ function renderTeamSynergy(tA, tB) {
     chemMap[`${c.p2}|||${c.p1}`] = c;
   });
 
-  // Each player's own solo win rate — shown side by side with the "together" rate
-  // instead of pre-averaging them into one combined baseline number, so you can see
-  // the raw comparison yourself (e.g. "P1 lifts P2 a lot, P2 barely changes P1") rather
-  // than trusting one collapsed delta.
-  const soloWinRate = (name) => {
-    const s = playerStats[name];
-    if (!s) return null;
-    const total = s.wins + s.losses + (s.draws||0);
-    return total > 0 ? Math.round(s.wins/total*100) : null;
-  };
-
   const getPairs = (team) => {
     const pairs = [];
     for (let i = 0; i < team.length; i++) {
       for (let j = i + 1; j < team.length; j++) {
         const key = `${team[i].player}|||${team[j].player}`;
         const c = chemMap[key];
-        // Complementary roles (e.g. a creator + a scorer, or a defender + a creator)
-        // suggest a plausible reason a pairing works, beyond just "the numbers say so".
-        // Uses each player's full multi-tag role list (see getPlayerRoles) rather than
-        // a single label, so e.g. a player who's BOTH a scorer and a defender still
-        // gets credit for complementing a pure creator. "Complementary" = each has at
-        // least one real (non-allrounder) tag the other one lacks.
-        const roles1 = (team[i].roles || [team[i].role]).filter(r => r && r !== 'allrounder');
-        const roles2 = (team[j].roles || [team[j].role]).filter(r => r && r !== 'allrounder');
-        const uniqueTo1 = roles1.filter(r => !roles2.includes(r));
-        const uniqueTo2 = roles2.filter(r => !roles1.includes(r));
-        const complementary = uniqueTo1.length > 0 && uniqueTo2.length > 0;
         pairs.push({
           p1: team[i].player,
           p2: team[j].player,
-          roles1, roles2, complementary,
-          complementTags: complementary ? [uniqueTo1[0], uniqueTo2[0]] : null,
           data: c || null,
           delta: c ? c.delta : null,
           winRate: c ? c.winRate : null,
           games: c ? c.games : 0,
-          soloWR1: soloWinRate(team[i].player),
-          soloWR2: soloWinRate(team[j].player),
-          defenseDelta: c && c.defenseDelta !== undefined ? c.defenseDelta : null,
-          concededTogetherPerGame: c ? c.concededTogetherPerGame : null,
-          concededApartPerGame: c ? c.concededApartPerGame : null,
         });
       }
     }
@@ -13723,49 +13087,6 @@ function renderTeamSynergy(tA, tB) {
 
   const pairsA = getPairs(tA);
   const pairsB = getPairs(tB);
-
-  // Goal-combo corroboration — a pair's win-rate chemistry only tells you the team
-  // did better with both on it, not why. Cross-reference actual scorer+assister
-  // combo data (a direct, causal signal) so a pair with a real attacking link gets
-  // a visible badge, kept separate from the win-rate delta itself rather than
-  // blended into one number (they measure different things — see design notes).
-  const comboStats = getComboStats();
-  const comboLookup = {};
-  comboStats.forEach(c => {
-    const key = [c.scorer, c.assister].sort().join('|||');
-    comboLookup[key] = (comboLookup[key] || 0) + c.goals;
-  });
-  const getComboGoals = (p1, p2) => comboLookup[[p1, p2].sort().join('|||')] || 0;
-
-  // Key-pass "chain" corroboration — a more precise signal than goal-combos: a
-  // timestamped key-pass immediately followed by the OTHER player's shot, not just
-  // "assist credited on a goal". Only available for matches where the full event
-  // log was captured (localStorage), so this is commonly empty — that's expected,
-  // not an error. Parsed ONCE here (not per-pair) since it involves a localStorage
-  // read + JSON parse that shouldn't run in a per-pair loop.
-  const chainLookup = {};
-  try {
-    const logs = JSON.parse(localStorage.getItem('aero_event_logs') || '{}');
-    const WINDOW = 10;
-    const SHOT_EVENTS = new Set(['On Target','Off Target','Goals']);
-    Object.values(logs).forEach(log => {
-      const events = log.events || [];
-      const kpEvents = events.filter(e => e.event === 'Key Passes');
-      const allShots = events.filter(e => SHOT_EVENTS.has(e.event));
-      kpEvents.forEach(kp => {
-        const shot = allShots.find(s =>
-          s.team === kp.team &&
-          s.tsSecsRaw > kp.tsSecsRaw &&
-          s.tsSecsRaw <= kp.tsSecsRaw + WINDOW &&
-          s.player !== kp.player
-        );
-        if (!shot) return;
-        const key = [kp.player, shot.player].sort().join('|||');
-        chainLookup[key] = (chainLookup[key] || 0) + 1;
-      });
-    });
-  } catch (e) { /* no event logs captured — chainLookup stays empty, which is fine */ }
-  const getChainCount = (p1, p2) => chainLookup[[p1, p2].sort().join('|||')] || 0;
 
   // Team average synergy (only pairs with data)
   const avgSyn = (pairs) => {
@@ -13782,59 +13103,24 @@ function renderTeamSynergy(tA, tB) {
   const synCol = (v) => v === null ? 'var(--muted)' : v >= 8 ? '#4ade80' : v >= 2 ? '#a3e635' : v >= -2 ? '#facc15' : v >= -8 ? '#fb923c' : '#f87171';
   const synIcon = (v) => v === null ? '–' : v >= 8 ? '🔥' : v >= 2 ? '⚡' : v >= -2 ? '⚖' : '❄';
 
-  const roleLabel = { goalkeeper: 'GK', scorer: 'Scorer', creator: 'Creator', defender: 'Defender' };
   const renderPairs = (pairs, teamCol) => {
     if (!pairs.length) return '<div style="font-size:.78rem;color:var(--muted)">No pairs yet.</div>';
     return pairs.map(p => {
-      const comboGoals = getComboGoals(p.p1, p.p2);
-      const comboBadge = comboGoals > 0
-        ? `<span title="${comboGoals} goal${comboGoals!==1?'s':''} from this pair combining directly (scorer + assister)" style="font-size:.62rem;color:var(--amber);background:rgba(240,160,48,.12);border-radius:4px;padding:1px 5px;margin-left:5px;white-space:nowrap">⚽ ${comboGoals}</span>`
-        : '';
-      const chainCount = getChainCount(p.p1, p.p2);
-      const chainBadge = chainCount > 0
-        ? `<span title="${chainCount} key-pass${chainCount!==1?'es':''} → shot within 10s between this pair (timestamped, from event log data)" style="font-size:.62rem;color:#60a5fa;background:rgba(96,165,250,.12);border-radius:4px;padding:1px 5px;margin-left:4px;white-space:nowrap">🔗 ${chainCount}</span>`
-        : '';
-      const roleNote = (p.complementary && p.delta !== null && p.delta >= 5 && p.complementTags && roleLabel[p.complementTags[0]] && roleLabel[p.complementTags[1]])
-        ? `<div style="font-size:.62rem;color:var(--muted);margin-top:2px">${roleLabel[p.complementTags[0]]} + ${roleLabel[p.complementTags[1]]} — complementary roles</div>`
-        : '';
-      // Defensive coverage: goals conceded together vs apart — a separate signal from
-      // win-rate chemistry (see chemMap build notes). Only shown when there's enough
-      // data on both sides of the comparison to say something meaningful. Guard on
-      // all three fields (not just defenseDelta) since they're set together but this
-      // is cheap insurance against ever calling .toFixed on a missing value again.
-      const hasDefenseData = p.defenseDelta !== null && p.defenseDelta !== undefined
-        && typeof p.concededTogetherPerGame === 'number' && typeof p.concededApartPerGame === 'number';
-      const defenseNote = hasDefenseData
-        ? `<div style="font-size:.62rem;color:${p.defenseDelta <= -1 ? '#4ade80' : p.defenseDelta >= 1 ? '#fb923c' : 'var(--muted)'};margin-top:2px">
-            🛡 Concedes ${p.concededTogetherPerGame.toFixed(1)}/g together vs ${p.concededApartPerGame.toFixed(1)}/g apart
-            ${p.defenseDelta <= -1 ? ' — tightens up as a pair' : p.defenseDelta >= 1 ? ' — leakier as a pair' : ''}
-          </div>`
-        : '';
       if (p.delta === null) {
         return `<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--border);font-size:.78rem">
-          <span style="color:var(--text2)">${p.p1} <span style="color:var(--muted);font-size:.72rem">&amp;</span> ${p.p2}${comboBadge}${chainBadge}</span>
-          <span style="color:var(--muted);font-size:.72rem">${p.games > 0 ? `Not enough data (${fmtGames(p.games)}G)` : 'No data yet'}</span>
+          <span style="color:var(--text2)">${p.p1} <span style="color:var(--muted);font-size:.72rem">&amp;</span> ${p.p2}</span>
+          <span style="color:var(--muted);font-size:.72rem">No data yet</span>
         </div>`;
       }
       const col = synCol(p.delta);
       const sign = p.delta >= 0 ? '+' : '';
       const barW = Math.min(Math.abs(p.delta) / 25 * 100, 100).toFixed(0);
-      const deltaTooltip = `Win rate together (${p.winRate}%) vs what you'd expect from their solo win rates (${p.soloWR1 ?? '–'}% and ${p.soloWR2 ?? '–'}%). Positive = they win more together than expected; negative = less.`;
-      // Raw win-rate breakdown shown alongside the delta, rather than only the
-      // pre-combined number — lets you see whether the lift comes from both
-      // players, or mostly from one of them being strong solo anyway.
-      const wrBreakdown = `<div style="font-size:.62rem;color:var(--muted);margin-top:3px;display:flex;gap:8px">
-        <span>Together <b style="color:var(--text2)">${p.winRate}%</b></span>
-        <span>${p.p1} solo <b style="color:var(--text2)">${p.soloWR1 ?? '–'}%</b></span>
-        <span>${p.p2} solo <b style="color:var(--text2)">${p.soloWR2 ?? '–'}%</b></span>
-      </div>`;
       return `<div style="padding:6px 0;border-bottom:1px solid var(--border)">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
-          <span style="font-size:.8rem;color:var(--text2);font-weight:500">${p.p1} <span style="color:var(--muted);font-size:.72rem">&amp;</span> ${p.p2}${comboBadge}${chainBadge}</span>
-          <div style="text-align:right" title="${deltaTooltip}">
+          <span style="font-size:.8rem;color:var(--text2);font-weight:500">${p.p1} <span style="color:var(--muted);font-size:.72rem">&amp;</span> ${p.p2}</span>
+          <div style="text-align:right">
             <span style="font-family:'Bebas Neue',sans-serif;font-size:1rem;color:${col}">${sign}${p.delta}%</span>
-            <span style="font-size:.6rem;color:var(--muted);margin-left:2px">vs expected</span>
-            <span style="font-size:.65rem;color:var(--muted);margin-left:4px">· ${fmtGames(p.games)}G</span>
+            <span style="font-size:.65rem;color:var(--muted);margin-left:4px">${p.winRate}% WR · ${fmtGames(p.games)}G</span>
           </div>
         </div>
         <div style="background:var(--bg2);border-radius:2px;height:3px;overflow:hidden;position:relative">
@@ -13843,39 +13129,11 @@ function renderTeamSynergy(tA, tB) {
             ? `<div style="position:absolute;left:50%;width:${barW}%;height:100%;background:${col};border-radius:2px"></div>`
             : `<div style="position:absolute;right:50%;width:${barW}%;height:100%;background:${col};border-radius:2px"></div>`}
         </div>
-        ${wrBreakdown}
-        ${defenseNote}
-        ${roleNote}
       </div>`;
     }).join('');
   };
 
-  // ── Volatility flag ────────────────────────────────────────────────
-  // Some players don't have uniformly good/bad chemistry — they might click
-  // strongly with one or two specific teammates and struggle with others.
-  // That's invisible in a flat pair list, so for each player on either team,
-  // look across ALL their known pairings (not just current teammates) and
-  // flag a wide best-vs-worst spread as "volatile" — clicks with some,
-  // struggles with others — rather than a uniformly good or bad partner.
-  const allChem = window._filteredChemistry || window._chemistry || [];
-  const getVolatility = (playerName) => {
-    const pairs = allChem.filter(c => (c.p1 === playerName || c.p2 === playerName) && c.games >= 3);
-    if (pairs.length < 2) return null;
-    const withPartner = pairs.map(c => ({ partner: c.p1 === playerName ? c.p2 : c.p1, delta: c.delta, games: c.games }));
-    withPartner.sort((a,b) => b.delta - a.delta);
-    const best = withPartner[0], worst = withPartner[withPartner.length - 1];
-    const spread = best.delta - worst.delta;
-    return spread >= 20 ? { best, worst, spread } : null;
-  };
-  const volatilityRows = [...tA, ...tB]
-    .map(p => ({ player: p.player, v: getVolatility(p.player) }))
-    .filter(r => r.v)
-    .sort((a,b) => b.v.spread - a.v.spread);
-
   content.innerHTML = `
-    <div style="font-size:.68rem;color:var(--muted);margin-bottom:10px;line-height:1.4">
-      The % on each pair shows how much better (or worse) they perform together compared to what their individual win rates would predict — e.g. <b style="color:var(--text2)">+12%</b> means they win 12 points more often as a pair than expected.
-    </div>
     <!-- Team synergy summary -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
       <div style="background:rgba(57,211,83,.06);border:1px solid rgba(57,211,83,.2);border-radius:8px;padding:12px 14px">
@@ -13894,90 +13152,20 @@ function renderTeamSynergy(tA, tB) {
       </div>
     </div>
 
-    <!-- Individual pair breakdowns — collapsed by default, click to expand -->
+    <!-- Individual pair breakdowns -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
-      <details class="chem-pairs-details">
-        <summary style="cursor:pointer;list-style:none;display:flex;align-items:center;gap:6px;font-size:.7rem;color:var(--green);font-family:'Barlow Condensed',sans-serif;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;user-select:none">
-          <span class="chem-caret" style="display:inline-block;transition:transform .15s">▸</span> Team A Pairs <span style="color:var(--muted);font-size:.65rem;text-transform:none;letter-spacing:0">(${pairsA.length})</span>
-        </summary>
-        <div style="margin-top:4px">${renderPairs(pairsA, 'var(--green)')}</div>
-      </details>
-      <details class="chem-pairs-details">
-        <summary style="cursor:pointer;list-style:none;display:flex;align-items:center;gap:6px;font-size:.7rem;color:var(--blue);font-family:'Barlow Condensed',sans-serif;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;user-select:none">
-          <span class="chem-caret" style="display:inline-block;transition:transform .15s">▸</span> Team B Pairs <span style="color:var(--muted);font-size:.65rem;text-transform:none;letter-spacing:0">(${pairsB.length})</span>
-        </summary>
-        <div style="margin-top:4px">${renderPairs(pairsB, 'var(--blue)')}</div>
-      </details>
+      <div>
+        <div style="font-size:.7rem;color:var(--green);font-family:'Barlow Condensed',sans-serif;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">Team A Pairs</div>
+        ${renderPairs(pairsA, 'var(--green)')}
+      </div>
+      <div>
+        <div style="font-size:.7rem;color:var(--blue);font-family:'Barlow Condensed',sans-serif;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">Team B Pairs</div>
+        ${renderPairs(pairsB, 'var(--blue)')}
+      </div>
     </div>
     <div style="margin-top:10px;font-size:.68rem;color:var(--muted);opacity:.7">
       % = how much better/worse this pair performs together vs their individual win rates combined. Updates automatically when you drag players between teams.
-    </div>
-    ${adminMode && volatilityRows.length ? `
-    <details class="chem-pairs-details" style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">
-      <summary style="cursor:pointer;list-style:none;display:flex;align-items:center;gap:6px;font-size:.7rem;color:var(--muted);font-family:'Barlow Condensed',sans-serif;letter-spacing:1px;text-transform:uppercase;user-select:none">
-        <span class="chem-caret" style="display:inline-block;transition:transform .15s">▸</span> 🎭 Volatile chemistry <span style="font-size:.65rem;text-transform:none;letter-spacing:0">(${volatilityRows.length})</span>
-      </summary>
-      <div style="margin-top:8px">
-        ${volatilityRows.map(r => `<div style="font-size:.76rem;color:var(--text2);margin-bottom:5px">
-          <b>${r.player}</b> clicks with <span style="color:var(--green)">${r.v.best.partner}</span> (+${r.v.best.delta}%) but struggles with <span style="color:var(--red)">${r.v.worst.partner}</span> (${r.v.worst.delta}%)
-        </div>`).join('')}
-        <div style="font-size:.65rem;color:var(--muted);opacity:.7;margin-top:2px">Based on this player's full chemistry history, not just current teammates.</div>
-      </div>
-    </details>` : ''}`;
-
-  sec.style.display = 'block';
-}
-
-// Suggested Pairings — profile-based complementarity across the WHOLE selected pool
-// (not just the two current teams), since the point is surfacing pairings worth
-// trying even if they haven't shared much/any game time. Ranked by complementarity
-// score from getPairComplementarity; ties broken by showing pairs currently split
-// across teams first (a nudge toward "these two aren't together right now, but
-// maybe should be" rather than just restating an existing pairing).
-function renderSuggestedPairings(tA, tB) {
-  const sec = document.getElementById('suggested-pairings-section');
-  const content = document.getElementById('suggested-pairings-content');
-  if (!sec || !content) return;
-
-  const allSelected = [...tA, ...tB];
-  if (allSelected.length < 3) { sec.style.display = 'none'; return; }
-
-  const poolAvg = computePoolAverages(allSelected);
-  const teamOf = {};
-  tA.forEach(p => teamOf[p.player] = 'A');
-  tB.forEach(p => teamOf[p.player] = 'B');
-
-  const suggestions = [];
-  for (let i = 0; i < allSelected.length; i++) {
-    for (let j = i+1; j < allSelected.length; j++) {
-      const p1 = allSelected[i], p2 = allSelected[j];
-      if (Math.max(p1.games,1) < 3 || Math.max(p2.games,1) < 3) continue; // too little data to trust either profile
-      const { score, reasons } = getPairComplementarity(p1, p2, poolAvg);
-      if (score > 0) {
-        suggestions.push({ p1: p1.player, p2: p2.player, score, reasons, sameTeam: teamOf[p1.player] === teamOf[p2.player] });
-      }
-    }
-  }
-
-  if (!suggestions.length) {
-    content.innerHTML = `<div style="font-size:.78rem;color:var(--muted)">No strong profile matches found in this selection — try a bigger or more varied pool.</div>`;
-    sec.style.display = 'block';
-    return;
-  }
-
-  suggestions.sort((a,b) => b.score - a.score || (a.sameTeam - b.sameTeam));
-  const top = suggestions.slice(0, 6);
-
-  content.innerHTML = top.map(s => `
-    <div style="padding:8px 0;border-bottom:1px solid var(--border)">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
-        <span style="font-size:.82rem;color:var(--text2);font-weight:500">${s.p1} <span style="color:var(--muted);font-size:.72rem">&amp;</span> ${s.p2}</span>
-        ${s.sameTeam
-          ? `<span style="font-size:.6rem;color:var(--muted);background:var(--card2);border-radius:4px;padding:1px 6px">Already together</span>`
-          : `<span style="font-size:.6rem;color:var(--amber);background:rgba(240,160,48,.12);border-radius:4px;padding:1px 6px">Currently split</span>`}
-      </div>
-      ${s.reasons.map(r => `<div style="font-size:.68rem;color:var(--muted);line-height:1.4;margin-top:2px">${r.text}</div>`).join('')}
-    </div>`).join('');
+    </div>`;
 
   sec.style.display = 'block';
 }
@@ -14010,64 +13198,10 @@ function predictResult(tA, tB) {
   const rB = tB.reduce((s,p) => s + p.effectiveRating, 0);
   const rTotal = rA + rB || 1;
 
-  // ── Team chemistry signal ──────────────────────────────────────────
-  // Average pairwise "played together" win-rate delta within each team
-  // (same data source as the Team Chemistry panel). A team that's kept
-  // its good combos together gets a small boost — this is intentionally
-  // a minor factor (chemistry is noisy on small samples, and a lot of
-  // it is already implicit in each player's individual rating).
-  const chemMap = {};
-  (window._filteredChemistry || window._chemistry || []).forEach(c => {
-    chemMap[`${c.p1}|||${c.p2}`] = c;
-    chemMap[`${c.p2}|||${c.p1}`] = c;
-  });
-  const teamChemAvg = (team) => {
-    const deltas = [];
-    for (let i = 0; i < team.length; i++) {
-      for (let j = i+1; j < team.length; j++) {
-        const c = chemMap[`${team[i].player}|||${team[j].player}`];
-        if (c && c.games >= 3) deltas.push(c.delta); // require a minimum sample to count
-      }
-    }
-    return deltas.length ? deltas.reduce((s,d)=>s+d,0) / deltas.length : 0;
-  };
-  const chemA = teamChemAvg(tA), chemB = teamChemAvg(tB);
-
-  // ── Counters signal ────────────────────────────────────────────────
-  // For every cross-team pair, check their head-to-head record when
-  // they've directly opposed each other before (min 3 games). A player
-  // with a real historical edge over a specific opponent nudges the
-  // prediction toward their team, on top of the general stat comparison.
-  const counterMatchups = [];
-  let counterNetA = 0; // positive = net advantage to Team A from head-to-heads
-  tA.forEach(pa => tB.forEach(pb => {
-    const h2h = getHeadToHeadRecord(pa.player, pb.player, 3);
-    if (!h2h) return;
-    const edge = h2h.winRate - 50; // +ve = pa's side has historically won more
-    counterNetA += edge;
-    if (Math.abs(edge) >= 20) {
-      counterMatchups.push({
-        winner: edge > 0 ? pa.player : pb.player,
-        loser: edge > 0 ? pb.player : pa.player,
-        winnerTeam: edge > 0 ? 'A' : 'B',
-        winRate: edge > 0 ? h2h.winRate : 100 - h2h.winRate,
-        games: h2h.games,
-      });
-    }
-  }));
-  counterMatchups.sort((x,y) => y.winRate - x.winRate);
-
-  // Blend stat strength, rating share, chemistry and counters for final probability.
-  // Chemistry and counters are kept as small nudges (not primary drivers) since both
-  // are drawn from historical win-rate deltas that are already noisy in small samples.
+  // Blend stat strength and rating share for final probability
   const statShareA = strA / (strA + strB);
   const ratingShareA = rA / rTotal;
-  const chemNudge = chemistryAffectsPrediction
-    ? Math.max(-0.06, Math.min(0.06, (chemA - chemB) / 100 * 0.3))
-    : 0;
-  const counterNudge = Math.max(-0.05, Math.min(0.05, counterNetA / 100 * 0.15));
-  let rawWinA = statShareA * 0.55 + ratingShareA * 0.35 + chemNudge + counterNudge;
-  rawWinA = Math.max(0.05, Math.min(0.95, rawWinA));
+  const rawWinA = statShareA * 0.6 + ratingShareA * 0.4;
 
   // Convert to win/draw/loss probabilities
   // Closer to 50/50 = more draw chance; bigger gap = more decisive
@@ -14095,7 +13229,6 @@ function predictResult(tA, tB) {
   else if (dB.playmaking > dA.playmaking * 1.15) edges.push({ team:'B', label:'stronger playmaking', col:'var(--blue)' });
   if (dA.gk > dB.gk * 1.2)           edges.push({ team:'A', label:'stronger GK', col:'var(--green)' });
   else if (dB.gk > dA.gk * 1.2)       edges.push({ team:'B', label:'stronger GK', col:'var(--blue)' });
-  if (chemistryAffectsPrediction && Math.abs(chemA - chemB) >= 3)  edges.push({ team: chemA > chemB ? 'A' : 'B', label:'better team chemistry', col: chemA > chemB ? 'var(--green)' : 'var(--blue)' });
   if (!edges.length) edges.push({ team: null, label:'evenly matched across all dimensions', col:'var(--muted)' });
 
   // Streak modifier notes
@@ -14132,20 +13265,8 @@ function predictResult(tA, tB) {
         <span>${e.label}</span>
       </div>`).join('')}
     </div>
-    <div style="margin-top:10px;font-size:.66rem;color:var(--muted);opacity:.55">Based on per-game stats + weighted form + chemistry + head-to-head history · Football is unpredictable 🎲</div>
-    ${streakNotes.length ? `<div style="margin-top:6px;font-size:.66rem;color:var(--muted);border-top:1px solid var(--border);padding-top:6px">⚖ Streak adjustments: ${streakNotes.join(' · ')}</div>` : ''}
-    ${adminMode && counterMatchups.length ? `
-    <details class="chem-pairs-details" style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
-      <summary style="cursor:pointer;list-style:none;display:flex;align-items:center;gap:6px;font-size:.7rem;color:var(--muted);font-family:'Barlow Condensed',sans-serif;letter-spacing:1px;text-transform:uppercase;user-select:none">
-        <span class="chem-caret" style="display:inline-block;transition:transform .15s">▸</span> ⚔ Head-to-head counters <span style="font-size:.65rem;text-transform:none;letter-spacing:0">(${counterMatchups.length})</span>
-      </summary>
-      <div style="margin-top:8px">
-        ${counterMatchups.slice(0,3).map(c => `<div style="font-size:.76rem;color:var(--text2);margin-bottom:4px;display:flex;align-items:center;gap:6px">
-          <span style="font-family:'Barlow Condensed',sans-serif;font-size:.68rem;background:${c.winnerTeam==='A'?'rgba(57,211,83,.15)':'rgba(79,163,232,.15)'};color:${c.winnerTeam==='A'?'var(--green)':'var(--blue)'};border-radius:4px;padding:1px 6px">Team ${c.winnerTeam}</span>
-          <span><b>${c.winner}</b> has a ${c.winRate}% record vs ${c.loser} (${c.games} matchups)</span>
-        </div>`).join('')}
-      </div>
-    </details>` : ''}`;
+    <div style="margin-top:10px;font-size:.66rem;color:var(--muted);opacity:.55">Based on per-game stats + weighted form · Football is unpredictable 🎲</div>
+    ${streakNotes.length ? `<div style="margin-top:6px;font-size:.66rem;color:var(--muted);border-top:1px solid var(--border);padding-top:6px">⚖ Streak adjustments: ${streakNotes.join(' · ')}</div>` : ''}`;
 
   sec.style.display = 'block';
 }
@@ -14171,9 +13292,6 @@ function doImport() {
     if (!rows[0].hasOwnProperty('player')) throw new Error('Missing "player" column');
     allRows = rows;
     playerStats = buildPlayerStats(allRows);
-    if (typeof invalidateRoleBaselineCache === 'function') invalidateRoleBaselineCache();
-    if (typeof invalidateRatingBaselineCache === 'function') invalidateRatingBaselineCache();
-    if (typeof invalidateMatchOnlyBaselineCache === 'function') invalidateMatchOnlyBaselineCache();
     matchList = buildMatches(allRows);
     computeWinLoss(playerStats, matchList);
     document.getElementById('import-modal').classList.remove('open');
@@ -14674,65 +13792,16 @@ function computeAnalytics() {
         chemMap[key].gamesApart += sideA.weight; // sideA.weight === sideB.weight (0.5 or 1)
       }));
     });
-
-    // ── Defensive coverage: goals conceded together vs apart ───────────
-    // Whole-match granularity (not half-split) — goals aren't reliably timestamped
-    // to a half in this data, so rather than force false precision onto swapped
-    // players, this simply asks "were these two on the same team for this match"
-    // using the match's final team rosters, and compares goals conceded that match.
-    // A pair whose team concedes noticeably less when both are on it (vs either
-    // playing without the other) is a real defensive-coverage signal — something
-    // the win-rate delta alone can't distinguish from just "their team won".
-    const teamAConceded = m.goalsB, teamBConceded = m.goalsA;
-    const onTeam = (name) => m.teamA.some(r=>r.player===name) ? 'A' : m.teamB.some(r=>r.player===name) ? 'B' : null;
-    const matchPlayers = [...new Set([...m.teamA, ...m.teamB].map(r=>r.player))];
-    for (let i=0;i<matchPlayers.length;i++) for (let j=i+1;j<matchPlayers.length;j++) {
-      const pa = matchPlayers[i], pb = matchPlayers[j];
-      const ta = onTeam(pa), tb = onTeam(pb);
-      if (!ta || !tb) continue;
-      const key = [pa,pb].sort().join('|||');
-      if (ta === tb) {
-        // Together this match
-        if (!chemMap[key]) chemMap[key] = {p1:pa,p2:pb,games:0,wins:0};
-        if (!chemMap[key].concededTogether) { chemMap[key].concededTogether = 0; chemMap[key].concededTogetherGames = 0; }
-        chemMap[key].concededTogether += (ta === 'A' ? teamAConceded : teamBConceded);
-        chemMap[key].concededTogetherGames += 1;
-      } else {
-        // Apart this match (opposing teams) — each player's OWN team's conceded total
-        if (!chemMap[key]) continue; // only track for pairs who've also played together at some point
-        if (!chemMap[key].concededApart) { chemMap[key].concededApart = 0; chemMap[key].concededApartGames = 0; }
-        // Average of both sides' conceded, since "apart" involves two different teams conceding independently
-        chemMap[key].concededApart += ((teamAConceded + teamBConceded) / 2);
-        chemMap[key].concededApartGames += 1;
-      }
-    }
   });
 
   window._chemistry = Object.values(chemMap)
-    .filter(c=>c.games>=CHEM_MIN_GAMES) // below this, there's not enough evidence to say anything about the pair
+    .filter(c=>c.games>=1)
     .map(c=>({
       ...c,
       winRate: Math.round(c.wins/c.games*100),
       baseline: Math.round(((playerWinRate[c.p1]||0) + (playerWinRate[c.p2]||0)) / 2 * 100),
     }))
-    .map(c=>{
-      const rawDelta = c.winRate - c.baseline;
-      return { ...c, rawDelta, delta: Math.round(shrinkChemDelta(rawDelta, c.games)) };
-    })
-    .map(c => {
-      // Defensive coverage: goals conceded per game together vs apart, and a
-      // shrunk delta of the same shape as the win-rate delta (negative = concede
-      // LESS together than apart, i.e. genuinely better defensive coverage as a
-      // pair — kept as its own signal since a low-concession pair isn't
-      // necessarily also a high-win-rate pair, e.g. a team that draws a lot).
-      const cgAvg = c.concededTogetherGames >= CHEM_MIN_GAMES ? c.concededTogether / c.concededTogetherGames : null;
-      const caAvg = c.concededApartGames >= CHEM_MIN_GAMES ? c.concededApart / c.concededApartGames : null;
-      const defenseRawDelta = (cgAvg !== null && caAvg !== null) ? parseFloat((cgAvg - caAvg).toFixed(2)) : null;
-      const defenseDelta = defenseRawDelta !== null
-        ? parseFloat(shrinkChemDelta(defenseRawDelta, Math.min(c.concededTogetherGames, c.concededApartGames)).toFixed(2))
-        : null;
-      return { ...c, concededTogetherPerGame: cgAvg, concededApartPerGame: caAvg, defenseRawDelta, defenseDelta };
-    })
+    .map(c=>({...c, delta: c.winRate - c.baseline}))
     .sort((a,b)=>b.games-a.games||b.winRate-a.winRate);
 
   // ---- Per-player synergy score ----
@@ -17615,9 +16684,6 @@ function appendToAppData() {
     const filtered = allRows.filter(r=>!matchIds.has(r.match_id));
     allRows = [...filtered, ...newRows];
     playerStats = buildPlayerStats(allRows);
-    if (typeof invalidateRoleBaselineCache === 'function') invalidateRoleBaselineCache();
-    if (typeof invalidateRatingBaselineCache === 'function') invalidateRatingBaselineCache();
-    if (typeof invalidateMatchOnlyBaselineCache === 'function') invalidateMatchOnlyBaselineCache();
     matchList = buildMatches(allRows);
     computeWinLoss(playerStats, matchList);
     computeSpiderMaxima();
@@ -18103,7 +17169,6 @@ const LS_VIDEOS = 'aeroSoccer_videos';
 const LS_CUSTOM = 'aeroSoccer_customStats';
 const LS_GIFS = 'aeroSoccer_gifs';
 const LS_BUFFS = 'aeroSoccer_playerBuffs';
-const LS_STAT_MULT = 'aeroSoccer_playerStatMultipliers';
 const CSV_HEADER = 'match_id,match_date,team,player,half,goals,assists,shots_on_target,shots_off_target,total_shots,goalkeeper_saves,blocks,total_saves,interceptions,tackles,nutmegs,post,key_passes,own_goals';
 
 function saveExtraRows() {
@@ -18179,17 +17244,6 @@ function savePlayerBuffs() {
   try { localStorage.setItem(LS_BUFFS, JSON.stringify(playerBuffs)); } catch(e) {}
 }
 
-function saveStatMultipliers() {
-  try { localStorage.setItem(LS_STAT_MULT, JSON.stringify(playerStatMultipliers)); } catch(e) {}
-}
-
-function loadStatMultipliers() {
-  try {
-    const saved = localStorage.getItem(LS_STAT_MULT);
-    if (saved) Object.assign(playerStatMultipliers, JSON.parse(saved));
-  } catch(e) {}
-}
-
 function loadPlayerBuffs() {
   try {
     const saved = localStorage.getItem(LS_BUFFS);
@@ -18263,7 +17317,6 @@ document.addEventListener('DOMContentLoaded', () => {
   try { localStorage.removeItem(LS_COMBOS); } catch(e) {}
   loadCustomStats();
   loadPlayerBuffs();
-  loadStatMultipliers();
   loadVideos();
   loadGifs();
 
