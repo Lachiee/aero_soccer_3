@@ -336,6 +336,10 @@ canvas.goals-canvas{width:100%;display:block;cursor:crosshair}
 .pstat-lbl{font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-top:3px}
 .profile-body{display:grid;grid-template-columns:1fr 1fr;gap:20px}
 @media(max-width:800px){.profile-body{grid-template-columns:1fr}}
+@media(max-width:800px){
+  #page-profile > div{flex-direction:column}
+  #profile-sidebar{flex:none;width:100%;max-height:220px;position:static}
+}
 
 /* Spider chart */
 .spider-wrap{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:20px}
@@ -670,7 +674,10 @@ canvas.spider{display:block;margin:0 auto}
 <!-- ===== PAGE: PLAYER PROFILE ===== -->
 <div class="page" id="page-profile">
   <div class="profile-back" onclick="nav('players')">← Back to Players</div>
-  <div id="profile-content"></div>
+  <div style="display:flex;gap:20px;align-items:flex-start">
+    <div id="profile-sidebar" style="flex:0 0 200px;position:sticky;top:16px;max-height:calc(100vh - 32px);overflow-y:auto;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px"></div>
+    <div id="profile-content" style="flex:1;min-width:0"></div>
+  </div>
 </div>
 
 <!-- ===== PAGE: LEADERBOARD ===== -->
@@ -11174,6 +11181,38 @@ function getFamousPlayerComparison(playerName) {
   return _famousAssignments[playerName] || null;
 }
 
+// Player selection sidebar shown alongside a profile — lets you click directly to any other
+// player without going back to the Players list. Uses the same order as the Prev/Next buttons
+// (whatever sort/search was last active on the Players page, via window._playersPageOrder),
+// falling back to alphabetical if that cache isn't populated yet.
+function renderProfileSidebar(activeName){
+  const sidebar = document.getElementById('profile-sidebar');
+  if (!sidebar) return;
+  const ds = getDisplayStats();
+  const order = (window._playersPageOrder && window._playersPageOrder.length)
+    ? window._playersPageOrder
+    : Object.keys(ds).sort((a,b)=>a.localeCompare(b));
+
+  sidebar.innerHTML = order.map(name => {
+    const isActive = name === activeName;
+    return `<div onclick="nav('profile','${name.replace(/'/g,"\\'")}')"
+      style="display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:7px;cursor:pointer;margin-bottom:2px;
+      background:${isActive?'rgba(57,211,83,.12)':'transparent'};border:1px solid ${isActive?'rgba(57,211,83,.35)':'transparent'}"
+      onmouseover="if(!this.dataset.active)this.style.background='rgba(255,255,255,.05)'"
+      onmouseout="this.style.background='${isActive?'rgba(57,211,83,.12)':'transparent'}'"
+      ${isActive?'data-active="1"':''}>
+      <div style="width:26px;height:26px;border-radius:50%;background:var(--card2);border:1.5px solid ${isActive?'var(--green)':'rgba(255,255,255,.3)'};
+        display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:.62rem;color:${isActive?'var(--green)':'var(--text2)'};flex-shrink:0">${formInitials(name)}</div>
+      <span style="font-size:.78rem;font-family:'Barlow Condensed',sans-serif;font-weight:${isActive?700:500};color:${isActive?'var(--green)':'var(--text)'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${name}</span>
+    </div>`;
+  }).join('');
+
+  // Keep the active player's row scrolled into view rather than always landing at the top of
+  // the list, which matters once there are more players than fit in the sidebar's max-height.
+  const activeEl = sidebar.querySelector('[data-active="1"]');
+  if (activeEl) activeEl.scrollIntoView({ block: 'nearest' });
+}
+
 function renderProfile(name) {
   if (name !== currentProfileName) window._hmapType = 'shot'; // reset tab on new profile
   // Stop any in-progress highlight cycling for whichever profile was open before this one, so a
@@ -11188,6 +11227,7 @@ function renderProfile(name) {
     }
   }
   currentProfileName = name;
+  renderProfileSidebar(name);
   const ds = getDisplayStats();
   const s = ds[name] || playerStats[name];
   if (!s) { document.getElementById('profile-content').innerHTML = '<p style="color:var(--muted)">Player not found.</p>'; return; }
