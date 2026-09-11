@@ -9208,6 +9208,10 @@ window.addEventListener('resize', () => {
     const safeId = panel.id.replace('matchtab-goals-', '');
     if (goalsTabState[safeId]) goalsDraw(safeId);
   });
+  if (currentPage === 'profile' && currentProfileName) {
+    const gifKey = currentProfileName.replace(/\s/g,'_');
+    if (document.getElementById(`trend-canvas-${gifKey}`)) drawTrendChart(currentProfileName, gifKey);
+  }
 });
 
 function editMatchDate(matchId, currentDate) {
@@ -9393,6 +9397,10 @@ function renderPlayers() {
     return (b[sort] ?? 0) - (a[sort] ?? 0);
   });
   document.getElementById('player-count').textContent = list.length + ' players' + (globalFilter==='last10'?' · Last 10 games':'');
+  // Cache the sorted player-name order so the profile page can offer prev/next navigation
+  // that follows whatever sort/search the person was actually browsing with, rather than a
+  // fixed order — this list is exactly what's currently on screen.
+  window._playersPageOrder = list.map(p => p.player);
   const grid = document.getElementById('player-grid');
   if (!grid) return;
   grid.innerHTML = list.map(p => {
@@ -9624,6 +9632,288 @@ function openMatchPanel(matchIdKey) {
     panel.style.display = 'block';
     setTimeout(() => panel.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
   }, 220);
+}
+
+// ============================================================
+// STAT TREND OVER TIME — one player, one chosen stat, plotted per match chronologically.
+// Reuses s.matches (already sorted-per-render call, FULL rows only) — no new data needed.
+// ============================================================
+const TREND_STATS = [
+  { key: 'goals', label: 'Goals', color: '#39d353' },
+  { key: 'assists', label: 'Assists', color: '#a8e050' },
+  { key: 'key_passes', label: 'Key Passes', color: '#f0c040' },
+  { key: 'total_shots', label: 'Shots', color: '#f0a030' },
+  { key: 'shots_on_target', label: 'On Target', color: '#e879f9' },
+  { key: 'tackles', label: 'Tackles', color: '#c090f8' },
+  { key: 'interceptions', label: 'Interceptions', color: '#4fa3e8' },
+  { key: 'blocks', label: 'Blocks', color: '#2dd4bf' },
+  { key: 'goalkeeper_saves', label: 'GK Saves', color: '#60a5fa' },
+  { key: 'nutmegs', label: 'Nutmegs', color: '#f06060' },
+];
+// "All Stats" isn't a real data field — it's each match's overall contribution, computed with
+// the SAME per-stat weights already used for MVP scoring elsewhere in the app (mvpWeights),
+// so this default view lines up with what the app already considers "how good was this game"
+// rather than introducing a second, unrelated formula.
+const ALL_STATS_META = { key: 'all', label: 'All Stats', color: '#f0c040' };
+
+window._trendState = window._trendState || {}; // gifKey -> selected stat key ('all' by default)
+
+// ============================================================
+// AUTOPLAY HIGHLIGHT BANNER — picks a random real goal of this player's, from a match that has
+// a linked YouTube video (matchVideos[matchId]), and auto-plays it muted for ~15 seconds using
+// the real YouTube IFrame API (not just URL params — those can start playback but can't
+// reliably stop it after N seconds, which needs actual player control).
+// ============================================================
+function getPlayerHighlightCandidates(name){
+  let logs;
+  try { logs = JSON.parse(localStorage.getItem('aero_event_logs') || '{}'); }
+  catch(e) { return []; }
+  const candidates = [];
+  Object.entries(logs).forEach(([matchId, log]) => {
+    const ytId = matchVideos[matchId] ? extractYtId(matchVideos[matchId]) : null;
+    if (!ytId) return; // only matches with a real linked video can be played
+    (log.events || []).forEach(e => {
+      if (e.event === 'Goals' && e.player === name && e.ts) {
+        const seconds = timeToYtSeconds(e.ts, e.half);
+        if (seconds != null) candidates.push({ matchId, ytId, seconds, half: e.half, ts: e.ts });
+      }
+    });
+  });
+  return candidates;
+}
+
+let _ytApiLoading = false;
+let _ytApiReadyCallbacks = [];
+function ensureYtApiLoaded(cb){
+  if (window.YT && window.YT.Player) { cb(); return; }
+  _ytApiReadyCallbacks.push(cb);
+  if (_ytApiLoading) return;
+  _ytApiLoading = true;
+  const prevReady = window.onYouTubeIframeAPIReady;
+  window.onYouTubeIframeAPIReady = () => {
+    if (typeof prevReady === 'function') prevReady();
+    _ytApiReadyCallbacks.forEach(fn => fn());
+    _ytApiReadyCallbacks = [];
+  };
+  const tag = document.createElement('script');
+  tag.src = 'https://www.youtube.com/iframe_api';
+  document.head.appendChild(tag);
+}
+
+function initHighlightBanner(name, gifKey){
+  const candidates = getPlayerHighlightCandidates(name);
+  if (!candidates.length) return false; // no video-linked goals — caller keeps the static banner
+  const pick = candidates[Math.floor(Math.random() * candidates.length)];
+  const mountId = `highlight-player-${gifKey}`;
+  const wrapId = `highlight-wrap-${gifKey}`;
+
+  ensureYtApiLoaded(() => {
+    const mount = document.getElementById(mountId);
+    if (!mount) return; // profile navigated away before the API finished loading
+    const startAt = Math.max(0, pick.seconds - 2); // small lead-in so the goal isn't cut off
+    const player = new YT.Player(mountId, {
+      videoId: pick.ytId,
+      playerVars: {
+        autoplay: 1, mute: 1, controls: 0, disablekb: 1, modestbranding: 1,
+        rel: 0, playsinline: 1, start: startAt,
+      },
+      events: {
+        onReady: (ev) => {
+          ev.target.mute();
+          ev.target.playVideo();
+        },
+        onStateChange: (ev) => {
+          if (ev.data === YT.PlayerState.PLAYING) {
+            // Reveal the STABLE outer wrapper (not the mount div itself — YT.Player replaces
+            // that with an iframe, so it's not safe to keep referencing its id afterward) only
+            // once real playback has actually started, avoiding a black/buffering frame in
+            // place of the static banner while the video is still loading.
+            const wrap = document.getElementById(wrapId);
+            if (wrap) wrap.style.display = 'block';
+            if (!player._stopTimerSet) {
+              player._stopTimerSet = true;
+              // 15 real seconds of playback from when it actually starts — not from page load,
+              // since network/buffering delay would otherwise eat into the 15s.
+              setTimeout(() => { try { ev.target.pauseVideo(); } catch(e){} }, 15000);
+            }
+          }
+        }
+      }
+    });
+  });
+  return true;
+}
+
+function renderTrendToggle(name, gifKey){
+  const container = document.getElementById(`trend-toggle-${gifKey}`);
+  if (!container) return;
+  const current = window._trendState[gifKey] || 'all';
+  const allBtn = `<button onclick="setTrendStat('${name.replace(/'/g,"\\'")}','${gifKey}','all')"
+      style="font-family:'Barlow Condensed',sans-serif;font-size:.72rem;font-weight:700;letter-spacing:.4px;text-transform:uppercase;
+      padding:5px 12px;border-radius:6px;cursor:pointer;border:1.5px solid ${current==='all'?ALL_STATS_META.color:'var(--border)'};
+      background:${current==='all'?ALL_STATS_META.color+'22':'var(--card2)'};color:${current==='all'?ALL_STATS_META.color:'var(--muted)'}">${ALL_STATS_META.label}</button>`;
+  const statBtns = TREND_STATS.map(s => `
+    <button onclick="setTrendStat('${name.replace(/'/g,"\\'")}','${gifKey}','${s.key}')"
+      style="font-family:'Barlow Condensed',sans-serif;font-size:.72rem;font-weight:600;letter-spacing:.4px;text-transform:uppercase;
+      padding:5px 12px;border-radius:6px;cursor:pointer;border:1.5px solid ${s.key===current?s.color:'var(--border)'};
+      background:${s.key===current?s.color+'22':'var(--card2)'};color:${s.key===current?s.color:'var(--muted)'}">${s.label}</button>
+  `).join('');
+  container.innerHTML = allBtn + statBtns;
+}
+
+function setTrendStat(name, gifKey, statKey){
+  window._trendState[gifKey] = statKey;
+  renderTrendToggle(name, gifKey);
+  drawTrendChart(name, gifKey);
+}
+
+// Per-match overall contribution, using the same weights as MVP scoring (mvpWeights, admin-
+// configurable, defaults to MVP_WEIGHTS_DEFAULT) — so "All Stats" reflects the same notion of
+// "how good was this game" the rest of the app already uses, not a separate invented formula.
+function computeAllStatsScore(row){
+  const w = (typeof mvpWeights !== 'undefined' && mvpWeights) ? mvpWeights : MVP_WEIGHTS_DEFAULT;
+  return Object.keys(w).reduce((sum, key) => sum + n(row[key]) * (w[key]||0), 0);
+}
+
+function drawTrendChart(name, gifKey){
+  const cv = document.getElementById(`trend-canvas-${gifKey}`);
+  if (!cv) return;
+  const ds = getDisplayStats();
+  const s = ds[name] || playerStats[name];
+  if (!s || !s.matches || s.matches.length < 2) return;
+
+  const statKey = window._trendState[gifKey] || 'all';
+  const statMeta = statKey === 'all' ? ALL_STATS_META : (TREND_STATS.find(t => t.key === statKey) || TREND_STATS[0]);
+
+  const matches = [...s.matches]
+    .filter(r => r.half === 'FULL')
+    .sort((a,b) => (a.match_date||'').localeCompare(b.match_date||''));
+  if (matches.length < 2) return;
+
+  const dpr = window.devicePixelRatio || 1;
+  const rect = cv.getBoundingClientRect();
+  const W = rect.width || 600, H = 220;
+  cv.width = W*dpr; cv.height = H*dpr;
+  cv.style.height = H+'px';
+  const ctx = cv.getContext('2d');
+  ctx.clearRect(0,0,cv.width,cv.height);
+  ctx.save(); ctx.scale(dpr,dpr);
+
+  // "All Stats" isn't a raw field — it's each match's weighted contribution score (same
+  // weights as MVP). Everything else (raw field values) is unchanged.
+  const values = statKey === 'all'
+    ? matches.map(r => computeAllStatsScore(r))
+    : matches.map(r => n(r[statKey]));
+  const total = values.reduce((a,b)=>a+b, 0);
+  const average = total / values.length;
+  const maxV = Math.max(...values, average, 1);
+  const padL = 32, padR = 12, padT = 14, padB = 22;
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+
+  // gridlines + y-axis labels (0, mid, max) — contribution scores are rarely whole numbers,
+  // raw stat counts usually are, so the decimal display adapts to which is being shown.
+  const isWholeNumberStat = statKey !== 'all';
+  ctx.strokeStyle = 'rgba(255,255,255,.08)'; ctx.lineWidth = 1;
+  ctx.fillStyle = 'rgba(255,255,255,.35)';
+  ctx.font = "10px 'Barlow Condensed',sans-serif";
+  ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+  [0, 0.5, 1].forEach(f => {
+    const y = padT + plotH*(1-f);
+    ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(W-padR, y); ctx.stroke();
+    const val = maxV*f;
+    ctx.fillText(isWholeNumberStat ? val.toFixed(val<3?1:0) : val.toFixed(1), padL-6, y);
+  });
+
+  // one bar per match, evenly spaced — this is the per-game view requested, replacing the
+  // previous line-only chart. Bar width leaves a real gap between bars so it reads as discrete
+  // games, not a continuous fill.
+  const n_ = matches.length;
+  const slot = plotW / n_;
+  const barW = Math.max(4, slot * 0.6);
+  const bars = values.map((v,i) => {
+    const cx = padL + slot*(i+0.5);
+    const barH = plotH * (v/maxV);
+    return { x: cx - barW/2, y: padT + plotH - barH, w: barW, h: barH, cx, v, match: matches[i] };
+  });
+
+  const hoveredIdx = cv._trendHoveredIdx;
+  bars.forEach((b,i) => {
+    const isHovered = i === hoveredIdx;
+    ctx.fillStyle = isHovered ? statMeta.color : statMeta.color + 'cc';
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(b.x, b.y, b.w, Math.max(b.h,1), [2,2,0,0]);
+    else ctx.rect(b.x, b.y, b.w, Math.max(b.h,1));
+    ctx.fill();
+    if (isHovered) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.stroke(); }
+  });
+
+  // flat average line across the whole period, drawn over the bars so it's always readable
+  const avgY = padT + plotH*(1 - average/maxV);
+  ctx.setLineDash([5,4]);
+  ctx.strokeStyle = 'rgba(255,255,255,.85)'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(padL, avgY); ctx.lineTo(W-padR, avgY); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = 'rgba(255,255,255,.85)';
+  ctx.font = "bold 10px 'Barlow Condensed',sans-serif";
+  ctx.textAlign = 'left'; ctx.textBaseline = 'bottom';
+  ctx.fillText(`avg ${average.toFixed(1)}`, padL+4, avgY-3);
+
+  ctx.restore();
+  cv._trendPts = bars;
+
+  // Total shown as a clean label above the chart rather than a second line/axis — keeps the
+  // plot itself uncluttered while still surfacing the season total at a glance. Contribution
+  // score gets a decimal and different wording since "total" reads oddly for a weighted score
+  // the way it doesn't for a plain stat count.
+  const totalLabel = document.getElementById(`trend-total-${gifKey}`);
+  if (totalLabel) {
+    const totalDisplay = isWholeNumberStat ? total : total.toFixed(1);
+    const totalWord = statKey === 'all' ? 'season contribution score' : `total ${statMeta.label.toLowerCase()}`;
+    totalLabel.innerHTML = `<span style="color:${statMeta.color};font-family:'Bebas Neue',sans-serif;font-size:1.1rem">${totalDisplay}</span> <span style="color:var(--muted);font-size:.7rem;text-transform:uppercase;letter-spacing:.5px">${totalWord}</span>`;
+  }
+
+  if (!cv._trendWired) {
+    cv._trendWired = true;
+    cv.addEventListener('mousemove', ev => {
+      const r = cv.getBoundingClientRect();
+      const mx = ev.clientX - r.left;
+      // Hit-test against each bar's actual horizontal slot (not a fixed pixel radius around a
+      // point) — bars are spaced by slot width, which varies with the number of matches, so a
+      // fixed threshold either missed bars when there were many games or matched too eagerly
+      // when there were few.
+      let best = -1;
+      (cv._trendPts||[]).forEach((b,i) => { if (mx >= b.cx - (b.w*1.6) && mx <= b.cx + (b.w*1.6)) best = i; });
+      if (best !== cv._trendHoveredIdx) {
+        cv._trendHoveredIdx = best;
+        drawTrendChart(name, gifKey);
+      }
+      if (best >= 0) {
+        const p = cv._trendPts[best];
+        // Re-read the CURRENTLY selected stat here rather than relying on statMeta from the
+        // draw call that first attached this listener — that closure went stale as soon as the
+        // person switched stats, so the tooltip kept showing whatever was active on first hover
+        // (e.g. always "Goals" even after switching to Assists).
+        const liveStatKey = window._trendState[gifKey] || 'all';
+        const liveStatMeta = liveStatKey === 'all' ? ALL_STATS_META : (TREND_STATS.find(t => t.key === liveStatKey) || TREND_STATS[0]);
+        let tip = document.getElementById('trend-tip-global');
+        if (!tip) { tip = document.createElement('div'); tip.id = 'trend-tip-global'; tip.style.cssText = 'position:fixed;z-index:999;background:#0d1a0f;border:1px solid rgba(57,211,83,.3);border-radius:8px;padding:8px 12px;font-family:\'Barlow Condensed\',sans-serif;pointer-events:none;font-size:.75rem;line-height:1.5;box-shadow:0 4px 20px rgba(0,0,0,.8)'; document.body.appendChild(tip); }
+        const displayVal = liveStatKey === 'all' ? p.v.toFixed(1) : p.v;
+        tip.innerHTML = `<div style="color:${liveStatMeta.color};font-weight:700">${liveStatMeta.label}: ${displayVal}</div><div style="color:var(--muted);font-size:.68rem">${p.match.match_date||''}${p.match.team?' · Team '+p.match.team:''}</div>`;
+        tip.style.opacity = '1';
+        tip.style.left = (ev.clientX+14)+'px';
+        tip.style.top = (ev.clientY-10)+'px';
+      } else {
+        const tip = document.getElementById('trend-tip-global');
+        if (tip) tip.style.opacity = '0';
+      }
+    });
+    cv.addEventListener('mouseleave', () => {
+      cv._trendHoveredIdx = -1;
+      drawTrendChart(name, gifKey);
+      const tip = document.getElementById('trend-tip-global');
+      if (tip) tip.style.opacity = '0';
+    });
+  }
 }
 
 function renderProfileHeatmap(name, hmapType) {
@@ -10876,6 +11166,29 @@ function renderProfile(name) {
   })();
 
   document.getElementById('profile-content').innerHTML = `
+    <!-- Prev/Next player navigation -->
+    ${(() => {
+      // Follow whatever order the person was browsing the Players page in (current sort/search),
+      // captured in window._playersPageOrder when that page last rendered. If someone lands on a
+      // profile without having visited the list (e.g. a direct link, or from Leaderboard/Compare),
+      // fall back to a plain alphabetical list across everyone so prev/next still works.
+      const order = (window._playersPageOrder && window._playersPageOrder.length)
+        ? window._playersPageOrder
+        : Object.keys(ds).sort((a,b)=>a.localeCompare(b));
+      const idx = order.indexOf(name);
+      const prevName = idx > 0 ? order[idx-1] : null;
+      const nextName = idx >= 0 && idx < order.length-1 ? order[idx+1] : null;
+      const btn = (label, target, dir) => target
+        ? `<button onclick="nav('profile','${target.replace(/'/g,"\\'")}')" style="flex:1;display:flex;align-items:center;${dir==='next'?'justify-content:flex-end':'justify-content:flex-start'};gap:6px;background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:8px 14px;color:var(--text);cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-size:.8rem;letter-spacing:.3px;overflow:hidden">${dir==='prev'?`◀ <span style="opacity:.7">${label}</span> <b style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${target}</b>`:`<b style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${target}</b> <span style="opacity:.7">${label}</span> ▶`}</button>`
+        : `<div style="flex:1"></div>`;
+      const posLabel = idx >= 0 ? `<span style="font-size:.68rem;color:var(--muted);font-family:'Barlow Condensed',sans-serif;white-space:nowrap;padding:0 8px">${idx+1} / ${order.length}</span>` : '';
+      return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+        ${btn('Prev', prevName, 'prev')}
+        ${posLabel}
+        ${btn('Next', nextName, 'next')}
+      </div>`;
+    })()}
+
     <!-- Action buttons -->
     <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px">
       <button class="print-btn" onclick="printPlayerCard('${safeName}')">🖨 Print Profile Card</button>
@@ -10888,8 +11201,15 @@ function renderProfile(name) {
       const zoom = bannerZoom[name] != null ? bannerZoom[name] : 100;
       const objPos = `center ${pos}%`;
       const mediaStyle = `width:100%;height:100%;object-fit:cover;object-position:${objPos};display:block;transform:scale(${zoom/100});transform-origin:center ${pos}%`;
+      // A real highlight (an actual goal of this player's, in a match with a linked YouTube
+      // video) takes priority over the static uploaded banner when one exists — mounted into
+      // its own div so the YouTube IFrame API can take it over after checking real candidates
+      // exist. The static banner underneath still renders immediately as a fallback, so there's
+      // no blank flash while the API loads, and it's what stays visible if no highlight exists.
+      const highlightMountHtml = `<div id="highlight-wrap-${gifKey}" style="width:100%;height:100%;position:absolute;inset:0;z-index:2;display:none"><div id="highlight-player-${gifKey}" style="width:100%;height:100%"></div></div>`;
       return `
     <div id="banner-wrap-${gifKey}" style="position:relative;width:100%;height:${bannerHeights[name]||200}px;border-radius:16px 16px 0 0;overflow:hidden;background:linear-gradient(135deg,var(--card),var(--card2));border:1px solid var(--border);border-bottom:none">
+      ${highlightMountHtml}
       ${playerGifs[name]
         ? `<img src="${playerGifs[name]}" alt="${name}" style="${mediaStyle}">`
         : `<video id="banner-video-${gifKey}" autoplay loop muted playsinline
@@ -11159,6 +11479,20 @@ function renderProfile(name) {
         +'</div></div>'
         +'<div data-bd="'+uid+'" data-sx="'+avgSx+'" data-sy="'+avgSy+'" data-nx="'+avgNx+'" data-ny="'+avgNy+'" style="display:none"></div>';
     })()}
+
+    <!-- STAT TREND OVER TIME -->
+    ${s.matches.length >= 2 ? `
+    <div class="section-hd" style="margin-top:14px"><h2>Stat Trend Over Time</h2></div>
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:16px">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px">
+        <div id="trend-toggle-${gifKey}" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+        <div id="trend-total-${gifKey}" style="text-align:right;white-space:nowrap"></div>
+      </div>
+      <div style="position:relative;width:100%;overflow:visible">
+        <canvas id="trend-canvas-${gifKey}" style="width:100%;height:220px;display:block"></canvas>
+      </div>
+      <div style="font-size:.68rem;color:var(--muted);margin-top:6px;font-family:'Barlow Condensed',sans-serif">One bar per match (chronological, FULL match only) · dashed line = season average · hover a bar for the exact match</div>
+    </div>` : ''}
 
     <!-- BEST GAME + CAREER HIGHS -->
     ${bestGameHtml}
@@ -11624,7 +11958,39 @@ function renderProfile(name) {
     } else {
       drawSpider(`spider-${name.replace(/\s/g,'_')}`, labels, values, 'rgb(57,211,83)');
     }
+
+    // Stat trend over time — defaults to Goals on first render of a profile, but remembers
+    // whatever stat the person last toggled to if they've already viewed a trend chart before
+    // (window._trendState persists across profile switches, keyed by player).
+    if (!window._trendState[gifKey]) window._trendState[gifKey] = 'all';
+    renderTrendToggle(name, gifKey);
+    drawTrendChart(name, gifKey);
+
+    // Autoplay highlight banner — tries to find a real goal of this player's in a video-linked
+    // match; if none exists, this is a no-op and the static banner underneath stays as-is.
+    initHighlightBanner(name, gifKey);
   }, 50);
+}
+
+// Left/Right arrow keys move to the previous/next player on the profile page, following the
+// same order as the Prev/Next buttons. Guarded to only act when the profile page is active and
+// no text input has focus, so it doesn't interfere with typing in the player search box etc.
+if (!window._profileArrowNavBound) {
+  window._profileArrowNavBound = true;
+  document.addEventListener('keydown', (e) => {
+    if (currentPage !== 'profile' || !currentProfileName) return;
+    const tag = document.activeElement?.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+    const ds = getDisplayStats();
+    const order = (window._playersPageOrder && window._playersPageOrder.length)
+      ? window._playersPageOrder
+      : Object.keys(ds).sort((a,b)=>a.localeCompare(b));
+    const idx = order.indexOf(currentProfileName);
+    if (idx < 0) return;
+    const target = e.key === 'ArrowLeft' ? order[idx-1] : order[idx+1];
+    if (target) nav('profile', target);
+  });
 }
 
 function saveCustomStat(player, key, val) {
