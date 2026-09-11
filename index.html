@@ -4449,11 +4449,28 @@ function renderSeasonSummary() {
 
   const mvpScore  = p => (p.goals/gf(p))*4 + (p.assists/gf(p))*3 + (p.key_passes/gf(p))*0.5 + (p.wins/(p.wins+p.losses+(p.draws||0)||1))*3;
   const dpoyScore = p => ((p.interceptions+p.tackles+p.blocks)/gf(p)) + (p.goalkeeper_saves/gf(p))*0.5;
-  const mipScore  = p => { // most improved: late vs early half of season matches
+  const mipScore  = p => { // most improved
+    // Prefer comparing this season's performance to the PREVIOUS season's, when that player
+    // has real prior-season history — a genuine year-over-year improvement is a stronger,
+    // more meaningful signal than splitting one season's own matches into an early/late half,
+    // which can just reflect random early-season vs late-season form swings rather than real
+    // improvement. Falls back to the within-season split for players with no real previous
+    // season on record (e.g. new players), so the award doesn't just exclude them.
+    const score = m => { const r=[...m.teamA,...m.teamB].find(x=>x.player===p.player); return r?n(r.goals)*4+n(r.assists)*3+n(r.key_passes)*0.4+n(r.tackles)*0.3:0; };
+    if (seasonFilter !== 'all' && /^\d{4}$/.test(seasonFilter)) {
+      const prevSeason = String(Number(seasonFilter) - 1);
+      const prevM = matchList.filter(m => m.date.startsWith(prevSeason) && [...m.teamA,...m.teamB].some(r=>r.player===p.player));
+      const curM  = matchList.filter(m => m.date.startsWith(seasonFilter) && [...m.teamA,...m.teamB].some(r=>r.player===p.player));
+      if (prevM.length >= 3 && curM.length >= 3) {
+        const prevAvg = prevM.reduce((s,m)=>s+score(m),0) / prevM.length;
+        const curAvg  = curM.reduce((s,m)=>s+score(m),0) / curM.length;
+        return curAvg - prevAvg;
+      }
+    }
+    // Fallback: within-season early half vs late half (original behavior)
     const allM = matchList.filter(m => inSeason(m.date) && [...m.teamA,...m.teamB].some(r=>r.player===p.player)).sort((a,b)=>a.date.localeCompare(b.date));
     if (allM.length < 6) return -Infinity;
     const h = Math.floor(allM.length/2);
-    const score = m => { const r=[...m.teamA,...m.teamB].find(x=>x.player===p.player); return r?n(r.goals)*4+n(r.assists)*3+n(r.key_passes)*0.4+n(r.tackles)*0.3:0; };
     const early = allM.slice(0,h).reduce((s,m)=>s+score(m),0)/h;
     const late  = allM.slice(-h).reduce((s,m)=>s+score(m),0)/h;
     return late - early;
@@ -4553,21 +4570,24 @@ function renderSeasonSummary() {
   };
 
   const awardRaces = [
-    { label:'🏆 MVP Race',               desc:'Goals × 4, assists × 3, key passes × 0.5, win rate × 3', fn: mvpScore,          fmt: v => v.toFixed(1)+' pts' },
+    { label:'🏆 MVP Race',               desc:'Goals × 4, assists × 3, key passes × 0.5, win rate × 3', fn: mvpScore,          fmt: v => v.toFixed(1)+' pts', min: 5 },
     { label:'🛡 Defensive Player (DPOY)', desc:'Tackles + ints + blocks per game, saves × 0.5',          fn: dpoyScore,         fmt: v => v.toFixed(1)+'/g' },
-    { label:'📈 Most Improved (MIP)',     desc:'Performance score: early season vs late season',           fn: mipScore,          fmt: v => (v>0?'+':'')+v.toFixed(1)+' pts/g', min: 8 },
-    { label:'⚽ Golden Boot Race',        desc:'Goals per game',                                           fn: gpgScore,          fmt: v => v.toFixed(2)+' gpg' },
-    { label:'🎯 Playmaker Race',          desc:'Assists + key passes per game',                            fn: creatorScore,      fmt: v => v.toFixed(2)+'/g' },
-    { label:'🧤 Best Goalkeeper Race',    desc:'Saves per 55 min in goal — only players with event log GK data',
+    { label:'📈 Most Improved (MIP)',     desc:'This season vs last season (falls back to early vs late season if no prior-season history)', fn: mipScore,          fmt: v => (v>0?'+':'')+v.toFixed(1)+' pts/g', min: 8 },
+    { label:'⚽ Golden Boot Race',        desc:'Goals per game',                                           fn: gpgScore,          fmt: v => v.toFixed(2)+' gpg', min: 5 },
+    { label:'🎯 Playmaker Race',          desc:'Assists + key passes per game',                            fn: creatorScore,      fmt: v => v.toFixed(2)+'/g', min: 5 },
+    { label:'🧤 Best Goalkeeper Race',    desc:'Saves per 55 min in goal — needs 55+ real minutes actually in goal, so occasional outfield players who covered a short GK stint don\'t skew the race',
       fn: p => {
         const ts = getPlayerEventStats(p.player);
-        // Only rank players who have actually been tracked in goal
-        if (ts?.gkSavesPer90 != null && ts.gkMinutes >= 10) return ts.gkSavesPer90;
-        return -Infinity; // exclude players without GK time data
+        // Only rank players who have a real, meaningful sample of time in goal — 55 minutes is
+        // roughly one full game's worth. The previous 10-minute bar let outfield players who
+        // only briefly covered in goal (sometimes on a handful of shots) qualify with an
+        // unrepresentative save rate.
+        if (ts?.gkSavesPer90 != null && ts.gkMinutes >= 55) return ts.gkSavesPer90;
+        return -Infinity; // exclude players without a real, meaningful sample of GK time
       },
       fmt: v => v.toFixed(1)+' saves/55', min: 1 },
-    { label:'🤝 Team Player Race',        desc:'Win rate %',                                               fn: winRateScore,      fmt: v => Math.round(v)+'%' },
-    { label:'⏱ Clutch Player Race',       desc:'Late goals (47+ min) — winning/decisive goals weighted more', fn: clutchPlayerScore, fmt: v => v.toFixed(1)+' pts' },
+    { label:'🤝 Team Player Race',        desc:'Win rate %',                                               fn: winRateScore,      fmt: v => Math.round(v)+'%', min: 5 },
+    { label:'⏱ Clutch Player Race',       desc:'Late goals (47+ min) — winning/decisive goals weighted more', fn: clutchPlayerScore, fmt: v => v.toFixed(1)+' pts', min: 5 },
     { label:'⚡ X-Factor Race',          desc:'Variance × goals per game — the most unpredictable match-winner. Can be invisible then score 5. High floor players won\'t win this.', fn: xFactorRaceScore,  fmt: v => v.toFixed(2)+' pts', min: 5 },
     { label:'⚡ Catalyst Race',           desc:'Tackles/interceptions that led to a goal within 15 seconds — defensive contributions that directly triggered goals (needs event log data)', fn: catalystScore,     fmt: v => v.toFixed(1)+'/game', min: 1 },
     { label:'🔥 Firefighter Race',        desc:'Avg stats in 90s after team concedes — who steps up when the team is under pressure (needs event log data)', fn: firefighterScore,  fmt: v => v.toFixed(1)+' stats/opp', min: 2 },
@@ -12875,10 +12895,14 @@ function computeStrikerRating(playerName) {
 // the same gkRotation segment-matching independently and produced a slightly different number
 // (65.5% vs the real 67.7%) due to a subtle difference in how goal events were filtered, which
 // is exactly the kind of quiet discrepancy that comes from duplicating logic instead of reusing
-// the tested original. gkMinutes >= 10 guards against a tiny, unrepresentative sample.
+// the tested original.
+// gkMinutes >= 55 (roughly one full game) rather than a bare 10 — 10 minutes let occasional
+// outfield players who briefly covered in goal qualify with an unrepresentative save rate,
+// which then fed directly into Quality-Adjusted Goals and the Team Builder matchup insight.
+const GK_QUALIFY_MINUTES = 55;
 function computeGoalkeeperSaveRate(gkName){
   const ts = getPlayerEventStats(gkName);
-  if (!ts || ts.gkSaveRate == null || !(ts.gkMinutes >= 10)) return null;
+  if (!ts || ts.gkSaveRate == null || !(ts.gkMinutes >= GK_QUALIFY_MINUTES)) return null;
   return { saveRate: ts.gkSaveRate, goalsConceded: ts.gkGoalsConceded ?? null };
 }
 
@@ -13017,6 +13041,13 @@ function findBestMatchupInsight(teamAPlayers, teamBPlayers){
       gkTeam.forEach(gk => {
         const gkName = gk.player;
         if (!allGkNames.has(gkName) || gkName === strikerName) return;
+        // Require the keeper to have a real, season-wide meaningful sample of GK time — not
+        // just enough head-to-head attempts against THIS ONE striker. Without this, an outfield
+        // player who only ever covered a brief GK stint could still surface here just because
+        // they happened to face this particular striker 8+ times, even though they're not a
+        // real regular keeper and their save rate elsewhere is entirely unproven.
+        const gkOverall = getPlayerEventStats(gkName);
+        if (!gkOverall || !(gkOverall.gkMinutes >= GK_QUALIFY_MINUTES)) return;
         const r = computeStrikerRatingVsGK(strikerName, gkName);
         if (!r || r.attempts < MIN_ATTEMPTS) return;
         candidates.push({
@@ -13866,9 +13897,11 @@ function renderTeamResult(tA, tB) {
         { label: '📈 2H Performance',         key: 'secondH',  fmt: v => (v>=0?'+':'')+v.toFixed(1)+'/win', tip: 'Avg extra stats in 2H vs 1H per 5-min window' },
         { label: '💪 Under Pressure',         key: 'pressure', fmt: v => v.toFixed(1)+'/opp', tip: 'Avg stats in 90s after conceding a goal' },
       ];
-      // GK save rate comparison — most meaningful keeper stat
-      const gkRateA = tA.map(p => { const ts = getPlayerEventStats(p.player); return ts?.gkSaveRate != null && ts.gkMinutes >= 10 ? { player: p.player, rate: ts.gkSaveRate, mins: ts.gkMinutes } : null; }).filter(Boolean);
-      const gkRateB = tB.map(p => { const ts = getPlayerEventStats(p.player); return ts?.gkSaveRate != null && ts.gkMinutes >= 10 ? { player: p.player, rate: ts.gkSaveRate, mins: ts.gkMinutes } : null; }).filter(Boolean);
+      // GK save rate comparison — most meaningful keeper stat. Uses the same 55-minute real
+      // qualifying bar as computeGoalkeeperSaveRate, so this row and the matchup insight below
+      // never disagree about who actually counts as a real keeper for this match's two teams.
+      const gkRateA = tA.map(p => { const ts = getPlayerEventStats(p.player); return ts?.gkSaveRate != null && ts.gkMinutes >= GK_QUALIFY_MINUTES ? { player: p.player, rate: ts.gkSaveRate, mins: ts.gkMinutes } : null; }).filter(Boolean);
+      const gkRateB = tB.map(p => { const ts = getPlayerEventStats(p.player); return ts?.gkSaveRate != null && ts.gkMinutes >= GK_QUALIFY_MINUTES ? { player: p.player, rate: ts.gkSaveRate, mins: ts.gkMinutes } : null; }).filter(Boolean);
       const bestGkA = gkRateA.sort((a,b)=>b.rate-a.rate)[0];
       const bestGkB = gkRateB.sort((a,b)=>b.rate-a.rate)[0];
       const gkRow = (bestGkA || bestGkB) ? `
