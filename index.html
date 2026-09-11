@@ -9706,10 +9706,27 @@ let _ytPlayerInstances = {}; // gifKey -> live YT.Player instance, so we can des
                               // that's what was causing repeated clicks to keep reusing the
                               // same first video instead of picking a new random highlight.
 
+let _highlightActiveGifKeys = {}; // gifKey -> true while that profile's highlight banner should
+                                   // keep cycling; set false when navigating away so a delayed
+                                   // timer from a previous profile doesn't start a new video on
+                                   // whatever now occupies that DOM slot.
+let _lastHighlightPick = {}; // gifKey -> the last-shown candidate, so cycling doesn't repeat
+                              // the same clip back-to-back when more than one exists.
+
 function initHighlightBanner(name, gifKey){
   const candidates = getPlayerHighlightCandidates(name);
   if (!candidates.length) return false; // no video-linked goals — caller keeps the static banner
-  const pick = candidates[Math.floor(Math.random() * candidates.length)];
+
+  // Avoid repeating the same clip twice in a row when there's more than one real candidate.
+  let pool = candidates;
+  const last = _lastHighlightPick[gifKey];
+  if (last && candidates.length > 1) {
+    pool = candidates.filter(c => !(c.matchId === last.matchId && c.seconds === last.seconds));
+  }
+  const pick = pool[Math.floor(Math.random() * pool.length)];
+  _lastHighlightPick[gifKey] = pick;
+  _highlightActiveGifKeys[gifKey] = true;
+
   const wrapId = `highlight-wrap-${gifKey}`;
   const bannerWrapId = `banner-wrap-${gifKey}`;
 
@@ -9723,29 +9740,28 @@ function initHighlightBanner(name, gifKey){
     delete _ytPlayerInstances[gifKey];
   }
   const wrap = document.getElementById(wrapId);
-  if (wrap) wrap.innerHTML = `<div id="highlight-player-${gifKey}" style="width:100%;height:100%"></div><div id="highlight-cover-${gifKey}" style="position:absolute;inset:0;z-index:3;display:none;background:transparent"></div>`;
+  if (wrap) wrap.innerHTML = `<div id="highlight-player-${gifKey}" style="width:100%;height:100%"></div>`;
   const mountId = `highlight-player-${gifKey}`;
 
   // The static banner box is usually much wider and shorter than a 16:9 video (e.g. ~1400x220),
   // so a plain "cover crop" fill would crop out most of the video's height. Instead of cropping,
   // GROW the actual banner box to a real 16:9-derived height (based on its own current width)
-  // while the highlight plays, then restore its original height once it pauses. Capped so it
-  // can't become absurdly tall on a very wide page.
+  // for as long as highlights are cycling — since we now cycle to a new clip instead of ending,
+  // there's no "pause" moment to restore the original height at, so it simply stays at this
+  // video-friendly size the whole time a highlight is showing.
   const bannerWrapEl = document.getElementById(bannerWrapId);
-  const originalHeight = bannerWrapEl ? bannerWrapEl.style.height : null;
-  if (bannerWrapEl) {
+  if (bannerWrapEl && !bannerWrapEl.dataset.highlightGrown) {
+    bannerWrapEl.dataset.highlightGrown = '1';
     const boxW = bannerWrapEl.getBoundingClientRect().width || 400;
-    const idealH = Math.min(Math.round(boxW * 9/16), 420); // capped to match the existing banner-height slider's own max (420px), so a highlight never grows the banner beyond what an admin could otherwise manually set
+    const idealH = Math.min(Math.round(boxW * 9/16), 420); // capped to match the existing banner-height slider's own max (420px)
     bannerWrapEl.style.height = idealH + 'px';
   }
-  const restoreBannerHeight = () => {
-    if (bannerWrapEl && originalHeight != null) bannerWrapEl.style.height = originalHeight;
-  };
 
   ensureYtApiLoaded(() => {
+    if (!_highlightActiveGifKeys[gifKey]) return; // navigated away before the API finished loading
     const mount = document.getElementById(mountId);
-    if (!mount) { restoreBannerHeight(); return; } // profile navigated away before the API loaded
-    // 5 second lead-in (per request, more context before the goal) rather than a bare 2s.
+    if (!mount) return;
+    // 5 second lead-in so there's more context before the goal itself.
     const startAt = Math.max(0, pick.seconds - 5);
     const player = new YT.Player(mountId, {
       width: '100%', height: '100%',
@@ -9753,6 +9769,8 @@ function initHighlightBanner(name, gifKey){
       playerVars: {
         autoplay: 1, mute: 1, controls: 0, disablekb: 1, modestbranding: 1,
         rel: 0, playsinline: 1, start: startAt,
+        cc_load_policy: 0, // subtitles off by default
+        iv_load_policy: 3, // also suppress video annotations, same spirit as no subtitles
       },
       events: {
         onReady: (ev) => {
@@ -9763,6 +9781,11 @@ function initHighlightBanner(name, gifKey){
           if (iframe) { iframe.style.width = '100%'; iframe.style.height = '100%'; iframe.style.position = 'absolute'; iframe.style.inset = '0'; }
           player._stopTimerSet = false;
           ev.target.mute();
+          // Best-effort request for 1080p — YouTube's IFrame API treats this as a suggestion,
+          // not a guarantee. It can still silently downgrade quality based on the viewer's
+          // actual connection speed, and YouTube has been reducing how reliably it honors
+          // manual quality requests in recent years, so this genuinely isn't bulletproof.
+          try { ev.target.setPlaybackQuality('hd1080'); } catch(e){}
           // The `start` playerVar alone isn't reliably honored once playVideo() is called
           // explicitly right after — some browsers resume from 0 instead of the requested
           // offset, which is why the video was restarting from the beginning instead of the
@@ -9781,18 +9804,13 @@ function initHighlightBanner(name, gifKey){
             if (wrap2) wrap2.style.display = 'block';
             if (!player._stopTimerSet) {
               player._stopTimerSet = true;
-              // 15 real seconds of playback from when it actually starts — not from page load,
-              // since network/buffering delay would otherwise eat into the 15s.
+              // After 15 real seconds of playback (timed from when it actually started, not
+              // page load), cycle to a DIFFERENT random highlight instead of stopping — this
+              // replaces the old pause-and-cover-icon behavior entirely, so the banner keeps
+              // showing fresh clips for as long as the profile stays open.
               setTimeout(() => {
-                try { ev.target.pauseVideo(); } catch(e){}
-                // controls:0 hides YouTube's bottom control bar, but NOT the big center
-                // play/pause icon it still shows on top of a paused frame — that's what was
-                // sitting there indefinitely. A transparent cover div, shown only once paused,
-                // sits above the iframe and blocks that icon from view (and from being
-                // clickable) without needing to hide the whole paused video frame underneath.
-                const cover = document.getElementById(`highlight-cover-${gifKey}`);
-                if (cover) cover.style.display = 'block';
-                restoreBannerHeight();
+                if (!_highlightActiveGifKeys[gifKey]) return; // navigated away in the meantime
+                initHighlightBanner(name, gifKey);
               }, 15000);
             }
           }
@@ -11100,6 +11118,17 @@ function getFamousPlayerComparison(playerName) {
 
 function renderProfile(name) {
   if (name !== currentProfileName) window._hmapType = 'shot'; // reset tab on new profile
+  // Stop any in-progress highlight cycling for whichever profile was open before this one, so a
+  // pending 15-second cycle timer doesn't fire later and try to swap a video into a DOM slot
+  // that no longer belongs to that player.
+  if (currentProfileName && currentProfileName !== name) {
+    const prevGifKey = currentProfileName.replace(/\s/g,'_');
+    _highlightActiveGifKeys[prevGifKey] = false;
+    if (_ytPlayerInstances[prevGifKey]) {
+      try { _ytPlayerInstances[prevGifKey].destroy(); } catch(e) {}
+      delete _ytPlayerInstances[prevGifKey];
+    }
+  }
   currentProfileName = name;
   const ds = getDisplayStats();
   const s = ds[name] || playerStats[name];
@@ -11268,7 +11297,6 @@ function renderProfile(name) {
       // no blank flash while the API loads, and it's what stays visible if no highlight exists.
       const highlightMountHtml = `<div id="highlight-wrap-${gifKey}" style="width:100%;height:100%;position:absolute;inset:0;z-index:2;display:none">
         <div id="highlight-player-${gifKey}" style="width:100%;height:100%"></div>
-        <div id="highlight-cover-${gifKey}" style="position:absolute;inset:0;z-index:3;display:none;background:transparent"></div>
       </div>`;
       return `
     <div id="banner-wrap-${gifKey}" style="position:relative;width:100%;height:${bannerHeights[name]||200}px;border-radius:16px 16px 0 0;overflow:hidden;background:linear-gradient(135deg,var(--card),var(--card2));border:1px solid var(--border);border-bottom:none">
