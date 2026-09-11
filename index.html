@@ -8666,6 +8666,14 @@ function formAttackScore(p){
   return off - def;
 }
 
+// Split what used to be one combined "attacking" score into two separate signals, since goals
+// and creativity are different roles, not different amounts of the same thing. A player heavy
+// on assists/key passes but light on goals is a creator (Midfield trait), not "less of a
+// forward" — lumping them together pushed high-key-pass players toward Forward just because
+// their overall attacking number was high.
+function formFinishScore(p){ return n(p.goals)*2 + n(p.shots_on_target)*0.6; }
+function formCreativityScore(p){ return n(p.assists)*1.4 + n(p.key_passes)*0.5; }
+
 function formComputeMatchHighs(teamRows){
   const highs = {};
   Object.keys(FORM_STAT_ICONS).forEach(stat=>{
@@ -8723,7 +8731,19 @@ function formPlaceTeam(teamRowsRaw, matchId, pitchW, pitchH){
 
   const outfield = scored.filter(p=>!p.isGK);
   const gk = scored.find(p=>p.isGK);
-  outfield.forEach(p=>{ p._role = p.norm>0.66?'Forward':p.norm>0.33?'Midfield':'Defence'; });
+
+  // Role decision: overall attacking level (norm, relative to the team this match) still
+  // decides who counts as an attacking player at all vs a defender — that part is unchanged.
+  // But among attacking players, WHICH kind of attacker they are (finisher vs creator) now
+  // comes from comparing their own finishing score against their own creativity score, not
+  // from the same blended number. A player whose creativity score is the bigger of the two
+  // is a creator and goes to Midfield, even if their overall attacking level is high enough
+  // that the old logic would have called them a Forward.
+  outfield.forEach(p=>{
+    if (p.norm <= 0.33) { p._role = 'Defence'; return; }
+    const finish = formFinishScore(p), creativity = formCreativityScore(p);
+    p._role = finish >= creativity ? 'Forward' : 'Midfield';
+  });
 
   const arcR = pitchW*0.28;
   const gkMaxFy = (pitchH-3-arcR)/pitchH;
