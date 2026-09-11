@@ -8672,7 +8672,11 @@ function formAttackScore(p){
 // forward" — lumping them together pushed high-key-pass players toward Forward just because
 // their overall attacking number was high.
 function formFinishScore(p){ return n(p.goals)*2 + n(p.shots_on_target)*0.6; }
-function formCreativityScore(p){ return n(p.assists)*1.4 + n(p.key_passes)*0.5; }
+// Weight raised from 0.5 to 0.6 — matches shots_on_target's weight in formFinishScore, so a
+// key pass (a pass that created a shot) is treated as comparably valuable to the shot itself.
+// At 0.5 it was under-weighted enough that a real playmaking stat line (e.g. 3 assists, 15 key
+// passes) could still lose to a finishing score built mostly from shot volume rather than goals.
+function formCreativityScore(p){ return n(p.assists)*1.4 + n(p.key_passes)*0.6; }
 
 function formComputeMatchHighs(teamRows){
   const highs = {};
@@ -8865,7 +8869,7 @@ function formHideTip(){
   if (tip) tip.style.opacity = '0';
 }
 
-function formRenderTeamPitch(matchId, safeId, teamKey, teamRows, mvpList){
+function formRenderTeamPitch(matchId, safeId, teamKey, teamRows, mvpList, matchHighs){
   const wrap = document.getElementById(`wrap${teamKey}-${safeId}`);
   const cv = document.getElementById(`canvas${teamKey}-${safeId}`);
   if (!wrap || !cv) return;
@@ -8883,7 +8887,6 @@ function formRenderTeamPitch(matchId, safeId, teamKey, teamRows, mvpList){
   if (!teamRows || !teamRows.length) { document.getElementById(`players${teamKey}-${safeId}`).innerHTML = ''; return; }
 
   const placed = formPlaceTeam(teamRows, matchId, W, H);
-  const matchHighs = formComputeMatchHighs(teamRows);
   const medals = ['👑','🥈','🥉'];
   const container = document.getElementById(`players${teamKey}-${safeId}`);
   let html = '';
@@ -8908,8 +8911,13 @@ function formRenderTeamPitch(matchId, safeId, teamKey, teamRows, mvpList){
 function renderFormationTab(safeId){
   const m = window.__matchById?.[safeId];
   if (!m) return;
-  formRenderTeamPitch(m.id, safeId, 'A', m.teamA, m.mvpList);
-  formRenderTeamPitch(m.id, safeId, 'B', m.teamB, m.mvpList);
+  // Match-high is now computed across BOTH teams together, not per team — "most tackles in the
+  // game" should mean the actual highest value across all 10 players, not "highest on their own
+  // team" (which could highlight someone with fewer tackles than an opponent).
+  const allRows = [...(m.teamA||[]), ...(m.teamB||[])];
+  const matchHighs = formComputeMatchHighs(allRows);
+  formRenderTeamPitch(m.id, safeId, 'A', m.teamA, m.mvpList, matchHighs);
+  formRenderTeamPitch(m.id, safeId, 'B', m.teamB, m.mvpList, matchHighs);
 }
 
 // ============================================================
