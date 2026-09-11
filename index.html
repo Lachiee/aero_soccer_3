@@ -9700,20 +9700,38 @@ function ensureYtApiLoaded(cb){
   document.head.appendChild(tag);
 }
 
+let _ytPlayerInstances = {}; // gifKey -> live YT.Player instance, so we can destroy the old one
+                              // before creating a new one instead of re-targeting an element
+                              // that YT.Player already permanently replaced with an iframe —
+                              // that's what was causing repeated clicks to keep reusing the
+                              // same first video instead of picking a new random highlight.
+
 function initHighlightBanner(name, gifKey){
   const candidates = getPlayerHighlightCandidates(name);
   if (!candidates.length) return false; // no video-linked goals — caller keeps the static banner
   const pick = candidates[Math.floor(Math.random() * candidates.length)];
-  const mountId = `highlight-player-${gifKey}`;
   const wrapId = `highlight-wrap-${gifKey}`;
+
+  // Destroy any previous player instance for this exact banner slot before creating a new one.
+  // Without this, a second click on the same player (or navigating back to them) tried to hand
+  // YT.Player an element id that had already been permanently replaced by the FIRST call's
+  // iframe, which is unreliable — the old video just kept sitting there instead of a fresh,
+  // newly-randomized one loading in.
+  if (_ytPlayerInstances[gifKey]) {
+    try { _ytPlayerInstances[gifKey].destroy(); } catch(e) {}
+    delete _ytPlayerInstances[gifKey];
+  }
+  const wrap = document.getElementById(wrapId);
+  if (wrap) wrap.innerHTML = `<div id="highlight-player-${gifKey}" style="width:100%;height:100%"></div><div id="highlight-cover-${gifKey}" style="position:absolute;inset:0;z-index:3;display:none;background:transparent"></div>`;
+  const mountId = `highlight-player-${gifKey}`;
 
   ensureYtApiLoaded(() => {
     const mount = document.getElementById(mountId);
     if (!mount) return; // profile navigated away before the API finished loading
-    const startAt = Math.max(0, pick.seconds - 2); // small lead-in so the goal isn't cut off
+    // 5 second lead-in (per request, more context before the goal) rather than a bare 2s.
+    const startAt = Math.max(0, pick.seconds - 5);
     const player = new YT.Player(mountId, {
-      width: '100%', height: '100%', // without these, the API defaults to its own fixed pixel
-      // size (640x390) rather than filling the banner, which is why the video looked tiny
+      width: '100%', height: '100%',
       videoId: pick.ytId,
       playerVars: {
         autoplay: 1, mute: 1, controls: 0, disablekb: 1, modestbranding: 1,
@@ -9721,11 +9739,24 @@ function initHighlightBanner(name, gifKey){
       },
       events: {
         onReady: (ev) => {
-          // Some versions of the IFrame API still emit the actual iframe at a fixed pixel size
-          // even with width/height:'100%' in the config above, so force it directly as a
-          // backup — the iframe fills its wrapper regardless of what the API decided internally.
+          // An iframe has no object-fit — setting width/height:100% alone only lets it fill
+          // the box at the VIDEO's own aspect ratio, letterboxing/pillarboxing rather than
+          // filling it, which is why it still looked small even after being told to be 100%.
+          // Oversizing it relative to the wrapper and centering with a negative-offset
+          // transform crops it the same way object-fit:cover would for an <img>/<video>.
           const iframe = ev.target.getIframe ? ev.target.getIframe() : null;
-          if (iframe) { iframe.style.width = '100%'; iframe.style.height = '100%'; iframe.style.position = 'absolute'; iframe.style.inset = '0'; }
+          if (iframe) {
+            iframe.style.position = 'absolute';
+            iframe.style.top = '50%'; iframe.style.left = '50%';
+            iframe.style.width = '177.78vh'; // 16:9 width for the current viewport height...
+            iframe.style.minWidth = '100%';
+            iframe.style.height = '100%';
+            iframe.style.minHeight = '56.25vw'; // ...and 16:9 height for the current width —
+            // together these two min-constraints guarantee the iframe is always at least as
+            // large as the wrapper in both dimensions, so cropping (not letterboxing) happens.
+            iframe.style.transform = 'translate(-50%, -50%)';
+          }
+          player._stopTimerSet = false;
           ev.target.mute();
           // The `start` playerVar alone isn't reliably honored once playVideo() is called
           // explicitly right after — some browsers resume from 0 instead of the requested
@@ -9741,18 +9772,28 @@ function initHighlightBanner(name, gifKey){
             // that with an iframe, so it's not safe to keep referencing its id afterward) only
             // once real playback has actually started, avoiding a black/buffering frame in
             // place of the static banner while the video is still loading.
-            const wrap = document.getElementById(wrapId);
-            if (wrap) wrap.style.display = 'block';
+            const wrap2 = document.getElementById(wrapId);
+            if (wrap2) wrap2.style.display = 'block';
             if (!player._stopTimerSet) {
               player._stopTimerSet = true;
               // 15 real seconds of playback from when it actually starts — not from page load,
               // since network/buffering delay would otherwise eat into the 15s.
-              setTimeout(() => { try { ev.target.pauseVideo(); } catch(e){} }, 15000);
+              setTimeout(() => {
+                try { ev.target.pauseVideo(); } catch(e){}
+                // controls:0 hides YouTube's bottom control bar, but NOT the big center
+                // play/pause icon it still shows on top of a paused frame — that's what was
+                // sitting there indefinitely. A transparent cover div, shown only once paused,
+                // sits above the iframe and blocks that icon from view (and from being
+                // clickable) without needing to hide the whole paused video frame underneath.
+                const cover = document.getElementById(`highlight-cover-${gifKey}`);
+                if (cover) cover.style.display = 'block';
+              }, 15000);
             }
           }
         }
       }
     });
+    _ytPlayerInstances[gifKey] = player;
   });
   return true;
 }
@@ -11219,7 +11260,10 @@ function renderProfile(name) {
       // its own div so the YouTube IFrame API can take it over after checking real candidates
       // exist. The static banner underneath still renders immediately as a fallback, so there's
       // no blank flash while the API loads, and it's what stays visible if no highlight exists.
-      const highlightMountHtml = `<div id="highlight-wrap-${gifKey}" style="width:100%;height:100%;position:absolute;inset:0;z-index:2;display:none"><div id="highlight-player-${gifKey}" style="width:100%;height:100%"></div></div>`;
+      const highlightMountHtml = `<div id="highlight-wrap-${gifKey}" style="width:100%;height:100%;position:absolute;inset:0;z-index:2;display:none">
+        <div id="highlight-player-${gifKey}" style="width:100%;height:100%"></div>
+        <div id="highlight-cover-${gifKey}" style="position:absolute;inset:0;z-index:3;display:none;background:transparent"></div>
+      </div>`;
       return `
     <div id="banner-wrap-${gifKey}" style="position:relative;width:100%;height:${bannerHeights[name]||200}px;border-radius:16px 16px 0 0;overflow:hidden;background:linear-gradient(135deg,var(--card),var(--card2));border:1px solid var(--border);border-bottom:none">
       ${highlightMountHtml}
