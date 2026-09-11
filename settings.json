@@ -22,7 +22,7 @@
       "stamina": 8
     },
     "Jake": {
-      "enforcer": 9,
+      "enforcer": 10,
       "stamina": 7
     },
     "James": {
@@ -86,7 +86,7 @@
       "stamina": 7
     },
     "Andres": {
-      "enforcer": 8,
+      "enforcer": 7,
       "stamina": 8
     },
     "Lach2": {
@@ -96,11 +96,23 @@
     "Vijit": {
       "enforcer": 6,
       "stamina": 8
-    },
-    "Martin": {
-      "enforcer": 7,
-      "stamina": 7
     }
+  },
+  "bannerHeights": {
+    "Jake": 400,
+    "Richard": 400,
+    "Amin": 420
+  },
+  "bannerSlowmo": {
+    "Richard": true,
+    "Amin": true
+  },
+  "bannerPos": {
+    "Amin": 40,
+    "Richard": 0
+  },
+  "bannerZoom": {
+    "Amin": 100
   },
   "matchVideos": {
     "2026-04-23#1": "ylb15aE4V9I",
@@ -127,7 +139,15 @@
     "2026-06-18#1": "HX869yRbkYU",
     "2026-06-11#1": "qTYzBtsIHo0",
     "2026-07-02#1": "5U3ndtApHYY",
-    "2026-06-25#1": "S6mScxQ3xP4"
+    "2026-06-25#1": "S6mScxQ3xP4",
+    "2026-07-09#1": "dYMc7v2kbz8",
+    "2026-07-16#1": "d5C7Mwz9vIE",
+    "2026-07-23#1": "EHzAyPc0o28",
+    "2026-07-30#1": "ZqKDDB9Ksc8",
+    "2026-08-06#1": "3U8pPECcUGg",
+    "2026-08-13#1": "DHEJMHQQ8Lo",
+    "2026-08-20#1": "C3emDiKT2lc",
+    "2026-08-27#1": "nWioPswAvAw"
   },
   "ytHalfOffset": 0
 }
