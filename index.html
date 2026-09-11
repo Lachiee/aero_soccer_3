@@ -9712,6 +9712,8 @@ function initHighlightBanner(name, gifKey){
     if (!mount) return; // profile navigated away before the API finished loading
     const startAt = Math.max(0, pick.seconds - 2); // small lead-in so the goal isn't cut off
     const player = new YT.Player(mountId, {
+      width: '100%', height: '100%', // without these, the API defaults to its own fixed pixel
+      // size (640x390) rather than filling the banner, which is why the video looked tiny
       videoId: pick.ytId,
       playerVars: {
         autoplay: 1, mute: 1, controls: 0, disablekb: 1, modestbranding: 1,
@@ -9719,7 +9721,18 @@ function initHighlightBanner(name, gifKey){
       },
       events: {
         onReady: (ev) => {
+          // Some versions of the IFrame API still emit the actual iframe at a fixed pixel size
+          // even with width/height:'100%' in the config above, so force it directly as a
+          // backup — the iframe fills its wrapper regardless of what the API decided internally.
+          const iframe = ev.target.getIframe ? ev.target.getIframe() : null;
+          if (iframe) { iframe.style.width = '100%'; iframe.style.height = '100%'; iframe.style.position = 'absolute'; iframe.style.inset = '0'; }
           ev.target.mute();
+          // The `start` playerVar alone isn't reliably honored once playVideo() is called
+          // explicitly right after — some browsers resume from 0 instead of the requested
+          // offset, which is why the video was restarting from the beginning instead of the
+          // goal timestamp. Explicitly seeking here, immediately before playing, is the more
+          // reliable way to land on the actual moment.
+          ev.target.seekTo(startAt, true);
           ev.target.playVideo();
         },
         onStateChange: (ev) => {
