@@ -11468,17 +11468,28 @@ function renderProfile(name) {
           <div style="font-size:.75rem;color:var(--muted)">${s.games} games · 🗓 ${s.attendanceRate ?? '–'}% attendance${s.gd != null ? ` · <span style="color:${s.gd>=0?'var(--green)':'var(--red)'}">GD ${s.gd>0?'+':''}${s.gd}</span>` : ''}</div>
         </div>
         <div style="display:flex;gap:0;border:1px solid var(--border);border-radius:12px;overflow:hidden;flex-shrink:0">
-          ${[
-            { label: 'Goals', value: s.goals, sub: (s.goals/g).toFixed(2)+'/g', col: 'var(--green)' },
-            { label: 'Assists', value: s.assists, sub: (s.assists/g).toFixed(2)+'/g', col: 'var(--green)' },
-            { label: 'Win %', value: wPct+'%', sub: s.wins+'W '+(s.draws||0)+'D '+s.losses+'L', col: wPct>=50?'var(--green)':'var(--red)' },
-            { label: 'Games', value: s.games, sub: '', col: 'var(--text)' },
-          ].map(({ label, value, sub, col }, i) => `
+          ${(() => {
+            // Quality-adjusted goals: each real goal weighted by the specific keeper's own
+            // season save rate at the time it was scored, so a goal against a genuinely strong
+            // keeper counts for more than one against a weak keeper — same idea as strength-of-
+            // schedule adjustments. Shown as a small sub-line under the raw Goals count rather
+            // than replacing it, since the raw count is still the real, literal number scored.
+            const qag = computeQualityAdjustedGoals(s.player);
+            const qagSub = qag && Math.abs(qag.weightedGoals - qag.rawGoals) >= 0.1
+              ? `<span style="color:${qag.weightedGoals>qag.rawGoals?'var(--gold)':'var(--muted)'}" title="Adjusted for goalkeeper quality faced">⚖ ${qag.weightedGoals}</span>`
+              : '';
+            return [
+              { label: 'Goals', value: s.goals, sub: (s.goals/g).toFixed(2)+'/g'+(qagSub?' · '+qagSub:''), col: 'var(--green)' },
+              { label: 'Assists', value: s.assists, sub: (s.assists/g).toFixed(2)+'/g', col: 'var(--green)' },
+              { label: 'Win %', value: wPct+'%', sub: s.wins+'W '+(s.draws||0)+'D '+s.losses+'L', col: wPct>=50?'var(--green)':'var(--red)' },
+              { label: 'Games', value: s.games, sub: '', col: 'var(--text)' },
+            ].map(({ label, value, sub, col }, i) => `
             <div style="padding:12px 18px;text-align:center;${i>0?'border-left:1px solid var(--border)':''}">
               <div style="font-family:'Bebas Neue',sans-serif;font-size:2rem;color:${col};line-height:1">${value}</div>
               <div style="font-size:.58rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-top:2px">${label}</div>
               ${sub ? `<div style="font-size:.6rem;color:var(--muted);opacity:.6;margin-top:1px">${sub}</div>` : ''}
-            </div>`).join('')}
+            </div>`).join('');
+          })()}
         </div>
       </div>
       <div style="margin-top:14px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
@@ -12211,6 +12222,7 @@ const LB_STATS = [
   // Attacking
   ['goals','Goals'],['assists','Assists'],['combo_assists','🤝 Goal Combos'],['key_passes','Key Passes'],
   ['total_shots','Shots'],['shot_accuracy','Shot Accuracy %'],['shot_conversion','Shot Conv %'],
+  ['quality_goals','⚖ Quality-Adj. Goals'],
   // Defending
   ['tackles','Tackles'],['interceptions','Intercepts'],['blocks','Blocks'],['goalkeeper_saves','GK Saves'],
   ['save_rate','Save Rate %'],['def_sparks','Defensive Sparks'],
@@ -12221,7 +12233,7 @@ const LB_STATS = [
   ['games','Games Played'],['longestWinStreak','Longest Win Streak'],['clutch','Clutch Actions'],
 ];
 const LB_CATEGORIES = [
-  ['attacking', 'Attacking', ['goals','assists','combo_assists','key_passes','total_shots','shot_accuracy','shot_conversion']],
+  ['attacking', 'Attacking', ['goals','assists','combo_assists','key_passes','total_shots','shot_accuracy','shot_conversion','quality_goals']],
   ['defending', 'Defending', ['tackles','interceptions','blocks','goalkeeper_saves','save_rate','def_sparks']],
   ['flair', 'Flair & Style', ['nutmegs','goals_left','goals_right','goals_header','post']],
   ['team', 'Team', ['wins','gd','mvps','attendance','games','longestWinStreak','clutch']],
@@ -12331,6 +12343,11 @@ function renderLeaderboard() {
       const ts = getPlayerEventStats(p.player);
       return (ts && ts.gkSaveRate != null) ? Math.round(ts.gkSaveRate * 100) : null;
     }
+    if (lbStat === 'quality_goals') {
+      const qag = computeQualityAdjustedGoals(p.player);
+      if (!qag) return null;
+      return lbPerGame ? parseFloat((qag.weightedGoals / g).toFixed(2)) : qag.weightedGoals;
+    }
     if (lbStat === 'def_sparks') {
       const ts = getPlayerEventStats(p.player);
       if (!ts || !ts.defChains) return null;
@@ -12407,6 +12424,7 @@ function renderLeaderboard() {
     else if (lbStat === 'shot_accuracy') allTimeVals[p.player] = p.total_shots > 0 ? parseFloat((p.shots_on_target/p.total_shots*100).toFixed(1)) : 0;
     else if (lbStat === 'rating') allTimeVals[p.player] = p.rating || 0;
     else if (lbStat === 'save_rate') { const ts = getPlayerEventStats(p.player); allTimeVals[p.player] = (ts && ts.gkSaveRate != null) ? Math.round(ts.gkSaveRate*100) : null; }
+    else if (lbStat === 'quality_goals') { const qag = computeQualityAdjustedGoals(p.player); allTimeVals[p.player] = qag ? (lbPerGame ? parseFloat((qag.weightedGoals/g).toFixed(2)) : qag.weightedGoals) : null; }
     else if (lbStat === 'def_sparks') { const ts = getPlayerEventStats(p.player); allTimeVals[p.player] = (ts && ts.defChains) ? (lbPerGame ? ts.defChainsPerMatch : ts.defChains) : null; }
     else if (lbStat === 'clutch') { const ts = getPlayerEventStats(p.player); allTimeVals[p.player] = (ts && ts.clutchTotal) ? (lbPerGame ? ts.clutchPerMatch : ts.clutchTotal) : null; }
     else { const raw = p[lbStat] ?? 0; allTimeVals[p.player] = lbPerGame && !noPerGame.includes(lbStat) ? raw/g : raw; }
@@ -12851,8 +12869,72 @@ function computeStrikerRating(playerName) {
 
 // ── Striker Rating vs specific GK ────────────────────────────────────────────
 // Looks up the event log to find every goal the striker scored while a
-// specific keeper was in goal, and every save that keeper made against them.
-// Returns { goals, saves, attempts, rate, quality } or null if no data.
+// ── Goalkeeper save rate (season-wide) ───────────────────────────────────────
+// Delegates to the app's existing, already-proven getPlayerEventStats().gkSaveRate rather than
+// maintaining a second parallel computation — an earlier version of this function reimplemented
+// the same gkRotation segment-matching independently and produced a slightly different number
+// (65.5% vs the real 67.7%) due to a subtle difference in how goal events were filtered, which
+// is exactly the kind of quiet discrepancy that comes from duplicating logic instead of reusing
+// the tested original. gkMinutes >= 10 guards against a tiny, unrepresentative sample.
+function computeGoalkeeperSaveRate(gkName){
+  const ts = getPlayerEventStats(gkName);
+  if (!ts || ts.gkSaveRate == null || !(ts.gkMinutes >= 10)) return null;
+  return { saveRate: ts.gkSaveRate, goalsConceded: ts.gkGoalsConceded ?? null };
+}
+
+// ── Quality-adjusted goals for a striker ─────────────────────────────────────
+// Each of the striker's REAL goals is weighted by how good the specific keeper they scored
+// against actually is (that keeper's own season save rate), not treated as a flat +1 the way
+// the existing rating formula does. A goal against a keeper with an above-league-average save
+// rate counts for MORE than a goal against a below-average one — same idea as strength-of-
+// schedule adjustments in other sports. Centered on the league average so an average goal
+// still counts as ~1.0, not arbitrarily inflated or deflated.
+function computeQualityAdjustedGoals(strikerName){
+  let logs;
+  try { logs = JSON.parse(localStorage.getItem('aero_event_logs') || '{}'); }
+  catch(e) { return null; }
+
+  // League-average save rate across every keeper with enough attempts to be meaningful —
+  // this is the centering point: a goal against an exactly-average keeper counts as 1.0.
+  const allGkNames = new Set();
+  Object.values(logs).forEach(log => {
+    Object.values(log.gkRotation || {}).forEach(segs => segs.forEach(seg => allGkNames.add(seg.player)));
+  });
+  const gkRates = [...allGkNames].map(computeGoalkeeperSaveRate).filter(Boolean);
+  if (!gkRates.length) return null;
+  const leagueAvgSaveRate = gkRates.reduce((s,r) => s + r.saveRate, 0) / gkRates.length;
+
+  let rawGoals = 0, weightedGoals = 0;
+  const perGoalDetail = [];
+  Object.values(logs).forEach(log => {
+    const { events = [], gkRotation = {} } = log;
+    events.forEach(e => {
+      if (e.event !== 'Goals' || e.player !== strikerName || e.isOG) return;
+      const concedingTeam = e.team === 'A' ? 'B' : 'A';
+      const seg = (gkRotation[e.half] || []).find(s =>
+        s.team === concedingTeam && s.fromSecs <= e.tsSecsRaw && (s.toSecs === 9999 || s.toSecs >= e.tsSecsRaw)
+      );
+      rawGoals++;
+      if (!seg) { weightedGoals += 1; return; } // no attributable keeper — count as a normal-value goal
+      const gkRate = computeGoalkeeperSaveRate(seg.player);
+      // weight = 1 + (this keeper's save rate − league average) — an average keeper gives
+      // weight 1.0; a keeper who saves 15 percentage points more than average gives 1.15;
+      // one who saves 15 points less gives 0.85. Clamped so a very small sample doesn't
+      // produce an extreme, unstable weight.
+      const weight = gkRate ? Math.max(0.5, Math.min(1.5, 1 + (gkRate.saveRate - leagueAvgSaveRate))) : 1;
+      weightedGoals += weight;
+      perGoalDetail.push({ gk: seg.player, weight: parseFloat(weight.toFixed(2)), gkSaveRate: gkRate?.saveRate ?? null });
+    });
+  });
+  if (rawGoals === 0) return null;
+  return {
+    rawGoals,
+    weightedGoals: parseFloat(weightedGoals.toFixed(2)),
+    leagueAvgSaveRate: parseFloat(leagueAvgSaveRate.toFixed(3)),
+    perGoalDetail,
+  };
+}
+
 function computeStrikerRatingVsGK(strikerName, gkName) {
   let logs;
   try { logs = JSON.parse(localStorage.getItem('aero_event_logs') || '{}'); }
@@ -12895,6 +12977,67 @@ function computeStrikerRatingVsGK(strikerName, gkName) {
   if (attempts === 0) return null;
   const rate = parseFloat((totalGoals / attempts).toFixed(3));
   return { goals: totalGoals, saves: totalSaves, attempts, rate, pct: Math.round(rate * 100) };
+}
+
+// ── Best real striker-vs-keeper matchup between two rosters ──────────────────
+// For Team Builder: once two teams are formed, checks every real striker on one team against
+// every real goalkeeper on the OTHER team for a genuine, historically significant head-to-head
+// tendency (using the same computeStrikerRatingVsGK already built for player profiles), and
+// returns the single most notable one — the biggest deviation from that striker's own overall
+// scoring rate against everyone, not just whoever has the most attempts.
+// MIN_ATTEMPTS=8 is a deliberately higher bar than the 4 used for profile-level "matchups you
+// could look into" — a lineup insight shown at build-a-team time should only surface something
+// genuinely trustworthy, not a small-sample coincidence that might mislead a real team pick.
+function findBestMatchupInsight(teamAPlayers, teamBPlayers){
+  const MIN_ATTEMPTS = 8;
+  const ds = getDisplayStats();
+  const logs = JSON.parse(localStorage.getItem('aero_event_logs') || '{}');
+  const allGkNames = new Set();
+  Object.values(logs).forEach(log => {
+    Object.values(log.gkRotation || {}).forEach(segs => segs.forEach(seg => allGkNames.add(seg.player)));
+  });
+
+  const strikerBaseline = (strikerName) => {
+    let goals = 0, saves = 0;
+    [...allGkNames].forEach(gk => {
+      const r = computeStrikerRatingVsGK(strikerName, gk);
+      if (r) { goals += r.goals; saves += r.saves; }
+    });
+    const attempts = goals + saves;
+    return attempts >= MIN_ATTEMPTS ? goals / attempts : null;
+  };
+
+  const candidates = [];
+  const checkPair = (strikerTeam, gkTeam, strikerLabel, gkLabel) => {
+    strikerTeam.forEach(striker => {
+      const strikerName = striker.player;
+      if ((ds[strikerName]?.goals || 0) < 3) return; // needs to be a real, active scorer
+      const baseline = strikerBaseline(strikerName);
+      if (baseline == null) return;
+      gkTeam.forEach(gk => {
+        const gkName = gk.player;
+        if (!allGkNames.has(gkName) || gkName === strikerName) return;
+        const r = computeStrikerRatingVsGK(strikerName, gkName);
+        if (!r || r.attempts < MIN_ATTEMPTS) return;
+        candidates.push({
+          striker: strikerName, gk: gkName, strikerTeam: strikerLabel, gkTeam: gkLabel,
+          goals: r.goals, saves: r.saves, attempts: r.attempts, rate: r.rate,
+          baseline: parseFloat(baseline.toFixed(3)), deviation: parseFloat((r.rate - baseline).toFixed(3)),
+        });
+      });
+    });
+  };
+  checkPair(teamAPlayers, teamBPlayers, 'A', 'B');
+  checkPair(teamBPlayers, teamAPlayers, 'B', 'A');
+
+  if (!candidates.length) return null;
+  // Rank by deviation size WEIGHTED by sample size, not deviation alone — a 30-point swing on
+  // 9 real attempts is less trustworthy than an 11-point swing on 23 real attempts, but sorting
+  // by raw |deviation| would always favor the smaller, noisier sample since extreme rates are
+  // easier to produce with fewer attempts. sqrt(attempts) tempers the effect of sample size
+  // without letting the largest sample always dominate regardless of how small the real effect is.
+  candidates.sort((a,b) => (Math.abs(b.deviation) * Math.sqrt(b.attempts)) - (Math.abs(a.deviation) * Math.sqrt(a.attempts)));
+  return candidates[0];
 }
 
 // ── Computed Stamina from event log ──────────────────────────────────────────
@@ -13735,6 +13878,28 @@ function renderTeamResult(tA, tB) {
           <span style="color:var(--muted);font-size:.65rem;min-width:28px;text-align:center">${bestGkA&&bestGkB ? (bestGkA.rate>=bestGkB.rate?'A ›':'‹ B') : '='}</span>
           <span style="color:${bestGkB?'var(--blue)':'rgba(255,255,255,.3)'};min-width:52px">${bestGkB ? Math.round(bestGkB.rate*100)+'% '+bestGkB.player.split(' ')[0] : '—'}</span>
         </div>` : '';
+      // A real, historically-significant striker-vs-keeper tendency between the two teams as
+      // they're actually lined up right now — e.g. "Bailey has scored well above his usual rate
+      // against Vijit specifically." Only shown when there's a real, sizeable sample (8+ head-
+      // to-head attempts) behind it, so this doesn't surface a small-sample coincidence as if
+      // it were a settled fact.
+      const matchup = findBestMatchupInsight(tA, tB);
+      const matchupRow = matchup ? (() => {
+        const isEdge = matchup.deviation > 0;
+        const strikerCol = matchup.strikerTeam === 'A' ? 'var(--green)' : 'var(--blue)';
+        const gkCol = matchup.gkTeam === 'A' ? 'var(--green)' : 'var(--blue)';
+        const verb = isEdge ? 'well above' : 'well below';
+        return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;font-size:.75rem;border-top:1px dashed var(--border);margin-top:4px"
+          data-tip="Real head-to-head record: ${matchup.goals} goals in ${matchup.attempts} real attempts vs this keeper, compared to ${Math.round(matchup.baseline*100)}% normally">
+          <span style="flex:1;color:var(--muted)">${isEdge?'⚡':'🧊'} Notable matchup</span>
+          <span style="text-align:right;font-size:.72rem">
+            <span style="color:${strikerCol};font-weight:600">${matchup.striker}</span>
+            <span style="color:var(--muted)"> scores ${verb} his usual rate vs </span>
+            <span style="color:${gkCol};font-weight:600">${matchup.gk}</span>
+            <span style="color:var(--muted)"> (${matchup.goals}/${matchup.attempts} real attempts, ${Math.round(matchup.rate*100)}% vs normally ${Math.round(matchup.baseline*100)}%)</span>
+          </span>
+        </div>`;
+      })() : '';
       const rows = metrics2.map(({ label, key, fmt, tip }) => {
         const a = getTimeVal(tA, key), b = getTimeVal(tB, key);
         if (a == null && b == null) return '';
@@ -13757,7 +13922,7 @@ function renderTeamResult(tA, tB) {
           <span style="flex:1"></span><span style="min-width:52px;text-align:right;color:var(--green)">Team A</span>
           <span style="min-width:28px"></span><span style="min-width:52px;color:var(--blue)">Team B</span>
         </div>
-        ${rows}${gkRow}
+        ${rows}${gkRow}${matchupRow}
       </div>`;
     })()}`;
 
