@@ -9740,21 +9740,27 @@ let _highlightActiveGifKeys = {}; // gifKey -> true while that profile's highlig
                                    // keep cycling; set false when navigating away so a delayed
                                    // timer from a previous profile doesn't start a new video on
                                    // whatever now occupies that DOM slot.
-let _lastHighlightPick = {}; // gifKey -> the last-shown candidate, so cycling doesn't repeat
-                              // the same clip back-to-back when more than one exists.
+let _highlightQueues = {}; // gifKey -> shuffled queue of remaining candidates for this profile
+                            // view. Only excluding the SINGLE last pick (the previous approach)
+                            // still let small pools cycle back to a clip shown just 2-3 picks
+                            // ago, which reads as "it keeps repeating" even though each pick was
+                            // technically random — a shuffled queue guarantees every candidate
+                            // is shown once before any repeat happens.
 
 function initHighlightBanner(name, gifKey){
   const candidates = getPlayerHighlightCandidates(name);
   if (!candidates.length) return false; // no video-linked goals — caller keeps the static banner
 
-  // Avoid repeating the same clip twice in a row when there's more than one real candidate.
-  let pool = candidates;
-  const last = _lastHighlightPick[gifKey];
-  if (last && candidates.length > 1) {
-    pool = candidates.filter(c => !(c.matchId === last.matchId && c.seconds === last.seconds));
+  if (!_highlightQueues[gifKey] || !_highlightQueues[gifKey].length) {
+    // Fisher-Yates shuffle of the full real candidate pool.
+    const shuffled = [...candidates];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    _highlightQueues[gifKey] = shuffled;
   }
-  const pick = pool[Math.floor(Math.random() * pool.length)];
-  _lastHighlightPick[gifKey] = pick;
+  const pick = _highlightQueues[gifKey].shift();
   _highlightActiveGifKeys[gifKey] = true;
 
   const wrapId = `highlight-wrap-${gifKey}`;
@@ -9829,6 +9835,15 @@ function initHighlightBanner(name, gifKey){
         },
         onStateChange: (ev) => {
           if (ev.data === YT.PlayerState.PLAYING) {
+            // Re-request captions off every time playback (re)starts, not just once in onReady.
+            // Honest caveat: this is a well-documented limitation of embedded YouTube players —
+            // caption display is tied to the VIEWER's own logged-in YouTube caption preference
+            // and can be applied almost server-side, essentially independent of what the
+            // embedding page requests. cc_load_policy and unloadModule are both real, correct
+            // API calls, but neither is guaranteed to override a viewer's own saved YouTube
+            // caption setting — there's no fully reliable client-side fix for that from inside
+            // an embed. Retrying here at least catches captions re-appearing after a seek.
+            try { ev.target.unloadModule('captions'); } catch(e){}
             // Reveal the STABLE outer wrapper (not the mount div itself — YT.Player replaces
             // that with an iframe, so it's not safe to keep referencing its id afterward) only
             // once real playback has actually started, avoiding a black/buffering frame in
