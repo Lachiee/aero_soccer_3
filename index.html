@@ -138,6 +138,12 @@ body::after{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;opac
 
 /* ===== Formation tab (added) ===== */
 .matchtab-bar{display:flex;gap:4px;border-bottom:1px solid var(--border);margin-bottom:12px}
+.half-toggle{display:flex;gap:4px;margin-bottom:14px;background:var(--card2);border-radius:8px;padding:3px;width:fit-content}
+.half-btn{background:none;border:none;color:var(--muted);font-family:'Barlow Condensed',sans-serif;
+  font-size:.78rem;font-weight:600;letter-spacing:.5px;text-transform:uppercase;
+  padding:7px 16px;cursor:pointer;border-radius:6px;transition:all .15s}
+.half-btn:hover{color:var(--text)}
+.half-btn.active{color:#06210c;background:var(--gold)}
 .matchtab-btn{background:none;border:none;color:var(--muted);font-family:'Barlow Condensed',sans-serif;
   font-size:.8rem;font-weight:600;letter-spacing:.5px;text-transform:uppercase;
   padding:8px 14px;cursor:pointer;border-bottom:2px solid transparent}
@@ -8002,7 +8008,20 @@ function buildSingleMatchCardHtml(m) {
 
     // Build swap-aware team rows — m.teamA/teamB are pre-corrected in buildMatches
     const buildInlineTeamRows = (teamLetter) => {
-      return teamLetter === 'A' ? m.teamA : m.teamB;
+      // half is read from a per-match UI state, defaulting to the full match. For FULL, the
+      // existing swap-corrected m.teamA/m.teamB are used unchanged. For 1H/2H, filter m.rows to
+      // that half and resolve each player's team for that half using match.swappedPlayers (the
+      // same swap detection already used to build m.teamA/m.teamB), so a player who switched
+      // sides at halftime is still attributed to the correct team for each half.
+      const half = window.__matchHalfView?.[m.id] || 'FULL';
+      if (half === 'FULL') return teamLetter === 'A' ? m.teamA : m.teamB;
+      const halfRows = (m.rows || []).filter(r => r.half === half && r.team !== 'DNP' && r.team !== '-');
+      const swaps = m.swappedPlayers || [];
+      return halfRows.filter(r => {
+        const swap = swaps.find(s => s.player === r.player);
+        const effectiveTeam = swap ? (half === '1H' ? swap.from : swap.to) : r.team;
+        return effectiveTeam === teamLetter;
+      });
     };
     const rowStyle = r => {
       const idx = m.mvpList ? m.mvpList.findIndex(e => e.player === r.player) : -1;
@@ -8173,14 +8192,26 @@ function buildSingleMatchCardHtml(m) {
 
           window._momStyle = 'line';
           const statsPanel = (() => {
+            const half = window.__matchHalfView?.[m.id] || 'FULL';
+            const halfTeamRows = (teamLetter) => {
+              if (half === 'FULL') return teamLetter === 'A' ? m.teamA : m.teamB;
+              const halfRows = (m.rows || []).filter(r => r.half === half && r.team !== 'DNP' && r.team !== '-');
+              const swaps = m.swappedPlayers || [];
+              return halfRows.filter(r => {
+                const swap = swaps.find(s => s.player === r.player);
+                const effectiveTeam = swap ? (half === '1H' ? swap.from : swap.to) : r.team;
+                return effectiveTeam === teamLetter;
+              });
+            };
+            const rowsA = halfTeamRows('A'), rowsB = halfTeamRows('B');
             const s = (rows, key) => rows.reduce((t,r) => t + n(r[key]), 0);
-            const aShots = s(m.teamA,'total_shots'),   bShots = s(m.teamB,'total_shots');
-            const aOT    = s(m.teamA,'shots_on_target'),bOT   = s(m.teamB,'shots_on_target');
-            const aKP    = s(m.teamA,'key_passes'),     bKP   = s(m.teamB,'key_passes');
-            const aTkl   = s(m.teamA,'tackles'),        bTkl  = s(m.teamB,'tackles');
-            const aInt   = s(m.teamA,'interceptions'),  bInt  = s(m.teamB,'interceptions');
-            const aBlk   = s(m.teamA,'blocks'),         bBlk  = s(m.teamB,'blocks');
-            const aNM    = s(m.teamA,'nutmegs'),        bNM   = s(m.teamB,'nutmegs');
+            const aShots = s(rowsA,'total_shots'),   bShots = s(rowsB,'total_shots');
+            const aOT    = s(rowsA,'shots_on_target'),bOT   = s(rowsB,'shots_on_target');
+            const aKP    = s(rowsA,'key_passes'),     bKP   = s(rowsB,'key_passes');
+            const aTkl   = s(rowsA,'tackles'),        bTkl  = s(rowsB,'tackles');
+            const aInt   = s(rowsA,'interceptions'),  bInt  = s(rowsB,'interceptions');
+            const aBlk   = s(rowsA,'blocks'),         bBlk  = s(rowsB,'blocks');
+            const aNM    = s(rowsA,'nutmegs'),        bNM   = s(rowsB,'nutmegs');
             const tot    = aShots + bShots || 1;
             const pct    = Math.round(aShots/tot*100);
             const row = (lbl, a, b) => {
@@ -8213,7 +8244,7 @@ function buildSingleMatchCardHtml(m) {
                 +'<span style="font-family:Bebas Neue,sans-serif;font-size:.88rem;color:'+bc+';min-width:16px">'+b+'</span>'
                 +'</div></div>';
             };
-            return '<div style="background:rgba(0,0,0,.3);border-radius:8px;padding:10px;font-family:Barlow Condensed,sans-serif">'
+            return '<div id="top-stats-panel-'+m.id.replace(/[#]/g,'__')+'" style="background:rgba(0,0,0,.3);border-radius:8px;padding:10px;font-family:Barlow Condensed,sans-serif">'
               +'<div style="font-size:.78rem;letter-spacing:1px;color:var(--text);text-align:center;margin-bottom:8px;padding-bottom:5px;border-bottom:1px solid rgba(255,255,255,.08)">Top Stats</div>'
               +'<div style="margin-bottom:8px">'
               +'<div style="font-size:.56rem;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);text-align:center;margin-bottom:3px">Shot Share</div>'
@@ -8264,9 +8295,15 @@ function buildSingleMatchCardHtml(m) {
 
         <div class="matchtab-panel active" id="matchtab-overview-${m.id.replace(/[#]/g,'__')}">
 
+        <div class="half-toggle" onclick="event.stopPropagation()">
+          <button class="half-btn${(window.__matchHalfView?.[m.id]||'FULL')==='FULL'?' active':''}" onclick="setStatsHalf('${m.id.replace(/[#]/g,'__')}','${m.id}','FULL',this)">Full Match</button>
+          <button class="half-btn${window.__matchHalfView?.[m.id]==='1H'?' active':''}" onclick="setStatsHalf('${m.id.replace(/[#]/g,'__')}','${m.id}','1H',this)">1st Half</button>
+          <button class="half-btn${window.__matchHalfView?.[m.id]==='2H'?' active':''}" onclick="setStatsHalf('${m.id.replace(/[#]/g,'__')}','${m.id}','2H',this)">2nd Half</button>
+        </div>
+
         <!-- Desktop stats table -->
         <div class="mobile-hide" style="overflow-x:auto">
-          <table class="detail-table" style="min-width:700px">
+          <table class="detail-table" style="min-width:700px" id="stats-table-${m.id.replace(/[#]/g,'__')}">
             ${(() => {
               const allRows = [...m.teamA, ...m.teamB];
               // Players who swapped teams at half-time — used so we always show the
@@ -8436,12 +8473,12 @@ function buildSingleMatchCardHtml(m) {
               };
 
               return allStatsTH + `<tbody>
-                ${teamHeader('TEAM A', 'var(--green)', goalsA)}
+                ${teamHeader('TEAM A', 'var(--green)', buildInlineTeamRows('A').reduce((s,r)=>s+n(r.goals),0) + buildInlineTeamRows('B').reduce((s,r)=>s+n(r.own_goals),0))}
                 ${buildInlineTeamRows('A').map(renderRow).join('')}
-                ${totalRowHtml(m.teamA, m.teamB, 'var(--green)')}
-                ${teamHeader('TEAM B', 'var(--blue)', goalsB)}
+                ${totalRowHtml(buildInlineTeamRows('A'), buildInlineTeamRows('B'), 'var(--green)')}
+                ${teamHeader('TEAM B', 'var(--blue)', buildInlineTeamRows('B').reduce((s,r)=>s+n(r.goals),0) + buildInlineTeamRows('A').reduce((s,r)=>s+n(r.own_goals),0))}
                 ${buildInlineTeamRows('B').map(renderRow).join('')}
-                ${totalRowHtml(m.teamB, m.teamA, 'var(--blue)')}
+                ${totalRowHtml(buildInlineTeamRows('B'), buildInlineTeamRows('A'), 'var(--blue)')}
               </tbody>`;
             })()}
           </table>
@@ -8906,6 +8943,36 @@ function formRenderTeamPitch(matchId, safeId, teamKey, teamRows, mvpList, matchH
     </div>`;
   });
   container.innerHTML = html;
+}
+
+function setStatsHalf(safeId, matchId, half, btn){
+  window.__matchHalfView = window.__matchHalfView || {};
+  window.__matchHalfView[matchId] = half;
+  btn.parentElement.querySelectorAll('.half-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+
+  // Rebuild just the stats table's contents rather than the whole card, so the Formation/Goal
+  // Locations tab state and the card's open/closed state aren't disturbed. buildSingleMatchCardHtml
+  // reads window.__matchHalfView inside buildInlineTeamRows, so calling it again with the same
+  // match object now produces the half-filtered table.
+  const m = window.__matchById?.[safeId];
+  if (!m) return;
+  const freshCardHtml = buildSingleMatchCardHtml(m);
+  const parser = new DOMParser();
+  const freshDoc = parser.parseFromString(`<div>${freshCardHtml}</div>`, 'text/html');
+  const freshTable = freshDoc.getElementById(`stats-table-${safeId}`);
+  const liveTable = document.getElementById(`stats-table-${safeId}`);
+  if (freshTable && liveTable) liveTable.innerHTML = freshTable.innerHTML;
+  // mobile cards use the same buildInlineTeamRows, rebuild those too if present
+  const freshMobile = freshDoc.querySelector(`#matchtab-overview-${safeId} .mobile-cards`);
+  const liveMobile = document.querySelector(`#matchtab-overview-${safeId} .mobile-cards`);
+  if (freshMobile && liveMobile) liveMobile.innerHTML = freshMobile.innerHTML;
+
+  // Top Stats sits next to the momentum chart, outside the tab structure entirely — replace it
+  // by its own id (not scoped under matchtab-overview) so the half toggle reaches it too.
+  const freshTopStats = freshDoc.getElementById(`top-stats-panel-${safeId}`);
+  const liveTopStats = document.getElementById(`top-stats-panel-${safeId}`);
+  if (freshTopStats && liveTopStats) liveTopStats.outerHTML = freshTopStats.outerHTML;
 }
 
 function renderFormationTab(safeId){
