@@ -102,22 +102,6 @@
       "stamina": 7
     }
   },
-  "bannerHeights": {
-    "Jake": 400,
-    "Richard": 400,
-    "Amin": 420
-  },
-  "bannerSlowmo": {
-    "Richard": true,
-    "Amin": true
-  },
-  "bannerPos": {
-    "Amin": 40,
-    "Richard": 0
-  },
-  "bannerZoom": {
-    "Amin": 100
-  },
   "matchVideos": {
     "2026-04-23#1": "ylb15aE4V9I",
     "2026-04-16#1": "LfgfLgZDZtM",
