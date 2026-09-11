@@ -9664,6 +9664,26 @@ window._trendState = window._trendState || {}; // gifKey -> selected stat key ('
 // the real YouTube IFrame API (not just URL params — those can start playback but can't
 // reliably stop it after N seconds, which needs actual player control).
 // ============================================================
+// Pulls from the player's ENTIRE real highlight pool across every match that has a linked
+// YouTube video — not just goals. Includes:
+//   - Goals (their own real Goals events)
+//   - Assists (Goal events by a TEAMMATE where assistBy === this player — the goal's own
+//     timestamp is used, since that's the actual highlight-worthy instant the assist led to)
+//   - Blocks and GK Saves (their own real Blocks / GK Saves events)
+// Tackles/Interceptions were left out — they're common enough events that most matches would
+// have dozens, which would dilute the pool with routine plays rather than genuine highlights.
+// Pulls from the player's ENTIRE real highlight pool across every match that has a linked
+// YouTube video — but ONLY events actually marked as a highlight in the data (e.highlight /
+// e.assistHL, real per-event fields already used elsewhere in this app for the same purpose,
+// e.g. isGoalHighlight/isAssistHighlight). A goal or block or save happening isn't automatically
+// "highlight-worthy" — most events in a match log are routine — so this now requires the same
+// explicit marking used everywhere else, rather than treating every Goals/Blocks/GK Saves row
+// as fair game just because it's a goal-shaped event.
+// Excludes 'lowlight' specifically — that's a real, separate marking used elsewhere in this
+// app for notable MISTAKES, not proud moments, and autoplaying someone's own error on their
+// profile banner would defeat the purpose of a highlight reel.
+const isMarkedHighlight = (val) => !!val && val !== 'none' && val !== '' && val !== 'lowlight';
+
 function getPlayerHighlightCandidates(name){
   let logs;
   try { logs = JSON.parse(localStorage.getItem('aero_event_logs') || '{}'); }
@@ -9673,9 +9693,19 @@ function getPlayerHighlightCandidates(name){
     const ytId = matchVideos[matchId] ? extractYtId(matchVideos[matchId]) : null;
     if (!ytId) return; // only matches with a real linked video can be played
     (log.events || []).forEach(e => {
-      if (e.event === 'Goals' && e.player === name && e.ts) {
-        const seconds = timeToYtSeconds(e.ts, e.half);
-        if (seconds != null) candidates.push({ matchId, ytId, seconds, half: e.half, ts: e.ts });
+      if (!e.ts) return;
+      const seconds = timeToYtSeconds(e.ts, e.half);
+      if (seconds == null) return;
+      if (e.event === 'Goals' && e.player === name && isMarkedHighlight(e.highlight)) {
+        candidates.push({ matchId, ytId, seconds, half: e.half, ts: e.ts, type: 'goal' });
+      } else if (e.event === 'Goals' && e.assistBy === name && isMarkedHighlight(e.assistHL)) {
+        // The assist's own highlight flag (assistHL) is checked here, not the goal's — a goal
+        // can be marked highlight-worthy without the assist being, and vice versa.
+        candidates.push({ matchId, ytId, seconds, half: e.half, ts: e.ts, type: 'assist' });
+      } else if (e.event === 'Blocks' && e.player === name && isMarkedHighlight(e.highlight)) {
+        candidates.push({ matchId, ytId, seconds, half: e.half, ts: e.ts, type: 'block' });
+      } else if (e.event === 'GK Saves' && e.player === name && isMarkedHighlight(e.highlight)) {
+        candidates.push({ matchId, ytId, seconds, half: e.half, ts: e.ts, type: 'save' });
       }
     });
   });
@@ -9781,11 +9811,14 @@ function initHighlightBanner(name, gifKey){
           if (iframe) { iframe.style.width = '100%'; iframe.style.height = '100%'; iframe.style.position = 'absolute'; iframe.style.inset = '0'; }
           player._stopTimerSet = false;
           ev.target.mute();
-          // Best-effort request for 1080p — YouTube's IFrame API treats this as a suggestion,
-          // not a guarantee. It can still silently downgrade quality based on the viewer's
-          // actual connection speed, and YouTube has been reducing how reliably it honors
-          // manual quality requests in recent years, so this genuinely isn't bulletproof.
-          try { ev.target.setPlaybackQuality('hd1080'); } catch(e){}
+          // cc_load_policy:0 in playerVars only sets a LOAD-TIME preference — it can be
+          // silently overridden if the specific video has forced captions on, or if the
+          // viewer's own YouTube account/browser has a persistent captions preference saved,
+          // which is almost certainly why auto-generated captions kept showing despite the
+          // playerVar. unloadModule('captions') is a stronger, explicit runtime command that
+          // actually tears the captions module down after load, rather than just requesting
+          // it start disabled.
+          try { ev.target.unloadModule('captions'); } catch(e){}
           // The `start` playerVar alone isn't reliably honored once playVideo() is called
           // explicitly right after — some browsers resume from 0 instead of the requested
           // offset, which is why the video was restarting from the beginning instead of the
@@ -9802,6 +9835,16 @@ function initHighlightBanner(name, gifKey){
             // place of the static banner while the video is still loading.
             const wrap2 = document.getElementById(wrapId);
             if (wrap2) wrap2.style.display = 'block';
+            // Request the best quality the stream actually reports as available, now that
+            // real playback has started and YouTube has picked adaptive streams to offer —
+            // requesting a fixed 'hd1080' in onReady (before any buffering) was often ignored
+            // since that quality level may not have been selectable yet. This is still a
+            // best-effort REQUEST, not a guarantee — YouTube can still downgrade based on the
+            // viewer's actual bandwidth.
+            try {
+              const levels = ev.target.getAvailableQualityLevels ? ev.target.getAvailableQualityLevels() : [];
+              if (levels && levels.length) ev.target.setPlaybackQuality(levels[0]); // highest is always first
+            } catch(e) {}
             if (!player._stopTimerSet) {
               player._stopTimerSet = true;
               // After 15 real seconds of playback (timed from when it actually started, not
