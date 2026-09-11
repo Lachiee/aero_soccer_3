@@ -9711,6 +9711,7 @@ function initHighlightBanner(name, gifKey){
   if (!candidates.length) return false; // no video-linked goals — caller keeps the static banner
   const pick = candidates[Math.floor(Math.random() * candidates.length)];
   const wrapId = `highlight-wrap-${gifKey}`;
+  const bannerWrapId = `banner-wrap-${gifKey}`;
 
   // Destroy any previous player instance for this exact banner slot before creating a new one.
   // Without this, a second click on the same player (or navigating back to them) tried to hand
@@ -9725,9 +9726,25 @@ function initHighlightBanner(name, gifKey){
   if (wrap) wrap.innerHTML = `<div id="highlight-player-${gifKey}" style="width:100%;height:100%"></div><div id="highlight-cover-${gifKey}" style="position:absolute;inset:0;z-index:3;display:none;background:transparent"></div>`;
   const mountId = `highlight-player-${gifKey}`;
 
+  // The static banner box is usually much wider and shorter than a 16:9 video (e.g. ~1400x220),
+  // so a plain "cover crop" fill would crop out most of the video's height. Instead of cropping,
+  // GROW the actual banner box to a real 16:9-derived height (based on its own current width)
+  // while the highlight plays, then restore its original height once it pauses. Capped so it
+  // can't become absurdly tall on a very wide page.
+  const bannerWrapEl = document.getElementById(bannerWrapId);
+  const originalHeight = bannerWrapEl ? bannerWrapEl.style.height : null;
+  if (bannerWrapEl) {
+    const boxW = bannerWrapEl.getBoundingClientRect().width || 400;
+    const idealH = Math.min(Math.round(boxW * 9/16), 420); // capped to match the existing banner-height slider's own max (420px), so a highlight never grows the banner beyond what an admin could otherwise manually set
+    bannerWrapEl.style.height = idealH + 'px';
+  }
+  const restoreBannerHeight = () => {
+    if (bannerWrapEl && originalHeight != null) bannerWrapEl.style.height = originalHeight;
+  };
+
   ensureYtApiLoaded(() => {
     const mount = document.getElementById(mountId);
-    if (!mount) return; // profile navigated away before the API finished loading
+    if (!mount) { restoreBannerHeight(); return; } // profile navigated away before the API loaded
     // 5 second lead-in (per request, more context before the goal) rather than a bare 2s.
     const startAt = Math.max(0, pick.seconds - 5);
     const player = new YT.Player(mountId, {
@@ -9739,23 +9756,11 @@ function initHighlightBanner(name, gifKey){
       },
       events: {
         onReady: (ev) => {
-          // An iframe has no object-fit — setting width/height:100% alone only lets it fill
-          // the box at the VIDEO's own aspect ratio, letterboxing/pillarboxing rather than
-          // filling it, which is why it still looked small even after being told to be 100%.
-          // Oversizing it relative to the wrapper and centering with a negative-offset
-          // transform crops it the same way object-fit:cover would for an <img>/<video>.
+          // Now that the banner box itself has been grown to match 16:9, the iframe can just
+          // fill it directly — no more oversizing/cropping trick needed, since box and video
+          // ratio now genuinely match.
           const iframe = ev.target.getIframe ? ev.target.getIframe() : null;
-          if (iframe) {
-            iframe.style.position = 'absolute';
-            iframe.style.top = '50%'; iframe.style.left = '50%';
-            iframe.style.width = '177.78vh'; // 16:9 width for the current viewport height...
-            iframe.style.minWidth = '100%';
-            iframe.style.height = '100%';
-            iframe.style.minHeight = '56.25vw'; // ...and 16:9 height for the current width —
-            // together these two min-constraints guarantee the iframe is always at least as
-            // large as the wrapper in both dimensions, so cropping (not letterboxing) happens.
-            iframe.style.transform = 'translate(-50%, -50%)';
-          }
+          if (iframe) { iframe.style.width = '100%'; iframe.style.height = '100%'; iframe.style.position = 'absolute'; iframe.style.inset = '0'; }
           player._stopTimerSet = false;
           ev.target.mute();
           // The `start` playerVar alone isn't reliably honored once playVideo() is called
@@ -9787,6 +9792,7 @@ function initHighlightBanner(name, gifKey){
                 // clickable) without needing to hide the whole paused video frame underneath.
                 const cover = document.getElementById(`highlight-cover-${gifKey}`);
                 if (cover) cover.style.display = 'block';
+                restoreBannerHeight();
               }, 15000);
             }
           }
