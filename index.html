@@ -600,6 +600,7 @@ canvas.spider{display:block;margin:0 auto}
     <button class="nav-btn" data-page="compare" onclick="nav('compare')">Compare</button>
     <button class="nav-btn" data-page="summary" onclick="nav('summary')">🏆 Season</button>
     <button class="nav-btn" data-page="stats" onclick="nav('stats')">Stats</button>
+    <button class="nav-btn" data-page="reel" onclick="nav('reel')">🎬 Highlights Reel</button>
     <button class="nav-btn" data-page="weekly" id="nav-weekly" onclick="nav('weekly')" style="color:var(--lime);display:none">+ Weekly Import</button>
     <button class="nav-btn" data-page="combos" id="nav-combos" onclick="nav('combos')" style="color:var(--lime);display:none">⚽ Goal Combos</button>
   </div>
@@ -1074,6 +1075,12 @@ canvas.spider{display:block;margin:0 auto}
 <div class="page" id="page-stats">
   <div class="section-hd"><h2>Season Stats</h2></div>
   <div id="stats-content"></div>
+</div>
+
+<!-- ===== PAGE: HIGHLIGHTS REEL ===== -->
+<div class="page" id="page-reel">
+  <div class="section-hd"><h2>Highlights Reel</h2></div>
+  <div id="reel-content"></div>
 </div>
 <div class="modal-overlay" id="import-modal" onclick="closeImportModal(event)">
   <div class="modal">
@@ -3170,15 +3177,12 @@ const TAG_DEFS = {
   'Opportunist':       { cls:'tag-striker',   tip:'Scores more goals per shot taken than anyone — gets in positions others miss and makes it count every time' },
   'Finisher':          { cls:'tag-striker',   tip:'Consistently scores goals while also converting at an above-average rate — turns up when it matters' },
   'Silent Assassin':   { cls:'tag-striker',   tip:'Scores frequently despite taking very few shots — barely touches the ball but always seems to find the net' },
-  'Last Touch':        { cls:'tag-striker',   tip:'Combines goals, assists and conversion into the most complete attacking output — always at the end of moves' },
   'Shadow Striker':    { cls:'tag-striker',   tip:'Scores and assists regularly despite low shot volume — dangerous without needing to dominate the ball' },
   'Ghost Runner':      { cls:'tag-striker',   tip:'Scores at a high rate despite low overall involvement — finds the net without needing constant touches' },
   'Wave Maker':        { cls:'tag-striker',   tip:'Combines goals and assists at high volume over time — a consistent match-winner across the full season' },
   'Rebound King':      { cls:'tag-striker',   tip:'Hits the woodwork more than anyone and keeps scoring from loose balls — thrives on second chances around goal' },
-  'Poacher':           { cls:'tag-striker',   tip:'Converts their own chances without needing a teammate\'s assist — gets into positions and finishes independently' },
   'Hat-Trick Hero':    { cls:'tag-striker',   tip:'Has single-handedly taken over games with a hat-trick more than anyone — capable of exploding in a single match' },
   'Impact Player':     { cls:'tag-workhorse', tip:'Combines goals, assists and conversion into quality output per game — makes every match count when involved' },
-  'Spark Plug':        { cls:'tag-engine',    tip:'Both scores and assists in more individual games than anyone — consistently involved at both ends of attacks' },
   'Brace Builder':     { cls:'tag-playmaker', tip:'Sets up two or more goals in a single match more often than anyone — gets on a creative roll within games' },
 
   // ── Shooting ─────────────────────────────────────────────────────────────
@@ -3189,7 +3193,6 @@ const TAG_DEFS = {
   'Front Foot':        { cls:'tag-target',    tip:'Threatens the goal directly while also setting up teammates — a constant attacking presence in both boxes' },
   'Net Magnet':        { cls:'tag-target',    tip:'Hits the target and rattles the woodwork more than anyone — the goalkeeper\'s worst nightmare every single game' },
   'Sledgehammer':      { cls:'tag-target',    tip:'Fires more shots than almost anyone and regularly hits the post — a powerful attacker who never stops testing the frame' },
-  'Volume Shooter':    { cls:'tag-target',    tip:'Combines high shot volume with goalkeeper saves — involved at both ends of a game in a unique way' },
   'Rapid Fire':        { cls:'tag-target',    tip:'Shoots frequently and converts at a high rate — combines volume and efficiency better than anyone else' },
   'Pinball':           { cls:'tag-target',    tip:'Hits the post and forces shots wide constantly — chaotic but dangerous, always creating second-chance moments' },
   'High Voltage':      { cls:'tag-target',    tip:'Combines goals, tackles and total activity into the most explosive all-action output — impacts every part of a game' },
@@ -3214,7 +3217,6 @@ const TAG_DEFS = {
   'Play Driver':       { cls:'tag-playmaker', tip:'A goalkeeper who also generates key passes and assists — contributes to attacks rather than just distributing safely' },
   'Space Creator':     { cls:'tag-playmaker', tip:'Combines key passes with assists and defensive blocks — finds teammates while also protecting the ball at the back' },
   'The Organiser':     { cls:'tag-playmaker', tip:'Generates elite key passes while also contributing defensively — the midfield brain who sets the tempo without being the top assister' },
-  'The Architect':     { cls:'tag-playmaker', tip:'One of the top key pass creators in the group who also wins interceptions — builds attacks from deep and wins the ball back' },
   'Pathfinder':        { cls:'tag-playmaker', tip:'Has directly assisted more different teammates than anyone — spreads creativity across the squad rather than relying on one connection' },
   'Janitor':     { cls:'tag-workhorse', tip:'Wins tackles and interceptions then immediately releases the ball through key passes and assists — relentless at winning possession and using it' },
 
@@ -3260,7 +3262,7 @@ const TAG_DEFS = {
   'Deadly':            { cls:'tag-striker',   tip:'Top 5 in both goals per game AND conversion rate — scores frequently and wastes almost nothing' },
   'Laser Guided':      { cls:'tag-target',    tip:'Top 5 in both total shots AND shot accuracy — fires constantly and hits the target more than almost anyone' },
   'On Fire':           { cls:'tag-target',    tip:'Top 5 in both shots on target AND goals per game — the most threatening combination of volume and finishing' },
-  'The Architect':     { cls:'tag-playmaker', tip:'Top 5 in assists, key passes AND interceptions simultaneously — creates attacks and immediately wins the ball back' },
+  'The Architect':     { cls:'tag-playmaker', tip:'Elite in key passes and above-average in interceptions, without being the team\'s top assister — creates from deep and wins the ball back' },
   'Metronome':         { cls:'tag-playmaker', tip:'Top 5 in both key passes AND tackles — sets the tempo going forward and wins it back when needed' },
   'Box to Box Keeper': { cls:'tag-sweeper',   tip:'Top 5 in both goalkeeper saves AND assists — a goalkeeper who contributes at both ends of the pitch' },
   'Iron Curtain':      { cls:'tag-guardian',  tip:'Top 5 in tackles, interceptions AND blocks simultaneously — the most complete defensive presence in the group' },
@@ -3302,7 +3304,6 @@ const TAG_DEFS = {
   'Diesel':            { cls:'tag-engine',    tip:'Gets stronger as the game goes on — consistently more active in the second half than the first across multiple matches' },
   'Never Say Die':     { cls:'tag-workhorse', tip:'A higher proportion of their output comes while the team is trailing than any other player — keeps fighting when it\'s hardest' },
   'Pressure Cooker':   { cls:'tag-engine',    tip:'Responds to conceding goals with more immediate activity than anyone — galvanises after setbacks' },
-  'Spark Plug':        { cls:'tag-engine',    tip:'More of their tackles and interceptions lead directly to goals within 15 seconds than anyone else — winning the ball in the right place at the right time' },
   'Iron Man':          { cls:'tag-enforcer',  tip:'Has spent the most time in goal across the season — the reliable last line when keepers rotate' },
   'Brick Wall':        { cls:'tag-enforcer',  tip:'Concedes fewer goals per 55 minutes in goal than any other rotation keeper — the hardest to score against' },
   'Shot Stopper':      { cls:'tag-enforcer',  tip:'Makes more saves per 55 minutes in goal than anyone — the busiest and most reliable keeper in rotation' },
@@ -3324,6 +3325,7 @@ const TAG_DEFS = {
   'Leveller':          { cls:'tag-enforcer',  tip:'Assisted the equalising goal in more matches than anyone — sets up teammates to drag the team back into matches' },
   'Second Half Spark': { cls:'tag-enforcer',  tip:'Scores significantly more in the second half than the first — saves their best for when the game is on the line' },
   'Insurance':         { cls:'tag-enforcer',  tip:'Scored when the team was already winning in more games than anyone — puts results beyond doubt before full time' },
+  "Knife's Edge":      { cls:'tag-enforcer',  tip:'Scored more goals with the scores level than anyone — thrives in the moments before either side takes the lead' },
 };
 // =====================================================================
 // TAG SYSTEM — global auction: each tag goes to exactly one player
@@ -3738,8 +3740,6 @@ function buildTagAuction() {
   award('Play Driver',      m => m.gkspg*0.3+m.kppg*0.7+m.apg*0.5);
   award('Space Creator',    m => m.kppg*0.6+m.apg*0.8+m.blkpg*0.3);
   award('Janitor',    m => m.tklpg*0.4+m.kppg*0.5+m.apg*0.6);
-  // Rank-based: top 5 assists AND top 5 key passes AND top 5 interceptions
-  awardRank('The Architect',   [m=>m.apg, m=>m.kppg, m=>m.intpg], 5);
   // Rank-based: top 5 key passes AND top 5 tackles — creates and wins it back
   awardRank('Metronome',       [m=>m.kppg, m=>m.tklpg], 5);
   // Rank-based: top 5 assists AND top 5 GK saves — contributes at both ends
@@ -3793,9 +3793,7 @@ function buildTagAuction() {
 
   // ── HYBRID ──────────────────────────────────────────────────────────────
   award('Engine',           m => m.actpg);                                          // Jake #1 (52.3)
-  award('Box to Box',       m => m.spg*0.6+m.tklpg*2);                            // Jake (shots+tackles)
   award('Two-Way Engine',   m => Math.min(m.gpg,m.tklpg)*5);                      // Jake/Andres
-  award('High Voltage',     m => m.gpg*0.5+m.tklpg*0.5+m.actpg*0.1);             // Andres (goals+tackles+activity)
   award('Complete Player',  m => m.gpg*0.7+m.apg*0.7+m.kppg*0.3+m.intpg*0.2);   // Gio (balanced)
   award('Mr Reliable',      m => m.reliabilityScore);
   award('Workhorse',        m => m.actpg*0.4+m.tklpg*0.6);                        // Austin (activity+tackles)
@@ -3892,13 +3890,6 @@ function buildTagAuction() {
     const topBlocks = Object.values(metrics).filter(x=>x.blkpg>m.blkpg).length === 0; // must be #1
     return topBlocks ? m.blkpg*5 : 0;
   });
-  // Double Shift: James — high saves AND significant goals (GK who also scores)
-  // Distinguished from The Commander (pure GK) by requiring attacking output
-  award('Double Shift',     m => {
-    const pool2 = Object.values(playerStats).filter(p=>p.games>=8);
-    const avgG = pool2.reduce((s,p)=>s+p.goals/Math.max(p.games,1),0)/Math.max(pool2.length,1);
-    return (m.gkspg>=4 && m.gpg>=avgG*1.2) ? m.gkspg*0.5 + m.gpg*3 : 0; // goals weighted — James's scoring
-  });
   // The Architect: James2/Gio — top KP + above-avg interceptions
   // This will go to whoever has best KP+INT combo not already winning Conductor
   award('The Architect',    m => {
@@ -3907,6 +3898,13 @@ function buildTagAuction() {
     const pool2 = Object.values(playerStats).filter(p=>p.games>=5);
     const avgI = pool2.reduce((s,p)=>s+p.interceptions/Math.max(p.games,1),0)/Math.max(pool2.length,1);
     return (notConductorWinner && topKP && m.intpg>avgI) ? m.kppg*2+m.intpg*0.8 : 0;
+  });
+  // Double Shift: James — high saves AND significant goals (GK who also scores)
+  // Distinguished from The Commander (pure GK) by requiring attacking output
+  award('Double Shift',     m => {
+    const pool2 = Object.values(playerStats).filter(p=>p.games>=8);
+    const avgG = pool2.reduce((s,p)=>s+p.goals/Math.max(p.games,1),0)/Math.max(pool2.length,1);
+    return (m.gkspg>=4 && m.gpg>=avgG*1.2) ? m.gkspg*0.5 + m.gpg*3 : 0; // goals weighted — James's scoring
   });
   // Disruptor: Dexter/Richard — very high tackles+interceptions, low goals
   // Richard already wins The Interceptor so Disruptor targets others
@@ -3917,24 +3915,8 @@ function buildTagAuction() {
     return (highDef && m.gpg < avgG*0.4) ? (m.tklpg+m.intpg)*1.5 : 0;
   });
 
-  awardTime('Icebreaker',       m => m.openers>=2?m.openers:0);
-  awardTime('Blitz',            m => m.blitzMatches>=2?m.blitzMatches:0);
-  awardTime('Blitz',            m => m.blitzMatches>=2?m.blitzMatches:0);
   awardTime("Knife's Edge",     m => m.knifesEdgeGoals>=5?m.knifesEdgeGoals:0);
   awardTime('Insurance',        m => m.insuranceGoals>=5?m.insuranceGoals:0);
-  awardTime('Leveller',         m => m.equaliserAssists>=2?m.equaliserAssists:0);
-  awardTime('Momentum Shift',   m => m.trueEqualisers>=2?m.trueEqualisers:0);
-  awardTime('Last Laugh',       m => m.finishers>=2?m.finishers:0);
-  awardTime('Comeback Kid',     m => m.comebackGoals>=3?m.comebackGoals:0);
-  awardTime('Big Game Player',  m => {
-    const big = matchList.filter(x=>x.goalsA+x.goalsB>=20);
-    if (big.length < 4) return 0;
-    const s = big.flatMap(x=>[...x.teamA,...x.teamB]).filter(r=>r.player===m.ps.player);
-    if (s.length < 3) return 0;
-    const bgpg = s.reduce((a,r)=>a+Number(r.goals||0),0)/s.length;
-    return bgpg > m.gpg*1.2 ? bgpg : 0;
-  });
-  award('Heartbreaker',     m => (m.ps.post||0)*m.postpg);
 
   // ── Dedup: each player keeps only their single best nutmeg-based tag ──
   const nutmegTags = ['Sauce Merchant','Streetballer','Risk Taker','Chaos Creator','Showtime','Breaker'];
@@ -4021,7 +4003,7 @@ function buildTagAuction() {
     'Comeback Kid':     m => m.comebackGoals>=3?m.comebackGoals:0,
     'Big Game Player':  m => { const big=matchList.filter(x=>x.goalsA+x.goalsB>=20); if(big.length<4)return 0; const s=big.flatMap(x=>[...x.teamA,...x.teamB]).filter(r=>r.player===m.ps.player); if(s.length<3)return 0; const bgpg=s.reduce((a,r)=>a+Number(r.goals||0),0)/s.length; return bgpg>m.gpg*1.2?bgpg:0; },
     'Leveller':         m => m.equaliserAssists>=2?m.equaliserAssists:0,
-    'Heartbreaker':     m => (m.ps.post||0)*m.postpg,
+    'Heartbreaker':     m => m.lateGoals>=2&&m.finishers>=2?m.lateGoals+m.finishers:0,
     'Second Half Spark':m => m.secondHalfGoals>m.firstHalfGoals?m.secondHalfGoals-m.firstHalfGoals:0,
   };
   timeTagOrder.forEach(label => {
@@ -6398,6 +6380,59 @@ function getPlayerComboStats(playerName) {
 }
 
 // ── Goal timing patterns for a player ──────────────────────────────
+// ── Season-wide highlights feed (all players) — powers the Highlights Reel page ──
+function getAllHighlights() {
+  const all = [];
+  Object.entries(goalCombos).forEach(([mid, data]) => {
+    const match = matchList.find(m => m.id === mid);
+    const ytId = matchVideos[mid];
+    if (!match) return;
+    ['h1','h2'].forEach(half => {
+      (data[half]||[]).forEach(p => {
+        if (!p.time) return;
+        if (p.isGoalHighlight) {
+          all.push({
+            mid, match, ytId, time: p.time, half: half==='h1'?'1H':'2H',
+            scorer: p.scorer, assister: p.assister,
+            type: 'goal', isOG: p.isOG,
+          });
+        }
+        // Also surface the assister's moment if flagged, even if the goal itself wasn't
+        if (p.isAssistHighlight && p.assister) {
+          all.push({
+            mid, match, ytId, time: p.time, half: half==='h1'?'1H':'2H',
+            scorer: p.scorer, assister: p.assister,
+            type: 'assist', isOG: p.isOG,
+          });
+        }
+      });
+    });
+  });
+  try {
+    const logs = JSON.parse(localStorage.getItem('aero_event_logs') || '{}');
+    Object.entries(logs).forEach(([mid, log]) => {
+      const match = matchList.find(m => m.id === mid);
+      const ytId = matchVideos[mid];
+      if (!match || !log.events) return;
+      log.events.forEach(e => {
+        if (!e.player) return;
+        if (!e.highlight || e.highlight === 'none') return;
+        if (e.event === 'Goals' || e.event === 'Key Passes') return; // already handled above
+        all.push({
+          mid, match, ytId, time: e.ts, half: e.half,
+          scorer: e.player, assister: null,
+          type: e.event === 'GK Saves' ? 'save' : e.highlight === 'lowlight' ? 'lowlight' : 'moment',
+          isOG: false,
+          label: e.event === 'GK Saves' ? '🧤 Save' : e.highlight === 'lowlight' ? '😬 Moment' : '⭐ Moment',
+        });
+      });
+    });
+  } catch(ex) {}
+  // Most recent match first, then chronological within a match
+  const toSecsLocal = t => { if (!t) return 0; const [a,b]=String(t).split(':').map(Number); return a*60+(b||0); };
+  return all.sort((a,b) => b.match.date.localeCompare(a.match.date) || toSecsLocal(a.time)-toSecsLocal(b.time));
+}
+
 function getPlayerHighlights(playerName) {
   // Returns all goal/assist highlights for this player with video links
   const highlights = [];
@@ -6804,6 +6839,177 @@ function renderAllCombos() {
       </div>
     </div>`;
   }).join('');
+}
+
+// =====================================================================
+// HIGHLIGHTS REEL — cycle through every recorded goal/assist/save/lowlight
+// clip across the whole season, one at a time, with filters and autoplay.
+// =====================================================================
+let _reelState = {
+  type: 'all',       // 'all' | 'goal' | 'assist' | 'save' | 'moment' | 'lowlight'
+  query: '',
+  index: 0,
+  autoplay: false,
+  autoplaySecs: 12,
+  timer: null,
+};
+
+function reelGetFilteredList() {
+  const all = window._reelAllHighlights || (window._reelAllHighlights = getAllHighlights());
+  const q = (_reelState.query || '').trim().toLowerCase();
+  return all.filter(h => {
+    if (_reelState.type !== 'all' && h.type !== _reelState.type) return false;
+    if (!q) return true;
+    const haystack = `${h.scorer||''} ${h.assister||''} ${h.match.date||''}`.toLowerCase();
+    return haystack.includes(q);
+  });
+}
+
+function renderHighlightsReel() {
+  // Refresh the underlying data every time the page is opened (new imports since last visit)
+  window._reelAllHighlights = getAllHighlights();
+  _reelState.index = 0;
+  reelRenderPage();
+}
+
+const REEL_TYPE_META = {
+  all:      { label: 'All',      icon: '🎬' },
+  goal:     { label: 'Goals',    icon: '⚽' },
+  assist:   { label: 'Assists',  icon: '🎯' },
+  save:     { label: 'Saves',    icon: '🧤' },
+  moment:   { label: 'Moments',  icon: '⭐' },
+  lowlight: { label: 'Lowlights',icon: '😬' },
+};
+
+function reelRenderPage() {
+  const el = document.getElementById('reel-content');
+  if (!el) return;
+  const list = reelGetFilteredList();
+  const withVideo = list.filter(h => h.ytId);
+  const noVideoCount = list.length - withVideo.length;
+
+  if (_reelState.index >= withVideo.length) _reelState.index = 0;
+  const current = withVideo[_reelState.index] || null;
+
+  const typesPresent = ['all', ...new Set((window._reelAllHighlights||[]).map(h=>h.type))];
+
+  const chipsHtml = typesPresent.map(t => `
+    <button onclick="reelSetType('${t}')"
+      style="font-size:.78rem;padding:6px 14px;border-radius:20px;border:1px solid var(--border);cursor:pointer;
+      font-family:'Barlow Condensed',sans-serif;letter-spacing:.3px;
+      background:${_reelState.type===t?'var(--green)':'var(--card2)'};
+      color:${_reelState.type===t?'#071009':'var(--text2)'};font-weight:${_reelState.type===t?'700':'400'}">
+      ${REEL_TYPE_META[t]?.icon||''} ${REEL_TYPE_META[t]?.label||t}
+    </button>`).join('');
+
+  const playerHtml = current ? `
+    <div style="position:relative;padding-bottom:56.25%;height:0;border-radius:10px;overflow:hidden;background:#000">
+      <iframe key="${current.mid}-${current.time}"
+        src="https://www.youtube.com/embed/${current.ytId}?rel=0&modestbranding=1&autoplay=1&start=${Math.max(0, Math.round(timeToYtSeconds(current.time, current.half) - 3))}"
+        style="position:absolute;top:0;left:0;width:100%;height:100%;border:none"
+        allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture"
+        allowfullscreen loading="lazy"></iframe>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;margin-top:12px;flex-wrap:wrap">
+      <span style="font-size:1.3rem">${current.label || (current.type==='goal'?'⚽':current.type==='assist'?'🎯':current.type==='save'?'🧤':current.type==='lowlight'?'😬':'⭐')}</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.2rem;color:var(--text);line-height:1.2">
+          ${current.scorer}${current.assister ? ` <span style="color:var(--muted);font-size:.9rem">← ${current.assister}</span>` : ''}
+        </div>
+        <div style="font-size:.78rem;color:var(--muted)">${current.match.date} · ${current.half||''} ${current.time||''} · ${current.match.goalsA}–${current.match.goalsB}</div>
+      </div>
+      <button onclick="navToMatch('${current.mid}')" class="btn-secondary" style="white-space:nowrap">View Match</button>
+    </div>` : `
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:60px 20px;text-align:center;color:var(--muted)">
+      ${list.length ? `No clips with video linked yet for this filter (${noVideoCount} matching clip${noVideoCount!==1?'s':''} found, but none have a match video attached).`
+                     : 'No highlights match this filter.'}
+    </div>`;
+
+  const controlsHtml = withVideo.length ? `
+    <div style="display:flex;align-items:center;gap:10px;margin-top:14px">
+      <button onclick="reelPrev()" class="btn-secondary" style="min-width:90px">◀ Prev</button>
+      <div style="flex:1;text-align:center;font-size:.78rem;color:var(--muted);font-family:'Barlow Condensed',sans-serif;letter-spacing:.5px">
+        ${_reelState.index+1} / ${withVideo.length}
+      </div>
+      <button onclick="reelNext()" class="btn-secondary" style="min-width:90px">Next ▶</button>
+    </div>
+    <label style="display:flex;align-items:center;gap:8px;margin-top:12px;cursor:pointer;font-size:.8rem;color:var(--text2)">
+      <input type="checkbox" id="reel-autoplay-toggle" ${_reelState.autoplay?'checked':''} onchange="reelToggleAutoplay(this.checked)" style="accent-color:var(--green);width:15px;height:15px">
+      Auto-advance every ${_reelState.autoplaySecs}s
+    </label>` : '';
+
+  const filmstripHtml = withVideo.length ? `
+    <div style="display:flex;gap:8px;overflow-x:auto;padding:4px 2px 8px;margin-top:16px">
+      ${withVideo.map((h, i) => {
+        const active = i === _reelState.index;
+        const icon = h.label || (h.type==='goal'?'⚽':h.type==='assist'?'🎯':h.type==='save'?'🧤':h.type==='lowlight'?'😬':'⭐');
+        return `<div onclick="reelGoTo(${i})" style="flex-shrink:0;width:120px;background:${active?'var(--card2)':'var(--card)'};border:1px solid ${active?'var(--green)':'var(--border)'};border-radius:8px;padding:8px;cursor:pointer">
+          <div style="font-size:.9rem;margin-bottom:3px">${icon}</div>
+          <div style="font-size:.68rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${h.scorer}</div>
+          <div style="font-size:.6rem;color:var(--muted)">${h.match.date}</div>
+        </div>`;
+      }).join('')}
+    </div>` : '';
+
+  el.innerHTML = `
+    <div style="margin-bottom:16px">
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px">${chipsHtml}</div>
+      <input type="text" placeholder="Search by player or date…" value="${_reelState.query.replace(/"/g,'&quot;')}"
+        oninput="reelSetQuery(this.value)"
+        style="background:var(--card);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:9px 13px;font-size:.88rem;font-family:'Barlow',sans-serif;outline:none;width:100%;max-width:340px;box-sizing:border-box">
+    </div>
+    <div style="max-width:820px;margin:0 auto">
+      ${playerHtml}
+      ${controlsHtml}
+      ${filmstripHtml}
+    </div>
+  `;
+
+  reelSetupAutoplayTimer();
+}
+
+function reelSetType(type) {
+  _reelState.type = type;
+  _reelState.index = 0;
+  reelRenderPage();
+}
+
+function reelSetQuery(q) {
+  _reelState.query = q;
+  _reelState.index = 0;
+  reelRenderPage();
+}
+
+function reelNext() {
+  const list = reelGetFilteredList().filter(h => h.ytId);
+  if (!list.length) return;
+  _reelState.index = (_reelState.index + 1) % list.length;
+  reelRenderPage();
+}
+
+function reelPrev() {
+  const list = reelGetFilteredList().filter(h => h.ytId);
+  if (!list.length) return;
+  _reelState.index = (_reelState.index - 1 + list.length) % list.length;
+  reelRenderPage();
+}
+
+function reelGoTo(i) {
+  _reelState.index = i;
+  reelRenderPage();
+}
+
+function reelToggleAutoplay(checked) {
+  _reelState.autoplay = checked;
+  reelSetupAutoplayTimer();
+}
+
+function reelSetupAutoplayTimer() {
+  if (_reelState.timer) { clearTimeout(_reelState.timer); _reelState.timer = null; }
+  if (!_reelState.autoplay) return;
+  const list = reelGetFilteredList().filter(h => h.ytId);
+  if (list.length < 2) return;
+  _reelState.timer = setTimeout(() => { reelNext(); }, _reelState.autoplaySecs * 1000);
 }
 
 function renderCombosPage() {
@@ -7599,6 +7805,7 @@ function nav(page, extra) {
   if (page === 'stats') renderStatsPage();
   if (page === 'summary') renderSeasonSummary();
   if (page === 'combos') renderCombosPage();
+  if (page === 'reel') renderHighlightsReel();
   if (page === 'profile' && extra) renderProfile(extra);
 }
 
@@ -9642,6 +9849,48 @@ function renderPlayers() {
 // =====================================================================
 // RENDER PLAYER PROFILE
 // =====================================================================
+// ── Profile highlights: search + type filter, re-renders day groups in place ──
+// State per profile ('main' = highlights panel, 'low' = lowlights panel):
+//   window._profileHighlightState[gifKey][panelKey] = { type: 'all'|type, query: string }
+let _profileHighlightState = {};
+
+function filterProfileHighlights(gifKey, panelKey, type, chipEl, queryOverride) {
+  const data = window._profileHighlightData?.[gifKey];
+  if (!data) return;
+
+  if (!_profileHighlightState[gifKey]) _profileHighlightState[gifKey] = {};
+  if (!_profileHighlightState[gifKey][panelKey]) _profileHighlightState[gifKey][panelKey] = { type: 'all', query: '' };
+  const state = _profileHighlightState[gifKey][panelKey];
+
+  if (type !== null && type !== undefined) {
+    state.type = type;
+    // Update chip active styling within this panel
+    if (chipEl) {
+      const bar = chipEl.parentElement;
+      bar.querySelectorAll('.hl-chip').forEach(b => {
+        b.style.background = 'var(--card2)';
+        b.style.color = 'var(--text2)';
+      });
+      chipEl.style.background = 'var(--green)';
+      chipEl.style.color = '#071009';
+    }
+  }
+  if (queryOverride !== undefined) state.query = queryOverride;
+
+  const items = panelKey === 'main' ? data.highlights : data.lowlights;
+  const q = (state.query || '').trim().toLowerCase();
+  const filtered = items.filter(h => {
+    if (state.type !== 'all' && h.type !== state.type) return false;
+    if (!q) return true;
+    const haystack = `${h.scorer||''} ${h.assister||''} ${h.match.date||''}`.toLowerCase();
+    return haystack.includes(q);
+  });
+
+  const emptyMsg = q || state.type !== 'all' ? 'No highlights match that filter' : (panelKey === 'main' ? 'No highlights recorded yet' : 'No lowlights recorded');
+  const host = document.getElementById(`hl-panel-${panelKey}-${gifKey}`);
+  if (host) host.innerHTML = data.renderDayGroups(filtered, panelKey, emptyMsg);
+}
+
 function renderProfileGkTimeline(name) {
   const el = document.getElementById('profile-gk-timeline');
   if (!el) return;
@@ -11197,10 +11446,6 @@ const FAMOUS_PLAYERS = [
     { name:'Achraf Hakimi',         club:'PSG',            role:'Wing-Back',                emoji:'🏎️', bg:'#001a2a', tags:['Pace','Overlapping runs','Assists'], desc:'The fastest fullback in the world — tears down the flank and delivers dangerous balls.', s:{goals:3.0,assists:6.0,shots:4.0,keyPass:4.5,tackles:5.0,intercept:4.5,blocks:2.0,saves:0,nutmegs:1.0,gkFrac:0,defChain:0.4,clutch:0.5,stronger:1,pressure:0.75,saveRate:0,headerRatio:0.05,footBalance:0.5,conv:0.18}},
     { name:'Theo Hernández',        club:'AC Milan',       role:'Attacking Left-Back',      emoji:'🔥', bg:'#1a0000', tags:['Goals from deep','Pace','Direct running'], desc:'A left-back who thinks like a forward — charges upfield and scores remarkable goals.', s:{goals:3.5,assists:4.5,shots:4.0,keyPass:3.5,tackles:4.5,intercept:4.0,blocks:2.5,saves:0,nutmegs:0.8,gkFrac:0,defChain:0.4,clutch:0.4,stronger:1,pressure:0.7,saveRate:0,headerRatio:0.1,footBalance:0.3,conv:0.2}},
     { name:'João Cancelo',          club:'Barcelona',      role:'Inverted Fullback',        emoji:'🔄', bg:'#001a4a', tags:['Dribbling','Key passes','Versatile'], desc:'Inverts into midfield and picks passes — equally comfortable anywhere across the backline.', s:{goals:2.0,assists:6.0,shots:3.0,keyPass:6.5,tackles:4.0,intercept:4.0,blocks:2.5,saves:0,nutmegs:1.0,gkFrac:0,defChain:0.3,clutch:0.5,stronger:0,pressure:0.8,saveRate:0,headerRatio:0.03,footBalance:0.9,conv:0.15}},
-    { name:'Manuel Neuer',          club:'Bayern',         role:'Sweeper Keeper',           emoji:'🧤', bg:'#1a1a00', tags:['Sweeping','Commanding','Feet like a midfielder'], desc:'Redefines what a keeper can be — as comfortable with his feet as with his hands.', s:{goals:0,assists:0,shots:0,keyPass:0.5,tackles:0.5,intercept:0.5,blocks:1.5,saves:9.5,nutmegs:0,gkFrac:1,defChain:0.1,clutch:0.5,stronger:0,pressure:0.9,saveRate:0.75,headerRatio:0,footBalance:0.8,conv:0}},
-    { name:'Marc-André ter Stegen', club:'Barcelona',      role:'Commanding Keeper',        emoji:'🏆', bg:'#001a4a', tags:['Shot-stopping','Distribution','Reflex saves'], desc:'An elite keeper who commands his box and is equally impressive off his line.', s:{goals:0,assists:0,shots:0,keyPass:0.5,tackles:0.3,intercept:0.5,blocks:2.0,saves:9.0,nutmegs:0,gkFrac:1,defChain:0.1,clutch:0.6,stronger:0,pressure:0.9,saveRate:0.78,headerRatio:0,footBalance:0.5,conv:0}},
-    { name:'Alisson Becker',        club:'Liverpool',      role:'Reliable Keeper',          emoji:'🧱', bg:'#1a0000', tags:['Composure','Distribution','Commanding'], desc:'Supremely composed — rarely makes mistakes and kicks off attacks with pinpoint passing.', s:{goals:0,assists:0.5,shots:0,keyPass:0.5,tackles:0.3,intercept:0.5,blocks:1.5,saves:8.5,nutmegs:0,gkFrac:1,defChain:0.1,clutch:0.5,stronger:0,pressure:0.95,saveRate:0.8,headerRatio:0,footBalance:0.6,conv:0}},
-    { name:'Ederson',               club:'Man City',       role:'Passing Keeper',           emoji:'🦶', bg:'#001a4a', tags:['Distribution','Long kicks','Sweeping'], desc:'A keeper who launches attacks — his long passing accuracy is extraordinary.', s:{goals:0,assists:0.5,shots:0,keyPass:0.8,tackles:0.3,intercept:0.5,blocks:1.5,saves:8.0,nutmegs:0,gkFrac:1,defChain:0.1,clutch:0.4,stronger:0,pressure:0.85,saveRate:0.75,headerRatio:0,footBalance:0.7,conv:0}},
     { name:'Neymar Jr',             club:'Al-Hilal',       role:'Showman Playmaker',        emoji:'🎪', bg:'#001a2a', tags:['Dribbling','Flair','Assists'], desc:'The most naturally gifted player of his generation — sheer joy to watch.', s:{goals:5.5,assists:7.5,shots:6.0,keyPass:8.0,tackles:1.5,intercept:1.2,blocks:0.3,saves:0,nutmegs:4.0,gkFrac:0,defChain:0.1,clutch:0.6,stronger:0,pressure:0.7,saveRate:0,headerRatio:0.05,footBalance:0.9,conv:0.2}},
     { name:'Ronaldinho',            club:'Retired',        role:'Ultimate Entertainer',     emoji:'😁', bg:'#001a4a', tags:['Dribbling','Flair','Nutmegs'], desc:'The most joyful player who ever lived — his dribbling and tricks were pure art.', s:{goals:6.0,assists:8.0,shots:6.0,keyPass:8.5,tackles:1.5,intercept:1.0,blocks:0.3,saves:0,nutmegs:4.5,gkFrac:0,defChain:0.1,clutch:0.7,stronger:0,pressure:0.8,saveRate:0,headerRatio:0.05,footBalance:0.5,conv:0.22}},
     { name:'Jack Grealish',         club:'Man City',       role:'Creative Dribbler',        emoji:'🌀', bg:'#001a4a', tags:['Dribbling','Key passes','Drawing fouls'], desc:'Impossible to knock off the ball — wriggles into space and finds the killer pass.', s:{goals:3.0,assists:6.5,shots:3.5,keyPass:7.0,tackles:2.5,intercept:2.0,blocks:0.8,saves:0,nutmegs:2.5,gkFrac:0,defChain:0.2,clutch:0.5,stronger:0,pressure:0.7,saveRate:0,headerRatio:0.03,footBalance:0.3,conv:0.18}},
@@ -11291,37 +11536,28 @@ function _computeFamousAssignments() {
   const assignedSquad  = new Set();
   const assignedFamous = new Set();
   const result = {}; // playerName → famous player entry + pct
-  let gkAssigned = false; // once one keeper is matched, no more keepers available
-
-  // Identify which famous player indices are goalkeepers
-  const gkIndices = new Set(FAMOUS_PLAYERS.map((fp, i) => fp.s.gkFrac >= 0.8 ? i : -1).filter(i => i >= 0));
 
   for (const { sq, fi, sim } of triples) {
     if (assignedSquad.has(sq) || assignedFamous.has(fi)) continue;
-    // If this famous player is a keeper and one has already been assigned, skip
-    if (gkIndices.has(fi) && gkAssigned) continue;
     assignedSquad.add(sq);
     assignedFamous.add(fi);
-    if (gkIndices.has(fi)) gkAssigned = true;
     const fp = FAMOUS_PLAYERS[fi];
     const pct = Math.max(62, Math.min(96, Math.round(sim * 100)));
     result[sq] = { ...fp, pct, tags: fp.tags.slice(0, 3) };
     if (assignedSquad.size === squadNames.length) break;
   }
 
-  // Any squad player not yet assigned gets their best unassigned non-blocked match
+  // Any squad player not yet assigned gets their best unassigned match
   squadNames.forEach(sq => {
     if (result[sq] || !features[sq]) return;
     let best = null, bestSim = -1;
     FAMOUS_PLAYERS.forEach((fp, fi) => {
       if (assignedFamous.has(fi)) return;
-      if (gkIndices.has(fi) && gkAssigned) return; // block extra keepers
       const sim = _cosineSim(features[sq], fp.s, fMax);
       if (sim > bestSim) { bestSim = sim; best = { fp, fi }; }
     });
     if (best) {
       assignedFamous.add(best.fi);
-      if (gkIndices.has(best.fi)) gkAssigned = true;
       const pct = Math.max(62, Math.min(96, Math.round(bestSim * 100)));
       result[sq] = { ...best.fp, pct, tags: best.fp.tags.slice(0, 3) };
     }
@@ -11513,29 +11749,6 @@ function renderProfile(name) {
   })();
 
   document.getElementById('profile-content').innerHTML = `
-    <!-- Prev/Next player navigation -->
-    ${(() => {
-      // Follow whatever order the person was browsing the Players page in (current sort/search),
-      // captured in window._playersPageOrder when that page last rendered. If someone lands on a
-      // profile without having visited the list (e.g. a direct link, or from Leaderboard/Compare),
-      // fall back to a plain alphabetical list across everyone so prev/next still works.
-      const order = (window._playersPageOrder && window._playersPageOrder.length)
-        ? window._playersPageOrder
-        : Object.keys(ds).sort((a,b)=>a.localeCompare(b));
-      const idx = order.indexOf(name);
-      const prevName = idx > 0 ? order[idx-1] : null;
-      const nextName = idx >= 0 && idx < order.length-1 ? order[idx+1] : null;
-      const btn = (label, target, dir) => target
-        ? `<button onclick="nav('profile','${target.replace(/'/g,"\\'")}')" style="flex:1;display:flex;align-items:center;${dir==='next'?'justify-content:flex-end':'justify-content:flex-start'};gap:6px;background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:8px 14px;color:var(--text);cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-size:.8rem;letter-spacing:.3px;overflow:hidden">${dir==='prev'?`◀ <span style="opacity:.7">${label}</span> <b style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${target}</b>`:`<b style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${target}</b> <span style="opacity:.7">${label}</span> ▶`}</button>`
-        : `<div style="flex:1"></div>`;
-      const posLabel = idx >= 0 ? `<span style="font-size:.68rem;color:var(--muted);font-family:'Barlow Condensed',sans-serif;white-space:nowrap;padding:0 8px">${idx+1} / ${order.length}</span>` : '';
-      return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
-        ${btn('Prev', prevName, 'prev')}
-        ${posLabel}
-        ${btn('Next', nextName, 'next')}
-      </div>`;
-    })()}
-
     <!-- Action buttons -->
     <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px">
       <button class="print-btn" onclick="printPlayerCard('${safeName}')">🖨 Print Profile Card</button>
@@ -12152,6 +12365,15 @@ function renderProfile(name) {
         const allHighlights = getPlayerHighlights(name);
         const highlights  = allHighlights.filter(h => h.type !== 'lowlight');
         const lowlights   = allHighlights.filter(h => h.type === 'lowlight');
+        const safeGifKey = gifKey; // used to namespace this profile's filter state
+
+        const TYPE_META = {
+          goal:     { label: 'Goals',    icon: '⚽', col: 'var(--green)' },
+          assist:   { label: 'Assists',  icon: '🎯', col: 'var(--lime)' },
+          save:     { label: 'Saves',    icon: '🧤', col: '#60a5fa' },
+          moment:   { label: 'Moments',  icon: '⭐', col: '#f59e0b' },
+          lowlight: { label: 'Lowlights',icon: '😬', col: '#f87171' },
+        };
 
         const renderRow = (h) => {
           const matchKey = h.mid.replace(/[#,]/g,'_');
@@ -12173,17 +12395,64 @@ function renderProfile(name) {
           </div>`;
         };
 
-        const buildPanel = (title, items, emptyMsg, showHint) => `<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 16px 12px;height:480px;display:flex;flex-direction:column;min-height:0">
+        // Group a list of highlight items into collapsible day sections, most recent first.
+        const groupByDay = (items) => {
+          const byDate = {};
+          items.forEach(h => {
+            const d = h.match.date;
+            if (!byDate[d]) byDate[d] = [];
+            byDate[d].push(h);
+          });
+          return Object.entries(byDate).sort((a,b) => b[0].localeCompare(a[0]));
+        };
+
+        const renderDayGroups = (items, panelKey, emptyMsg) => {
+          if (!items.length) return `<div style="display:flex;align-items:center;justify-content:center;height:100%;text-align:center;font-size:.68rem;color:var(--muted);opacity:.7;padding:20px">${emptyMsg}</div>`;
+          const groups = groupByDay(items);
+          // Auto-open the first (most recent) day so the panel isn't empty-looking on load
+          return groups.map(([date, dayItems], i) => `
+            <details ${i===0?'open':''} style="margin-bottom:4px" onclick="event.stopPropagation()">
+              <summary style="cursor:pointer;list-style:none;display:flex;align-items:center;gap:6px;padding:5px 6px;border-radius:6px;font-size:.66rem;color:var(--text2);user-select:none" onmouseenter="this.style.background='var(--card2)'" onmouseleave="this.style.background='transparent'">
+                <span style="opacity:.5;font-size:.6rem;transform:translateY(-1px)" class="day-caret">▶</span>
+                <span style="font-weight:600;color:var(--text)">${date}</span>
+                <span style="opacity:.6">${dayItems.length} clip${dayItems.length!==1?'s':''}</span>
+              </summary>
+              <div style="padding-left:4px">${dayItems.map(renderRow).join('')}</div>
+            </details>`).join('');
+        };
+
+        const buildPanel = (panelKey, title, items, emptyMsg, showHint) => {
+          const typesPresent = [...new Set(items.map(h => h.type))];
+          const filterChips = typesPresent.length > 1 ? `
+            <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;flex-shrink:0">
+              <button class="hl-chip active" data-panel="${panelKey}" data-type="all" onclick="filterProfileHighlights('${safeGifKey}','${panelKey}','all',this)"
+                style="font-size:.6rem;padding:3px 8px;border-radius:12px;border:1px solid var(--border);background:var(--green);color:#071009;cursor:pointer;font-family:'Barlow Condensed',sans-serif;letter-spacing:.3px">All</button>
+              ${typesPresent.map(t => `<button class="hl-chip" data-panel="${panelKey}" data-type="${t}" onclick="filterProfileHighlights('${safeGifKey}','${panelKey}','${t}',this)"
+                style="font-size:.6rem;padding:3px 8px;border-radius:12px;border:1px solid var(--border);background:var(--card2);color:var(--text2);cursor:pointer;font-family:'Barlow Condensed',sans-serif;letter-spacing:.3px">${TYPE_META[t]?.icon||''} ${TYPE_META[t]?.label||t}</button>`).join('')}
+            </div>` : '';
+          return `<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 16px 12px;height:520px;display:flex;flex-direction:column;min-height:0">
           <div style="font-size:.58rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:8px;flex-shrink:0">${title}</div>
-          <div style="flex:1;min-height:0;overflow-y:auto;padding-right:4px">
-            ${items.length ? items.map(renderRow).join('') : `<div style="display:flex;align-items:center;justify-content:center;height:100%;text-align:center;font-size:.68rem;color:var(--muted);opacity:.7;padding:20px">${emptyMsg}</div>`}
+          ${items.length ? `<input type="text" placeholder="Search by scorer, assister or date…" oninput="filterProfileHighlights('${safeGifKey}','${panelKey}',null,null,this.value)"
+            id="hl-search-${panelKey}-${safeGifKey}"
+            style="background:var(--card2);border:1px solid var(--border);color:var(--text);border-radius:7px;padding:6px 10px;font-size:.72rem;font-family:'Barlow',sans-serif;outline:none;margin-bottom:8px;flex-shrink:0;width:100%;box-sizing:border-box">` : ''}
+          ${filterChips}
+          <div id="hl-panel-${panelKey}-${safeGifKey}" style="flex:1;min-height:0;overflow-y:auto;padding-right:4px">
+            ${renderDayGroups(items, panelKey, emptyMsg)}
           </div>
           ${showHint ? `<div style="font-size:.55rem;color:var(--muted);margin-top:6px;opacity:.6;flex-shrink:0">Flag goals with ! and assists with * in the Goal Combos importer</div>` : ''}
         </div>`;
+        };
+
+        // Stash raw data + render helpers on window so the filter function can re-render
+        // without regenerating the whole profile.
+        window._profileHighlightData = window._profileHighlightData || {};
+        window._profileHighlightData[safeGifKey] = {
+          highlights, lowlights, renderDayGroups, TYPE_META,
+        };
 
         const showHint = allHighlights.length && !allHighlights.some(h=>h.ytId);
-        return buildPanel('⭐ Highlights', highlights, 'No highlights recorded yet', showHint)
-          + buildPanel('😬 Lowlights', lowlights, 'No lowlights recorded', false);
+        return buildPanel('main', '⭐ Highlights', highlights, 'No highlights recorded yet', showHint)
+          + buildPanel('low', '😬 Lowlights', lowlights, 'No lowlights recorded', false);
       })()}
     </div>
 
@@ -12242,6 +12511,8 @@ function renderProfile(name) {
       </details>`;
     })()}
 
+    <div id="profile-gk-timeline"></div>
+
     <!-- ═══ STRIKE PARTNERSHIPS removed ═══ -->
 `;
 
@@ -12262,6 +12533,7 @@ function renderProfile(name) {
   setTimeout(() => {
     renderProfileHeatmap(name, window._hmapType||'shot');
     renderProfileTimeStats(name);
+    renderProfileGkTimeline(name);
 
     // Init interactive shot map
     (() => {
