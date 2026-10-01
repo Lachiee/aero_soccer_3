@@ -12,6 +12,12 @@
     "nutmegs": 0.1,
     "post": 0.2
   },
+  "mvpShotConversion": {
+    "strength": 0.5,
+    "priorShots": 10,
+    "min": 0.7,
+    "max": 1.5
+  },
   "customStats": {
     "Amin": {
       "enforcer": 9,
