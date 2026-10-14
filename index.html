@@ -2474,7 +2474,7 @@ let playerNotes = {};
 const BAL = {
   // 1 / 2 — goalkeeping and roles
   gkPriorShots: 20,          // pseudo-shots of group-average keeping blended into each keeper
-  gkMinMinutes: 20,          // minutes in goal before a keeper can count as "proven"
+  gkMinMinutes: 90,          // minutes in goal before a keeper counts as proven / is ranked anywhere (races, tags, leaderboard)
   gkProvenMargin: 0.02,      // proven keeper = shrunk save rate no more than this below the group average
   gkShotsOnTarget: 24,       // typical shots on target a team faces per game
   gkWeight: 12,              // balance-score points per expected goal of keeping difference
@@ -4085,8 +4085,8 @@ function buildTagAuction() {
     'Pressure Cooker':   m => m.pressureScore   || 0,
     'Spark Plug':        m => m.defChainScore   || 0,
     'Iron Man':          m => m.gkMinutes       || 0,
-    'Brick Wall':        m => m.gkConcededPer90 != null && m.gkMinutes >= 30 ? 90 - m.gkConcededPer90 * 10 : 0,
-    'Shot Stopper':      m => m.gkSavesPer90    != null && m.gkMinutes >= 30 ? m.gkSavesPer90 : 0,
+    'Brick Wall':        m => m.gkConcededPer90 != null && m.gkMinutes >= BAL.gkMinMinutes ? 90 - m.gkConcededPer90 * 10 : 0,
+    'Shot Stopper':      m => m.gkSavesPer90    != null && m.gkMinutes >= BAL.gkMinMinutes ? m.gkSavesPer90 : 0,
   };
   Object.entries(shotTagFns).forEach(([label, fn]) => {
     let bestP = null, bestV = 0;
@@ -4578,14 +4578,12 @@ function renderSeasonSummary() {
     { label:'📈 Most Improved (MIP)',     desc:'Performance score: early season vs late season',           fn: mipScore,          fmt: v => (v>0?'+':'')+v.toFixed(1)+' pts/g', min: 8 },
     { label:'⚽ Golden Boot Race',        desc:'Goals per game',                                           fn: gpgScore,          fmt: v => v.toFixed(2)+' gpg' },
     { label:'🎯 Playmaker Race',          desc:'Assists + key passes per game',                            fn: creatorScore,      fmt: v => v.toFixed(2)+'/g' },
-    { label:'🧤 Best Goalkeeper Race',    desc:'Saves per 55 min in goal — only players with event log GK data',
+    { label:'🧤 Best Goalkeeper Race',    desc:'Save rate (saves ÷ shots faced, adjusted for small samples) — needs 90+ minutes in goal, from event log GK data',
       fn: p => {
-        const ts = getPlayerEventStats(p.player);
-        // Only rank players who have actually been tracked in goal
-        if (ts?.gkSavesPer90 != null && ts.gkMinutes >= 10) return ts.gkSavesPer90;
-        return -Infinity; // exclude players without GK time data
+        const g = gkRankRate(p.player);
+        return g ? g.rate : -Infinity; // not enough time in goal = not ranked
       },
-      fmt: v => v.toFixed(1)+' saves/55', min: 1 },
+      fmt: v => Math.round(v*100)+'% saved', min: 1 },
     { label:'🤝 Team Player Race',        desc:'Win rate %',                                               fn: winRateScore,      fmt: v => Math.round(v)+'%' },
     { label:'⏱ Clutch Player Race',       desc:'Late goals (47+ min) — winning/decisive goals weighted more', fn: clutchPlayerScore, fmt: v => v.toFixed(1)+' pts' },
     { label:'⚡ X-Factor Race',          desc:'Variance × goals per game — the most unpredictable match-winner. Can be invisible then score 5. High floor players won\'t win this.', fn: xFactorRaceScore,  fmt: v => v.toFixed(2)+' pts', min: 5 },
@@ -12798,8 +12796,8 @@ function renderLeaderboard() {
     // so a lot of players won't have a value at all here. Return null (not 0) so they render
     // as a dash instead of looking like they scored zero.
     if (lbStat === 'save_rate') {
-      const ts = getPlayerEventStats(p.player);
-      return (ts && ts.gkSaveRate != null) ? Math.round(ts.gkSaveRate * 100) : null;
+      const g = gkRankRate(p.player);
+      return g ? Math.round(g.rate * 100) : null;
     }
     if (lbStat === 'def_sparks') {
       const ts = getPlayerEventStats(p.player);
@@ -12876,7 +12874,7 @@ function renderLeaderboard() {
     else if (lbStat === 'shot_conversion') allTimeVals[p.player] = p.total_shots > 0 ? parseFloat((p.goals/p.total_shots*100).toFixed(1)) : 0;
     else if (lbStat === 'shot_accuracy') allTimeVals[p.player] = p.total_shots > 0 ? parseFloat((p.shots_on_target/p.total_shots*100).toFixed(1)) : 0;
     else if (lbStat === 'rating') allTimeVals[p.player] = p.rating || 0;
-    else if (lbStat === 'save_rate') { const ts = getPlayerEventStats(p.player); allTimeVals[p.player] = (ts && ts.gkSaveRate != null) ? Math.round(ts.gkSaveRate*100) : null; }
+    else if (lbStat === 'save_rate') { const g = gkRankRate(p.player); allTimeVals[p.player] = g ? Math.round(g.rate*100) : null; }
     else if (lbStat === 'def_sparks') { const ts = getPlayerEventStats(p.player); allTimeVals[p.player] = (ts && ts.defChains) ? (lbPerGame ? ts.defChainsPerMatch : ts.defChains) : null; }
     else if (lbStat === 'clutch') { const ts = getPlayerEventStats(p.player); allTimeVals[p.player] = (ts && ts.clutchTotal) ? (lbPerGame ? ts.clutchPerMatch : ts.clutchTotal) : null; }
     else { const raw = p[lbStat] ?? 0; allTimeVals[p.player] = lbPerGame && !noPerGame.includes(lbStat) ? raw/g : raw; }
@@ -13865,21 +13863,22 @@ function balGkRecord(name) {
   };
 }
 function balGkPrior() {
-  if (_balCache.gkPrior != null) return _balCache.gkPrior;
+  if (_balCache.gkPrior != null && Date.now() - (_balCache.gkPriorAt || 0) < 3000) return _balCache.gkPrior;
   let sv = 0, cc = 0;
   Object.keys(playerStats).forEach(nm => {
     const r = balGkRecord(nm);
     sv += r.saves; cc += r.conceded;
   });
   _balCache.gkPrior = (sv + cc) > 0 ? sv / (sv + cc) : 0.65;
+  _balCache.gkPriorAt = Date.now();
   return _balCache.gkPrior;
 }
 // save rate shrunk toward the group average by how many shots they have faced
 function balGkRate(name) {
-  const key = 'gk:' + name;
+  const prior = balGkPrior();
+  const key = 'gk:' + name + ':' + (_balCache.gkPriorAt || 0);
   if (_balCache[key]) return _balCache[key];
   const r = balGkRecord(name);
-  const prior = balGkPrior();
   const shots = r.saves + r.conceded;
   const rate = (r.saves + prior * BAL.gkPriorShots) / (shots + BAL.gkPriorShots);
   const out = { rate, raw: shots > 0 ? r.saves / shots : null, minutes: r.minutes, shots,
@@ -13887,6 +13886,11 @@ function balGkRate(name) {
                 proven: r.minutes >= BAL.gkMinMinutes && rate >= prior - BAL.gkProvenMargin };
   _balCache[key] = out;
   return out;
+}
+// ranking rate: shrunk save rate, but only for players with enough time in goal
+function gkRankRate(name) {
+  const g = balGkRate(name);
+  return g.minutes >= BAL.gkMinMinutes ? { rate: g.rate, raw: g.raw, minutes: g.minutes } : null;
 }
 // team keeping: players weighted by how much of a game they normally spend in goal
 function balTeamKeeping(team) {
@@ -14412,12 +14416,12 @@ function renderTeamResult(tA, tB) {
         { label: '💪 Under Pressure',         key: 'pressure', fmt: v => v.toFixed(1)+'/opp', tip: 'Avg stats in 90s after conceding a goal' },
       ];
       // GK save rate comparison — most meaningful keeper stat
-      const gkRateA = tA.map(p => { const ts = getPlayerEventStats(p.player); return ts?.gkSaveRate != null && ts.gkMinutes >= 10 ? { player: p.player, rate: ts.gkSaveRate, mins: ts.gkMinutes } : null; }).filter(Boolean);
-      const gkRateB = tB.map(p => { const ts = getPlayerEventStats(p.player); return ts?.gkSaveRate != null && ts.gkMinutes >= 10 ? { player: p.player, rate: ts.gkSaveRate, mins: ts.gkMinutes } : null; }).filter(Boolean);
+      const gkRateA = tA.map(p => { const g = p._isCustom ? null : gkRankRate(p.player); return g ? { player: p.player, rate: g.rate, mins: g.minutes } : null; }).filter(Boolean);
+      const gkRateB = tB.map(p => { const g = p._isCustom ? null : gkRankRate(p.player); return g ? { player: p.player, rate: g.rate, mins: g.minutes } : null; }).filter(Boolean);
       const bestGkA = gkRateA.sort((a,b)=>b.rate-a.rate)[0];
       const bestGkB = gkRateB.sort((a,b)=>b.rate-a.rate)[0];
       const gkRow = (bestGkA || bestGkB) ? `
-        <div style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:.75rem" data-tip="Best available keeper save rate — saves / (saves + goals conceded) per 55 min in goal">
+        <div style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:.75rem" data-tip="Best available keeper save rate (adjusted for small samples) — only keepers with 90+ minutes in goal">
           <span style="flex:1;color:var(--muted)">🧤 Best keeper (save rate)</span>
           <span style="color:${bestGkA?'var(--green)':'rgba(255,255,255,.3)'};min-width:52px;text-align:right">${bestGkA ? Math.round(bestGkA.rate*100)+'% '+bestGkA.player.split(' ')[0] : '—'}</span>
           <span style="color:var(--muted);font-size:.65rem;min-width:28px;text-align:center">${bestGkA&&bestGkB ? (bestGkA.rate>=bestGkB.rate?'A ›':'‹ B') : '='}</span>
