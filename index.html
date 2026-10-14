@@ -738,6 +738,11 @@ canvas.spider{display:block;margin:0 auto}
       title="Adjusts player ratings based on win rate — high win rate gets a small nerf, low win rate gets a small buff">
       ⚖ Win Rate Balance: OFF
     </button>
+    <button id="impact-adj-btn" onclick="toggleImpactAdjust()"
+      style="padding:6px 14px;border-radius:7px;cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-size:.82rem;letter-spacing:.5px;text-transform:uppercase;border:1px solid var(--lime);background:rgba(168,224,80,.1);color:var(--lime);transition:all .15s"
+      title="Adjusts ratings by how each player's teams have actually done (goal difference when they play, shrunk for small samples, capped at ±4 points)">
+      📉 Impact Adjust: ON
+    </button>
     <div id="winrate-strength-wrap" style="display:flex;align-items:center;gap:6px;font-family:'Barlow Condensed',sans-serif;font-size:.78rem;color:var(--muted)">
       <span style="white-space:nowrap">Strength</span>
       <input type="range" min="0.05" max="0.40" step="0.05" value="0.20"
@@ -814,16 +819,18 @@ canvas.spider{display:block;margin:0 auto}
     🤏 Drag any player card between teams to adjust
   </div>
 
-  <!-- Team Synergy Breakdown -->
-  <div id="synergy-section" style="display:none;margin-top:16px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:18px">
-    <div style="font-family:'Barlow Condensed',sans-serif;font-size:.85rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:14px">🤝 Team Chemistry</div>
-    <div id="synergy-content"></div>
-  </div>
-
   <!-- Predicted Result -->
   <div id="predict-section" style="display:none;margin-top:16px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:18px">
     <div style="font-family:'Barlow Condensed',sans-serif;font-size:.85rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:14px">🔮 Predicted Result</div>
     <div id="predict-content"></div>
+  </div>
+
+  <!-- Team Synergy Breakdown (collapsible, below predicted result) -->
+  <div id="synergy-section" style="display:none;margin-top:16px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px 18px">
+    <details>
+      <summary style="cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-size:.85rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted)">🤝 Team Chemistry <span style="font-size:.7rem;opacity:.6;text-transform:none;letter-spacing:0">· click to expand</span></summary>
+      <div id="synergy-content" style="margin-top:14px"></div>
+    </details>
   </div>
 
   <!-- Attack combo predictions -->
@@ -2463,6 +2470,37 @@ let playerStats = {};
 let matchList = [];
 var customStats = window.customStats || {};
 let playerNotes = {};
+// ---- Balance v2 settings (see helpers above autoBalance) ----
+const BAL = {
+  // 1 / 2 — goalkeeping and roles
+  gkPriorShots: 20,          // pseudo-shots of group-average keeping blended into each keeper
+  gkMinMinutes: 20,          // minutes in goal before a keeper can count as "proven"
+  gkProvenMargin: 0.02,      // proven keeper = shrunk save rate no more than this below the group average
+  gkShotsOnTarget: 24,       // typical shots on target a team faces per game
+  gkWeight: 12,              // balance-score points per expected goal of keeping difference
+  gkUnknownShare: 0.15,      // assumed share of a game in goal for players with no keeper record
+  gameMinutes: 55,
+  finisherGpg: 2.75,         // recent goals/game for a proven finisher
+  roleMissingPenalty: 60,    // balance-score penalty per missing role per team
+  // 3 — on/off impact
+  impactWindow: 30,          // most recent matches used
+  impactLambda: 20,          // ridge strength (halves of prior evidence)
+  impactPtsPerGoal: 5,       // rating points per goal of game difference
+  impactStrength: 0.6,       // how much of the estimate is applied
+  impactCap: 4,              // max +/- rating points
+  // 4 — new players
+  shrinkMinGames: 8,         // players under this many games are blended toward the group mean
+  activeDays: 120,           // "current" group = played within this many days of the latest match
+  // 6 — chemistry
+  chemShrinkGames: 10,       // delta *= games / (games + this)
+  chemCap: 15,               // cap on a pair's shrunk delta (pct points)
+  comboCap: 12,              // cap on combo bonus (was 20)
+  synergyTermCap: 20,        // cap on the synergy term in the balance score
+};
+
+let impactAdjustEnabled = true;
+let _balCache = {};
+
 let playerBuffs = {}; // name → flat rating bonus (can be negative)
 let playerGifs = {};
 let selectedForTeams = new Set();
@@ -13470,6 +13508,17 @@ function computeStaminaFromEvents(playerName) {
 }
 
 function computeWeightedRating(playerName) {
+  const raw = computeWeightedRatingRaw(playerName);
+  const p = playerStats[playerName];
+  if (!p || typeof BAL === 'undefined') return raw;
+  const w = Math.min(1, (Math.max(p.games, 0) + 1) / (BAL.shrinkMinGames + 1));
+  if (w >= 1) return raw;
+  const mean = balGroupMeanRating();
+  if (!(mean > 0)) return raw;
+  return parseFloat((w * raw + (1 - w) * mean).toFixed(2));
+}
+
+function computeWeightedRatingRaw(playerName) {
   const p = playerStats[playerName];
   const cs = customStats[playerName] || {};
   if (!p) return 0;
@@ -13528,16 +13577,17 @@ function getPlayerRole(p) {
 }
 
 function teamDimensions(team) {
-  let attack = 0, defense = 0, playmaking = 0, gk = 0, enforcer = 0;
+  let attack = 0, defense = 0, playmaking = 0, enforcer = 0;
   team.forEach(p => {
     const games = Math.max(p.games, 1);
     const cs = customStats[p.player] || {};
     attack   += (p.goals / games) * 4 + (p.nutmegs / games) * 0.5;
     defense  += ((p.tackles + p.interceptions + p.blocks) / games) * 1.2;
     playmaking += (p.assists / games) * 3 + (p.key_passes / games) * 1;
-    gk       += ((p.goalkeeper_saves || 0) / games) * 2;
     enforcer += p.enforcer != null ? p.enforcer : n(cs.enforcer || 0);
   });
+
+  const gk = balTeamKeeping(team).rate * 20;   // keeping quality (save rate), not save volume
 
   // Team synergy: sum of pairwise chemistry deltas within the team
   // Combined from win-rate chemistry AND goal combo frequency
@@ -13545,8 +13595,10 @@ function teamDimensions(team) {
   const chemLookupLocal = {};
   (window._filteredChemistry || window._chemistry || []).forEach(c => {
     if ((c.games || 0) >= minChemGames) {
-      chemLookupLocal[`${c.p1}|||${c.p2}`] = c.delta;
-      chemLookupLocal[`${c.p2}|||${c.p1}`] = c.delta;
+      // shrink small samples toward 0, then cap
+      const sd = Math.max(-BAL.chemCap, Math.min(BAL.chemCap, c.delta * (c.games / (c.games + BAL.chemShrinkGames))));
+      chemLookupLocal[`${c.p1}|||${c.p2}`] = sd;
+      chemLookupLocal[`${c.p2}|||${c.p1}`] = sd;
     }
   });
 
@@ -13557,7 +13609,7 @@ function teamDimensions(team) {
     if (c.matchCount >= 3) {
       // Normalise: 1 combo/game = +5% chemistry boost, capped at +20%
       const rate = c.goals / c.matchCount;
-      const bonus = Math.min(rate * 5, 20);
+      const bonus = Math.min(rate * 5, BAL.comboCap);
       const key1 = `${c.scorer}|||${c.assister}`;
       const key2 = `${c.assister}|||${c.scorer}`;
       comboChemBonus[key1] = (comboChemBonus[key1] || 0) + bonus;
@@ -13639,6 +13691,7 @@ function renderKeepApartList() {
 }
 
 function shuffleTeams() {
+  balResetCache();
   // Build rated player objects same way autoBalance does
   const sel = [...selectedForTeams].map(name => {
     const p = customPlayers[name] || playerStats[name];
@@ -13662,9 +13715,11 @@ function shuffleTeams() {
       streakMod = 1 + ((wr - 0.5) * winRateAugStrength * 2);
     }
     const buff = playerBuffs[name] || 0;
+    const impactAdj = p._isCustom ? 0 : balImpactAdj(name);
     return {
       ...p,
-      effectiveRating: weightedRating * (1 - pen) * streakMod + buff,
+      effectiveRating: weightedRating * (1 - pen) * streakMod + buff + impactAdj,
+      impactAdj,
       weightedRating,
       streakMod,
       playerBuff: buff,
@@ -13786,7 +13841,198 @@ function shuffleTeams() {
   }
 }
 
+
+// =====================================================================
+// BALANCE v2 helpers
+//  1. goalkeeper quality (save rate, shrunk) instead of save volume
+//  2. role requirements (proven keeper + proven finisher per team)
+//  3. on/off impact adjustment (ridge-regressed goal difference)
+//  4. small-sample shrinkage for players with few games
+//  6. shrunk + capped chemistry
+// =====================================================================
+function balResetCache() { _balCache = {}; }
+
+// ---- 1. goalkeeper quality ----
+function balGkRecord(name) {
+  const ts = getPlayerEventStats(name);
+  if (!ts || !(ts.gkMinutes > 0)) return { saves: 0, conceded: 0, minutes: 0, share: null };
+  const games = Math.max(ts.matchesWithData || 1, 1);
+  return {
+    saves: ts.gkSaves || 0,
+    conceded: ts.gkGoalsConceded || 0,
+    minutes: ts.gkMinutes,
+    share: Math.min(1, ts.gkMinutes / (games * BAL.gameMinutes)),
+  };
+}
+function balGkPrior() {
+  if (_balCache.gkPrior != null) return _balCache.gkPrior;
+  let sv = 0, cc = 0;
+  Object.keys(playerStats).forEach(nm => {
+    const r = balGkRecord(nm);
+    sv += r.saves; cc += r.conceded;
+  });
+  _balCache.gkPrior = (sv + cc) > 0 ? sv / (sv + cc) : 0.65;
+  return _balCache.gkPrior;
+}
+// save rate shrunk toward the group average by how many shots they have faced
+function balGkRate(name) {
+  const key = 'gk:' + name;
+  if (_balCache[key]) return _balCache[key];
+  const r = balGkRecord(name);
+  const prior = balGkPrior();
+  const shots = r.saves + r.conceded;
+  const rate = (r.saves + prior * BAL.gkPriorShots) / (shots + BAL.gkPriorShots);
+  const out = { rate, raw: shots > 0 ? r.saves / shots : null, minutes: r.minutes, shots,
+                share: r.share != null ? r.share : BAL.gkUnknownShare,
+                proven: r.minutes >= BAL.gkMinMinutes && rate >= prior - BAL.gkProvenMargin };
+  _balCache[key] = out;
+  return out;
+}
+// team keeping: players weighted by how much of a game they normally spend in goal
+function balTeamKeeping(team) {
+  let wSum = 0, rSum = 0, best = null, worst = null;
+  team.forEach(p => {
+    const g = p._isCustom ? { rate: balGkPrior(), minutes: 0, share: BAL.gkUnknownShare, proven: false, raw: null } : balGkRate(p.player);
+    const w = Math.max(g.share, 0.02);
+    wSum += w; rSum += w * g.rate;
+    if (g.minutes >= BAL.gkMinMinutes) {
+      if (!best || g.rate > best.rate) best = { player: p.player, rate: g.rate, raw: g.raw };
+      if (!worst || g.rate < worst.rate) worst = { player: p.player, rate: g.rate, raw: g.raw, share: g.share };
+    }
+  });
+  const rate = wSum > 0 ? rSum / wSum : balGkPrior();
+  return { rate, expConceded: (1 - rate) * BAL.gkShotsOnTarget, best, worst, proven: team.some(p => !p._isCustom && balGkRate(p.player).proven) };
+}
+
+// ---- 2. role requirements ----
+function balRecentGpg(name) {
+  const key = 'gpg:' + name;
+  if (_balCache[key] != null) return _balCache[key];
+  const p = playerStats[name];
+  let v = 0;
+  if (p && p.matches) {
+    const rows = [...p.matches]
+      .filter(r => r.match_date && r.half === 'FULL' && r.team !== 'DNP' && r.team !== '-')
+      .sort((a, b) => (b.match_date || '').localeCompare(a.match_date || ''))
+      .slice(0, 10);
+    v = rows.length ? rows.reduce((s, r) => s + n(r.goals), 0) / rows.length : 0;
+  }
+  _balCache[key] = v;
+  return v;
+}
+function balTeamRoles(team) {
+  const hasKeeper = team.some(p => !p._isCustom && balGkRate(p.player).proven);
+  const hasFinisher = team.some(p => p._isCustom ? false : balRecentGpg(p.player) >= BAL.finisherGpg);
+  return { hasKeeper, hasFinisher };
+}
+
+// ---- 3. on/off impact (ridge-regressed goal difference per half) ----
+function balImpactTable() {
+  if (_balCache.impact) return _balCache.impact;
+  const table = {};
+  const recent = [...matchList]
+    .filter(m => m.rows && m.rows.some(r => r.half === '1H' || r.half === '2H'))
+    .sort((a, b) => b.date.localeCompare(a.date))
+    .slice(0, BAL.impactWindow);
+  const obs = [];           // { x: {player: +1/-1}, y }
+  const names = new Set();
+  recent.forEach(m => {
+    const fullTeam = {};
+    m.rows.filter(r => r.half === 'FULL' && (r.team === 'A' || r.team === 'B')).forEach(r => { fullTeam[r.player] = r.team; });
+    ['1H', '2H'].forEach(h => {
+      const rows = m.rows.filter(r => r.half === h && (r.team === 'A' || r.team === 'B'));
+      if (!rows.length) return;
+      const x = {};
+      let gA = 0, gB = 0;
+      rows.forEach(r => {
+        x[r.player] = r.team === 'A' ? 1 : -1;
+        if (r.team === 'A') { gA += n(r.goals); gB += n(r.own_goals); }
+        else                { gB += n(r.goals); gA += n(r.own_goals); }
+      });
+      Object.entries(fullTeam).forEach(([pl, t]) => { if (!(pl in x)) x[pl] = t === 'A' ? 1 : -1; });
+      Object.keys(x).forEach(pl => names.add(pl));
+      obs.push({ x, y: gA - gB });
+    });
+  });
+  const list = [...names];
+  const idx = {}; list.forEach((nm, i) => { idx[nm] = i; });
+  const k = list.length;
+  if (!k || obs.length < 6) { _balCache.impact = table; return table; }
+  // normal equations (X'X + lambda I) b = X'y
+  const M = Array.from({ length: k }, () => new Array(k + 1).fill(0));
+  obs.forEach(o => {
+    const ents = Object.entries(o.x);
+    ents.forEach(([a, xa]) => {
+      const i = idx[a];
+      M[i][k] += xa * o.y;
+      ents.forEach(([b, xb]) => { M[i][idx[b]] += xa * xb; });
+    });
+  });
+  for (let i = 0; i < k; i++) M[i][i] += BAL.impactLambda;
+  // Gaussian elimination with partial pivoting
+  for (let c = 0; c < k; c++) {
+    let piv = c;
+    for (let r = c + 1; r < k; r++) if (Math.abs(M[r][c]) > Math.abs(M[piv][c])) piv = r;
+    [M[c], M[piv]] = [M[piv], M[c]];
+    const d = M[c][c];
+    if (Math.abs(d) < 1e-9) continue;
+    for (let j = c; j <= k; j++) M[c][j] /= d;
+    for (let r = 0; r < k; r++) {
+      if (r === c) continue;
+      const f = M[r][c];
+      if (!f) continue;
+      for (let j = c; j <= k; j++) M[r][j] -= f * M[c][j];
+    }
+  }
+  const halvesBy = {};
+  obs.forEach(o => Object.keys(o.x).forEach(pl => { halvesBy[pl] = (halvesBy[pl] || 0) + 1; }));
+  list.forEach((nm, i) => {
+    const beta = M[i][k];                         // goals per half vs an average player
+    const pts = beta * 2 * BAL.impactPtsPerGoal * BAL.impactStrength;
+    table[nm] = { beta, halves: halvesBy[nm] || 0, pts: Math.max(-BAL.impactCap, Math.min(BAL.impactCap, pts)) };
+  });
+  _balCache.impact = table;
+  return table;
+}
+function balImpactAdj(name) {
+  if (!impactAdjustEnabled) return 0;
+  const t = balImpactTable()[name];
+  return t ? t.pts : 0;
+}
+function toggleImpactAdjust() {
+  impactAdjustEnabled = !impactAdjustEnabled;
+  const btn = document.getElementById('impact-adj-btn');
+  if (btn) {
+    btn.textContent = `📉 Impact Adjust: ${impactAdjustEnabled ? 'ON' : 'OFF'}`;
+    btn.style.borderColor = impactAdjustEnabled ? 'var(--lime)' : 'var(--border)';
+    btn.style.background  = impactAdjustEnabled ? 'rgba(168,224,80,.1)' : 'transparent';
+    btn.style.color       = impactAdjustEnabled ? 'var(--lime)' : 'var(--muted)';
+  }
+  if (teamA.length || teamB.length) renderTeamResult(teamA, teamB);
+}
+
+// ---- 4. group mean for shrinking low-sample players ----
+function balGroupMeanRating() {
+  if (_balCache.groupMean != null) return _balCache.groupMean;
+  let latest = '';
+  matchList.forEach(m => { if (m.date > latest) latest = m.date; });
+  const cutoff = latest ? new Date(new Date(latest).getTime() - BAL.activeDays * 86400000).toISOString().slice(0, 10) : '';
+  const vals = [];
+  Object.keys(playerStats).forEach(nm => {
+    const p = playerStats[nm];
+    if (!p || p.games < BAL.shrinkMinGames) return;
+    const lastPlayed = (p.matches || []).reduce((mx, r) => (r.match_date && r.match_date > mx ? r.match_date : mx), '');
+    if (cutoff && lastPlayed < cutoff) return;
+    const v = computeWeightedRatingRaw(nm);
+    if (v > 0) vals.push(v);
+  });
+  _balCache.groupMean = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
+  return _balCache.groupMean;
+}
+
+
 function autoBalance(rebalanceOnly = false) {
+  balResetCache();
   const sel = [...selectedForTeams].map(name => {
     // Check custom players first, then regular player stats
     const p = customPlayers[name] || playerStats[name];
@@ -13827,9 +14073,11 @@ function autoBalance(rebalanceOnly = false) {
     }
 
     const buff = playerBuffs[name] || 0;
+    const impactAdj = p._isCustom ? 0 : balImpactAdj(name);
     return {
       ...p,
-      effectiveRating: weightedRating * (1 - pen) * streakMod + buff,
+      effectiveRating: weightedRating * (1 - pen) * streakMod + buff + impactAdj,
+      impactAdj,
       weightedRating,
       streakMod,
       streakLabel,
@@ -13863,19 +14111,25 @@ function autoBalance(rebalanceOnly = false) {
     const rB = b.reduce((s,p) => s + p.effectiveRating, 0);
     const abs = (x, y) => Math.abs(x - y);
 
-    // GK balance: sum goalkeeper_saves/game for each team
-    const gkScore = (team) => team.reduce((s,p) => s + ((p.goalkeeper_saves||0) / Math.max(p.games,1)), 0);
-    const gkA = gkScore(a), gkB = gkScore(b);
+    // GK balance: expected goals lost to keeping quality (shrunk save rate, weighted by
+    // how much of a game each player normally spends in goal) — NOT save volume
+    const kA = balTeamKeeping(a), kB = balTeamKeeping(b);
 
-    // Chemistry imbalance — heavily weighted so teams with stacked good pairs get split
-    const synergyDiff = Math.abs(dA.synergy - dB.synergy) * 5.0;
+    // Role requirements: every team should have a proven keeper and a proven finisher
+    const roleA = balTeamRoles(a), roleB = balTeamRoles(b);
+    const rolePen = ((roleA.hasKeeper ? 0 : 1) + (roleA.hasFinisher ? 0 : 1) +
+                     (roleB.hasKeeper ? 0 : 1) + (roleB.hasFinisher ? 0 : 1)) * BAL.roleMissingPenalty;
+
+    // Chemistry imbalance — shrunk + capped (see teamDimensions) so a few lucky games can't dominate
+    const synergyDiff = Math.min(Math.abs(dA.synergy - dB.synergy) * 5.0, BAL.synergyTermCap);
 
     return (
       abs(rA, rB) * 3.0 +
       abs(dA.attack, dB.attack) * 1.5 +
       abs(dA.defense, dB.defense) * 1.5 +
       abs(dA.playmaking, dB.playmaking) * 1.0 +
-      abs(gkA, gkB) * 2.0 +
+      abs(kA.expConceded, kB.expConceded) * BAL.gkWeight +
+      rolePen +
       synergyDiff
     );
   };
@@ -14102,6 +14356,7 @@ function getPenalty(note) {
 }
 
 function renderTeamResult(tA, tB) {
+  balResetCache();
   // Recompute effectiveRating for all players in case notes/penalties changed
   const recomputeRating = (p) => {
     const pen = getPenalty(playerNotes[p.player]);
@@ -14110,7 +14365,8 @@ function renderTeamResult(tA, tB) {
       : computeWeightedRating(p.player);
     const streakMod = p._isCustom ? 1.0 : (p.streakMod || 1.0);
     const buff = playerBuffs[p.player] || 0;
-    p.effectiveRating = weightedRating * (1 - pen) * streakMod + buff;
+    p.impactAdj = p._isCustom ? 0 : balImpactAdj(p.player);
+    p.effectiveRating = weightedRating * (1 - pen) * streakMod + buff + p.impactAdj;
     p.weightedRating = weightedRating;
     p.playerBuff = buff;
     p.enforcerRaw = n((customStats[p.player] || {}).enforcer || 0);
@@ -14209,6 +14465,7 @@ function renderTeamResult(tA, tB) {
       <span class="tp-name" onclick="nav('profile','${p.player}')" style="cursor:pointer">${p.player}</span>
       <span style="font-size:.7rem;opacity:.55">${roleIcon[role]} ${roleLabel[role]}</span>
       ${p.streakLabel ? `<span style="font-size:.65rem;font-weight:600;padding:1px 6px;border-radius:4px;${p.streakLabel.type==='buff'?'background:rgba(96,165,250,.15);color:#60a5fa':'background:rgba(239,68,68,.12);color:#f87171'}" title="${p.streakLabel.type==='buff'?'Win rate is low — rating buffed to help balance teams':'Win rate is high — rating slightly nerfed to help balance teams'}">WR ${p.streakLabel.text}</span>` : ''}
+      ${(adminMode && p.impactAdj && Math.abs(p.impactAdj) >= 0.3) ? `<span style="font-size:.65rem;font-weight:600;padding:1px 6px;border-radius:4px;${p.impactAdj>0?'background:rgba(74,222,128,.12);color:#4ade80':'background:rgba(248,113,113,.12);color:#f87171'}" data-tip="Impact adjustment from how this player's teams have done (goal difference while on the pitch, shrunk for small samples)">${p.impactAdj>0?'▲':'▼'} impact ${p.impactAdj>0?'+':''}${p.impactAdj.toFixed(1)}</span>` : ''}
       ${p.playerBuff ? `<span style="font-size:.65rem;font-weight:600;padding:1px 6px;border-radius:4px;${p.playerBuff>0?'background:rgba(74,222,128,.12);color:#4ade80':'background:rgba(248,113,113,.12);color:#f87171'}" data-tip="Manual buff applied — adjustable in Player Notes &amp; Buffs above">${p.playerBuff>0?'+':''}${p.playerBuff} buff</span>` : ''}
       ${(() => {
         const ps = playerStats[p.player];
@@ -14334,6 +14591,27 @@ function renderTeamResult(tA, tB) {
 
   // Append enforcer note under balance bar
   document.getElementById('balance-msg-area').innerHTML += enfNote;
+
+  // Role requirements + keeper guidance (proven keeper & finisher per team)
+  (() => {
+    const fmtGk = (k) => k ? `${k.player.split(' ')[0]} ${Math.round(k.rate*100)}%` : '—';
+    const line = (label, col, team) => {
+      const roles = balTeamRoles(team), k = balTeamKeeping(team);
+      const warns = [];
+      if (!roles.hasKeeper)   warns.push('no proven keeper');
+      if (!roles.hasFinisher) warns.push('no proven finisher');
+      return `<div style="font-size:.74rem;padding:3px 0">
+        <span style="color:${col};font-family:'Barlow Condensed',sans-serif;letter-spacing:1px;text-transform:uppercase;margin-right:6px">${label}</span>
+        ${warns.length ? `<span style="color:#fb923c">⚠ ${warns.join(' · ')}</span>` : `<span style="color:var(--green)">✓ keeper &amp; finisher covered</span>`}
+        <span style="color:var(--muted)"> · 🧤 best ${fmtGk(k.best)}</span>
+      </div>`;
+    };
+    document.getElementById('balance-msg-area').innerHTML +=
+      `<div style="background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;margin-bottom:10px">
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:.68rem;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:4px" data-tip="Keeper = ${BAL.gkMinMinutes}+ min in goal with a save rate (shrunk for small samples) within ${Math.round(BAL.gkProvenMargin*100)} pts of the group average (${Math.round(balGkPrior()*100)}%). Finisher = ${BAL.finisherGpg}+ goals/game over the last 10 games.">🧩 Role check</div>
+        ${line('Team A','var(--green)',tA)}${line('Team B','var(--blue)',tB)}
+      </div>`;
+  })();
 
   // Generate synergy breakdown and prediction
   renderTeamSynergy(tA, tB);
