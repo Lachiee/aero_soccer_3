@@ -6918,7 +6918,9 @@ function reelGetFilteredList() {
   const all = window._reelAllHighlights || (window._reelAllHighlights = getAllHighlights());
   const q = (_reelState.query || '').trim().toLowerCase();
   const p1 = _reelState.p1, p2 = _reelState.p2;
-  return all.filter(h => {
+  const twoPlayers = !!(p1 && p2 && p1 !== p2);
+  const playKey = h => `${h.mid}|${h.half}|${h.time}|${h.scorer}|${h.assister}`;
+  const filtered = all.filter(h => {
     if (_reelState.type !== 'all' && h.type !== _reelState.type) return false;
     if (p1 && p2 && p1 !== p2) {
       // two players: only goals/assists they were BOTH part of (either one scoring, the other assisting)
@@ -6930,6 +6932,11 @@ function reelGetFilteredList() {
     const haystack = `${h.scorer||''} ${h.assister||''} ${h.match.date||''}`.toLowerCase();
     return haystack.includes(q);
   });
+  // Two players picked: a goal and its assist-highlight are the same play (both players are already
+  // in the goal clip), so only show the goal and drop the duplicate assist clip.
+  if (!twoPlayers) return filtered;
+  const goalPlays = new Set(filtered.filter(h => h.type === 'goal').map(playKey));
+  return filtered.filter(h => !(h.type === 'assist' && goalPlays.has(playKey(h))));
 }
 
 function renderHighlightsReel() {
