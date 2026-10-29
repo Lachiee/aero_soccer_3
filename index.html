@@ -2543,13 +2543,8 @@ function openMvpTuner() {
     const tdS = 'padding:3px 5px;text-align:center;font-size:.65rem;color:#d4ead6;white-space:nowrap;border-bottom:1px solid rgba(255,255,255,.04)';
     const tdN = 'padding:3px 6px;font-size:.65rem;font-weight:600;white-space:nowrap;border-bottom:1px solid rgba(255,255,255,.04)';
     const calcMvp = r => {
-      const w = mvpWeights;
-      const raw = (w.goals*n(r.goals)+w.assists*n(r.assists)+w.key_passes*n(r.key_passes)+
-        w.shots_on_target*n(r.shots_on_target)+w.shots_off_target*n(r.shots_off_target)+
-        w.blocks*n(r.blocks)+w.tackles*n(r.tackles)+w.interceptions*n(r.interceptions)+
-        w.goalkeeper_saves*n(r.goalkeeper_saves)+w.nutmegs*n(r.nutmegs)+w.post*n(r.post));
       const match = matchList[window._tunerMatchIdx];
-      return applyGkNorm(raw, r.player, match?.id).toFixed(1);
+      return calcMvpScore(r, match?.id).toFixed(1);
     };
     const teamTable = (rows, color, label) => `
       <div style="font-size:.58rem;letter-spacing:1.5px;text-transform:uppercase;color:${color};margin:10px 0 4px;font-weight:700">${label}</div>
@@ -2580,17 +2575,9 @@ function openMvpTuner() {
     const previewMatch = matchList[window._tunerMatchIdx];
     if (!previewMatch) return '<p style="color:var(--muted);font-size:.75rem">No match data</p>';
     const allP = [...previewMatch.teamA, ...previewMatch.teamB];
-    const w = mvpWeights;
     const scored = allP.map(r => ({
       player: r.player,
-      score: parseFloat(applyGkNorm(
-        w.goals * n(r.goals) + w.assists * n(r.assists) + w.key_passes * n(r.key_passes) +
-        w.nutmegs * n(r.nutmegs) + w.tackles * n(r.tackles) + w.interceptions * n(r.interceptions) +
-        w.blocks * n(r.blocks) + w.goalkeeper_saves * n(r.goalkeeper_saves) +
-        w.shots_on_target * n(r.shots_on_target) + w.shots_off_target * n(r.shots_off_target) +
-        w.post * n(r.post),
-        r.player, previewMatch?.id
-      ).toFixed(1))
+      score: parseFloat(calcMvpScore(r, previewMatch?.id).toFixed(1))
     })).sort((a,b) => b.score - a.score).slice(0,5);
     const medals = ['👑','🥈','🥉','4th','5th'];
     return scored.map((s,i) => `<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);font-size:.78rem">
@@ -2639,6 +2626,27 @@ function openMvpTuner() {
                 Scales a player's score by their outfield time fraction. If someone spent 40% of the match in goals, at 100% strength their outfield stats are boosted ÷0.6 = ×1.67. Requires event log data.
               </div>
             </div>
+            <!-- Shot conversion -->
+            <div style="margin-top:20px;padding-top:14px;border-top:1px solid var(--border)">
+              <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px">
+                <span style="font-size:.75rem;color:var(--text2)">🎯 Shot Conversion Bonus</span>
+                <span id="w-val-convStrength" style="font-size:.75rem;color:var(--amber);font-weight:700;min-width:32px;text-align:right">${Math.round(mvpConv.strength*100)}%</span>
+              </div>
+              <input type="range" min="0" max="1" step="0.05" value="${mvpConv.strength}"
+                oninput="mvpConv.strength=parseFloat(this.value);document.getElementById('w-val-convStrength').textContent=Math.round(this.value*100)+'%';document.getElementById('mvp-live-preview').innerHTML=window._mvpTunerPreview();document.getElementById('mvp-match-stats').innerHTML=window._mvpMatchStats()"
+                style="width:100%;accent-color:var(--amber)">
+              <div style="display:flex;justify-content:space-between;align-items:baseline;margin:10px 0 3px">
+                <span style="font-size:.7rem;color:var(--text2)">Small-sample smoothing (shots)</span>
+                <span id="w-val-convPrior" style="font-size:.75rem;color:var(--amber);font-weight:700;min-width:32px;text-align:right">${mvpConv.priorShots}</span>
+              </div>
+              <input type="range" min="0" max="30" step="1" value="${mvpConv.priorShots}"
+                oninput="mvpConv.priorShots=parseInt(this.value);document.getElementById('w-val-convPrior').textContent=this.value;document.getElementById('mvp-live-preview').innerHTML=window._mvpTunerPreview();document.getElementById('mvp-match-stats').innerHTML=window._mvpMatchStats()"
+                style="width:100%;accent-color:var(--amber)">
+              <div style="font-size:.65rem;color:var(--muted);margin-top:5px;line-height:1.5">
+                Scales goal + shot points by finishing efficiency (goals ÷ shots) vs the league average (<strong style="color:var(--amber)">${(getLeagueConv()*100).toFixed(1)}%</strong>), softly capped around ×${mvpConv.min}–×${mvpConv.max}.
+                <strong style="color:var(--amber)">0%</strong> = off. Higher smoothing stops 1-shot-1-goal players getting a huge boost.
+              </div>
+            </div>
             <div style="display:flex;gap:8px;margin-top:16px">
               <button onclick="window._mvpSaveWeights()" style="flex:1;background:var(--green);color:#071009;border:none;border-radius:7px;padding:9px;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:1px;cursor:pointer">💾 Save</button>
               <button onclick="window._mvpResetWeights()" style="flex:1;background:var(--card2);border:1px solid var(--border);color:var(--muted);border-radius:7px;padding:9px;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:1px;cursor:pointer">↺ Reset</button>
@@ -2681,6 +2689,7 @@ function openMvpTuner() {
   window._mvpResetWeights = () => {
     mvpWeights = { ...MVP_WEIGHTS_DEFAULT };
     gkNormStrength = 0;
+    mvpConv = { ...MVP_CONV_DEFAULT };
     saveMvpWeights();
     saveGkNormStrength();
     renderModal();
@@ -3133,21 +3142,8 @@ function computeWinLoss(playerMap, matches) {
     // Use each player's combined full-match totals (not split half rows) so a swapped
     // player is scored once on their whole-match contribution, never occupying two medal slots.
     const allPlayers = m.rows.filter(r => r.half === 'FULL' && r.team !== 'DNP' && r.team !== '-');
-    const w = mvpWeights;
     const scored = allPlayers.map(r => {
-      const raw =
-        w.goals          * n(r.goals) +
-        w.assists        * n(r.assists) +
-        w.key_passes     * n(r.key_passes) +
-        w.nutmegs        * n(r.nutmegs) +
-        w.tackles        * n(r.tackles) +
-        w.interceptions  * n(r.interceptions) +
-        w.blocks         * n(r.blocks) +
-        w.goalkeeper_saves * n(r.goalkeeper_saves) +
-        w.shots_on_target  * n(r.shots_on_target) +
-        w.shots_off_target * n(r.shots_off_target) +
-        w.post           * n(r.post);
-      const score = applyGkNorm(raw, r.player, m.id);
+      const score = calcMvpScore(r, m.id);
       return { player: r.player, score: parseFloat(score.toFixed(2)) };
     });
     scored.sort((a, b) => b.score - a.score);
@@ -8139,6 +8135,7 @@ function updateDraftBanner() {
 function saveSettings() {
   const settings = {
     mvpWeights: { ...mvpWeights },
+    mvpShotConversion: { ...mvpConv },
     customStats: { ...customStats },
     bannerHeights: { ...bannerHeights },
     bannerSlowmo: { ...bannerSlowmo },
@@ -8189,7 +8186,7 @@ function saveSettings() {
 }
 
 function saveMvpWeights() {
-  try { localStorage.setItem(LS_MVP_WEIGHTS, JSON.stringify(mvpWeights)); } catch(e) {}
+  try { localStorage.setItem(LS_MVP_WEIGHTS, JSON.stringify(mvpWeights)); localStorage.setItem('aeroSoccer_mvpConv', JSON.stringify(mvpConv)); } catch(e) {}
 }
 
 function saveGkNormStrength() {
@@ -8226,6 +8223,74 @@ function applyGkNorm(rawScore, playerName, matchId) {
   const normalised = rawScore / Math.max(frac, 0.1); // cap so 10% outfield can't blow up to 10×
   return rawScore + (normalised - rawScore) * gkNormStrength;
 }
+
+// ── SHOT-CONVERSION MULTIPLIER ─────────────────────────────────────────
+// Scales a player's ATTACKING points (goals + shots on/off target) by how efficient their
+// finishing was compared with the league average, so 4 goals from 8 shots beats 4 goals
+// from 20 shots, and 18 wasted shots earn less than a few accurate ones.
+//   conversion  = goals / total_shots
+//   smoothed    = (goals + priorShots*leagueConv) / (shots + priorShots)
+//                 -> small samples (1 shot, 1 goal) get pulled toward average instead of
+//                    getting a silly 100% conversion
+//   multiplier  = 1 + strength*(smoothed/leagueConv - 1), softly compressed toward min/max (tanh)
+// strength 0 = feature off (multiplier is always 1). 0 shots = neutral (multiplier 1).
+const MVP_CONV_DEFAULT = { strength: 0.5, priorShots: 10, min: 0.7, max: 1.5 };
+let mvpConv = (() => {
+  try { const sv = localStorage.getItem('aeroSoccer_mvpConv'); return sv ? { ...MVP_CONV_DEFAULT, ...JSON.parse(sv) } : { ...MVP_CONV_DEFAULT }; }
+  catch(e) { return { ...MVP_CONV_DEFAULT }; }
+})();
+
+function _rowShots(r) {
+  const t = n(r.total_shots);
+  return t > 0 ? t : n(r.shots_on_target) + n(r.shots_off_target);
+}
+let _leagueConvCache = { ref: null, len: -1, val: 0.166 };
+function getLeagueConv() {
+  if (_leagueConvCache.ref === allRows && _leagueConvCache.len === allRows.length) return _leagueConvCache.val;
+  let g = 0, sh = 0;
+  allRows.forEach(r => {
+    if (r.half !== 'FULL' || r.team === 'DNP' || r.team === '-') return;
+    g += n(r.goals); sh += _rowShots(r);
+  });
+  const val = sh > 0 && g > 0 ? g / sh : 0.166;
+  _leagueConvCache = { ref: allRows, len: allRows.length, val };
+  return val;
+}
+function mvpShotMultiplier(r) {
+  const c = mvpConv;
+  if (!c || !c.strength || c.strength <= 0) return 1;
+  const shots = _rowShots(r);
+  if (shots <= 0) return 1;
+  const L = getLeagueConv();
+  const smoothed = (n(r.goals) + c.priorShots * L) / (shots + c.priorShots);
+  const x = c.strength * (smoothed / L - 1);
+  // Soft saturation (tanh) instead of a hard clamp: the multiplier keeps rising with better
+  // conversion but flattens toward max/min, so two very efficient players don't tie at the cap.
+  return x >= 0
+    ? 1 + (c.max - 1) * Math.tanh(x / (c.max - 1))
+    : 1 - (1 - c.min) * Math.tanh(-x / (1 - c.min));
+}
+
+// Single source of truth for a player's MVP score.
+//  - calcMvpCore : everything EXCEPT GK saves (attack x shot-conversion multiplier + other stats).
+//                  This is the part that GK time normalisation is allowed to scale.
+//  - calcMvpSaves: GK save points. Added AFTER normalisation so keepers aren't boosted twice.
+//  - calcMvpScore: the final match MVP score = applyGkNorm(core) + saves.
+//  - calcMvpRaw  : core + saves with NO GK normalisation (for views that don't use it).
+function calcMvpCore(r) {
+  const w = mvpWeights;
+  const attack = w.goals * n(r.goals) + w.shots_on_target * n(r.shots_on_target) + w.shots_off_target * n(r.shots_off_target);
+  const other  = w.assists * n(r.assists) + w.key_passes * n(r.key_passes) + w.nutmegs * n(r.nutmegs)
+               + w.tackles * n(r.tackles) + w.interceptions * n(r.interceptions) + w.blocks * n(r.blocks)
+               + w.post * n(r.post);
+  return attack * mvpShotMultiplier(r) + other;
+}
+function calcMvpSaves(r) { return mvpWeights.goalkeeper_saves * n(r.goalkeeper_saves); }
+function calcMvpRaw(r)   { return calcMvpCore(r) + calcMvpSaves(r); }
+function calcMvpScore(r, matchId) {
+  return applyGkNorm(calcMvpCore(r), r.player, matchId) + calcMvpSaves(r);
+}
+
 
 function setMatchFilter(f) {
   matchFilter = f;
@@ -15614,12 +15679,7 @@ function computeAnalytics() {
 
     // Consistency score: 1 - (stddev of per-game MVP scores / mean), scaled 0-100
     const rowScores = p.matches.map(r => {
-      const w = mvpWeights;
-      const raw = w.goals*n(r.goals) + w.assists*n(r.assists) + w.key_passes*n(r.key_passes)
-           + w.tackles*n(r.tackles) + w.interceptions*n(r.interceptions) + w.blocks*n(r.blocks)
-           + w.goalkeeper_saves*n(r.goalkeeper_saves) + w.shots_on_target*n(r.shots_on_target)
-           + w.shots_off_target*n(r.shots_off_target) + w.nutmegs*n(r.nutmegs) + w.post*n(r.post);
-      return applyGkNorm(raw, r.player, r.match_id);
+      return calcMvpScore(r, r.match_id);
     });
     if (rowScores.length < 2) { p.consistency = 100; }
     else {
@@ -15632,12 +15692,7 @@ function computeAnalytics() {
     // Best game by MVP score — same weights as match history MVP
     let bestScore=-1, bestRow=null, maxGoals=0;
     p.matches.forEach(r=>{
-      const w = mvpWeights;
-      const raw = w.goals*n(r.goals) + w.assists*n(r.assists) + w.key_passes*n(r.key_passes)
-               + w.tackles*n(r.tackles) + w.interceptions*n(r.interceptions) + w.blocks*n(r.blocks)
-               + w.goalkeeper_saves*n(r.goalkeeper_saves) + w.shots_on_target*n(r.shots_on_target)
-               + w.shots_off_target*n(r.shots_off_target) + w.nutmegs*n(r.nutmegs) + w.post*n(r.post);
-      const sc = applyGkNorm(raw, r.player, r.match_id);
+      const sc = calcMvpScore(r, r.match_id);
       if(sc>bestScore){bestScore=sc;bestRow=r;}
       if(n(r.goals)>maxGoals) maxGoals=n(r.goals);
     });
@@ -19533,6 +19588,9 @@ document.addEventListener('DOMContentLoaded', () => {
         // Also clear any localStorage override since settings.json takes precedence
         try { localStorage.removeItem(LS_MVP_WEIGHTS); } catch(e) {}
         console.log(`✅ Loaded mvpWeights from settings.json`);
+      }
+      if (settings.mvpShotConversion && typeof settings.mvpShotConversion === 'object') {
+        mvpConv = { ...MVP_CONV_DEFAULT, ...settings.mvpShotConversion };
       }
       if (settings.bannerHeights && typeof settings.bannerHeights === 'object') {
         bannerHeights = { ...settings.bannerHeights };
