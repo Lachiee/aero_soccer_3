@@ -3167,10 +3167,7 @@ function computeWinLoss(playerMap, matches) {
 function computeRating(s, cs) {
   const g = Math.max(s.games, 1);
   const enforcer = cs ? n(cs.enforcer) : 0;
-  const staminaComputed = computeStaminaFromEvents(s.player);
-  const stamina = staminaComputed?.matches >= 2
-    ? staminaComputed.score
-    : (cs ? n(cs.stamina) : 0);
+  const stamina = getBlendedStamina(s.player).score;
 
   const base = (
     (s.goals / g) * 4.5 +
@@ -10394,11 +10391,12 @@ function renderProfileTimeStats(name) {
 
   // Computed stamina — admin only (still being calibrated)
   if (adminMode) {
-    const stam = computeStaminaFromEvents(name);
-    if (stam && stam.matches >= 1) {
+    const stam0 = getBlendedStamina(name);
+    const stam = stam0.score > 0 ? { score: stam0.score, label: stamLabel(stam0.score), matches: stam0.matches, calc: stam0.calc, manual: stam0.manual } : null;
+    if (stam) {
       const stamCol = stam.score >= 7 ? 'var(--green)' : stam.score >= 5 ? 'var(--lime)' : stam.score >= 3 ? 'var(--amber,#f59e0b)' : 'rgba(248,113,113,.8)';
       pills.push(`<div style="background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:8px 10px;text-align:center;cursor:default"
-        data-tip="Stamina (admin) — blend of absolute H2 output vs group and own H2/H1 retention. ${stam.matches} match${stam.matches!==1?'es':''} of data.">
+        data-tip="Stamina (admin) — blend of calculated ${stam.calc != null ? stam.calc : 'n/a'} (rest-adjusted late output + retention, ${stam.matches} match${stam.matches!==1?'es':''}) and manual ${stam.manual != null ? stam.manual : 'n/a'}.">
         <div style="font-size:.6rem;letter-spacing:1.2px;text-transform:uppercase;color:var(--muted);margin-bottom:3px">💪 Stamina</div>
         <div style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;color:${stamCol};line-height:1">${stam.score}<span style="font-size:.7rem;opacity:.6">/10</span></div>
         <div style="font-size:.6rem;color:${stamCol};margin-top:2px">${stam.label}</div>
@@ -13851,6 +13849,143 @@ function computeStaminaFromEvents(playerName) {
   };
 }
 
+// ── Stamina v2: event-rate based, rest-adjusted, blended with the manual rating ──────────────
+// Calculated score (4-10): sustained weighted output per OUTFIELD minute once a player has been
+// running for 7+ min without a rest (late stint output, 80%) plus how well they hold their output
+// as a stint goes on (retention, 20%). Time in goal counts as rest, so output is discounted by
+// restPenalty x share of match in goal. Small samples are shrunk toward the squad average, then
+// z-scores are stretched to minScore..maxScore. The final stamina is a live blend of the
+// calculated score and the manual 1-10 rating (customStats[name].stamina) - it re-reads the manual
+// value on every call, so editing a manual rating immediately changes the blend.
+const STAM = {
+  weights: { 'Tackles':1.5, 'Interceptions':1.2, 'Key Passes':1.2, 'On Target':0.8, 'Off Target':0.6,
+             'Goals':0.6, 'Post':0.3, 'Blocks':0.3, 'Nutmegs':0 },
+  minMatches: 3,        // matches of event data needed before a calculated score exists
+  restPenalty: 1.5,     // output discount per 100% of match spent in goal
+  retentionShare: 0.2,  // share of the calculated score from retention (rest is late output)
+  priorMins: 15,        // minutes of squad-average output blended into each stint bucket
+  stintBins: [[0,7],[7,14],[14,999]], // minutes since last rest: fresh / mid / late
+  minScore: 4, maxScore: 10,
+  calcShare: 0.5,       // blend: share given to the calculated score (rest comes from manual)
+  teamWeight: 8,        // balance-score points per 1.0 difference in team-average stamina
+  lowBelow: 5, lowWeight: 4, // balance-score points per player-count difference of low-stamina players
+};
+let _stamV2 = { sig: null, data: null };
+
+function _stamSig(raw) {
+  let h = raw.length;
+  for (let i = 0; i < raw.length; i += 997) h = (h * 31 + raw.charCodeAt(i)) | 0;
+  return raw.length + ':' + h;
+}
+
+function stamV2Compute() {
+  let raw;
+  try { raw = localStorage.getItem('aero_event_logs') || '{}'; } catch(e) { return {}; }
+  const sig = _stamSig(raw);
+  if (_stamV2.sig === sig && _stamV2.data) return _stamV2.data;
+
+  let logs;
+  try { logs = JSON.parse(raw); } catch(e) { return {}; }
+  const W = STAM.weights, bins = STAM.stintBins;
+  const agg = {};
+  Object.values(logs).forEach(log => {
+    const evs = (log && log.events || []).filter(e => e.tsSecsRaw != null && !isNaN(e.tsSecsRaw) && e.tsSecsRaw >= 0 && e.tsSecsRaw <= 7200);
+    if (evs.length < 20) return;
+    const end = evs.reduce((m, e) => Math.max(m, e.tsSecsRaw), 0);
+    const h2 = evs.filter(e => e.half === '2H').reduce((m, e) => Math.min(m, e.tsSecsRaw), Infinity);
+    const players = new Set();
+    evs.forEach(e => { if (e.player && (W[e.event] != null || e.event === 'GK On')) players.add(e.player); });
+    // keeper spells: a keeper is in goal from their GK On until the next GK On for that team (or their GK Removed)
+    const gk = {};
+    ['A','B'].forEach(team => {
+      const t = evs.filter(e => e.team === team && (e.event === 'GK On' || e.event === 'GK Removed'))
+                   .sort((a,b) => a.tsSecsRaw - b.tsSecsRaw);
+      let cur = null;
+      t.forEach(e => {
+        if (e.event === 'GK On') {
+          if (cur) (gk[cur.p] = gk[cur.p] || []).push([cur.from, e.tsSecsRaw]);
+          cur = { p: e.player, from: e.tsSecsRaw };
+        } else if (cur && cur.p === e.player) {
+          (gk[cur.p] = gk[cur.p] || []).push([cur.from, e.tsSecsRaw]);
+          cur = null;
+        }
+      });
+      if (cur) (gk[cur.p] = gk[cur.p] || []).push([cur.from, end]);
+    });
+    players.forEach(p => {
+      const ing = new Uint8Array(end + 2);
+      (gk[p] || []).forEach(([a, b]) => { for (let s = a; s < b && s <= end; s++) ing[s] = 1; });
+      const age = new Float32Array(end + 1);
+      let last = 0, outSecs = 0, gkSecs = 0;
+      const bm = [0,0,0], be = [0,0,0];
+      for (let s = 0; s <= end; s++) {
+        if (s === 0 || s === h2 || (s > 0 && ing[s-1] && !ing[s])) last = s;
+        age[s] = (s - last) / 60;
+        if (ing[s]) gkSecs++; else {
+          outSecs++;
+          const bi = bins.findIndex(([lo, hi]) => age[s] >= lo && age[s] < hi);
+          if (bi >= 0) bm[bi] += 1/60;
+        }
+      }
+      evs.forEach(e => {
+        if (e.player !== p || W[e.event] == null || e.tsSecsRaw > end || ing[e.tsSecsRaw]) return;
+        const bi = bins.findIndex(([lo, hi]) => age[e.tsSecsRaw] >= lo && age[e.tsSecsRaw] < hi);
+        if (bi >= 0) be[bi] += W[e.event];
+      });
+      const a = agg[p] || (agg[p] = { m: 0, tot: 0, gk: 0, out: 0, bm: [0,0,0], be: [0,0,0] });
+      a.m++; a.tot += (end + 1) / 60; a.gk += gkSecs / 60; a.out += outSecs / 60;
+      for (let i = 0; i < 3; i++) { a.bm[i] += bm[i]; a.be[i] += be[i]; }
+    });
+  });
+
+  const names = Object.keys(agg).filter(p => agg[p].m >= STAM.minMatches);
+  const data = {};
+  Object.keys(agg).forEach(p => { data[p] = { score: null, matches: agg[p].m, gkShare: agg[p].tot ? agg[p].gk / agg[p].tot : 0 }; });
+  if (names.length >= 4) {
+    const totm = [0,0,0], tote = [0,0,0];
+    names.forEach(p => { for (let i = 0; i < 3; i++) { totm[i] += agg[p].bm[i]; tote[i] += agg[p].be[i]; } });
+    const pr = STAM.priorMins, grp = totm.map((m, i) => tote[i] / m);
+    const lateGrp = (tote[1] + tote[2]) / (totm[1] + totm[2]);
+    const rows = names.map(p => {
+      const a = agg[p];
+      const fresh = (a.be[0] + pr * grp[0]) / (a.bm[0] + pr);
+      const late = (a.be[1] + a.be[2] + 2 * pr * lateGrp) / (a.bm[1] + a.bm[2] + 2 * pr);
+      const ret = Math.max(0.5, Math.min(1.5, late / fresh));
+      const gkShare = a.gk / a.tot;
+      return { p, late: late * Math.max(0.2, 1 - STAM.restPenalty * gkShare), ret };
+    });
+    const z = key => {
+      const xs = rows.map(r => r[key]), mu = xs.reduce((s,v)=>s+v,0) / xs.length;
+      const sd = Math.sqrt(xs.reduce((s,v)=>s+(v-mu)**2,0) / (xs.length - 1)) || 1;
+      return xs.map(v => (v - mu) / sd);
+    };
+    const zl = z('late'), zr = z('ret');
+    const comp = rows.map((r, i) => (1 - STAM.retentionShare) * zl[i] + STAM.retentionShare * zr[i]);
+    const lo = Math.min(...comp), hi = Math.max(...comp);
+    rows.forEach((r, i) => {
+      const sc = hi > lo ? STAM.minScore + (STAM.maxScore - STAM.minScore) * (comp[i] - lo) / (hi - lo) : (STAM.minScore + STAM.maxScore) / 2;
+      data[r.p].score = parseFloat(sc.toFixed(1));
+    });
+  }
+  _stamV2 = { sig, data };
+  return data;
+}
+
+// Live blend of the calculated score and the manual rating. Reads customStats every call.
+function getBlendedStamina(name) {
+  const manualRaw = n((customStats[name] || {}).stamina);
+  const manual = manualRaw > 0 ? Math.min(10, manualRaw) : null;
+  const c = stamV2Compute()[name];
+  const calc = c && c.score != null ? c.score : null;
+  let score;
+  if (calc != null && manual != null) score = STAM.calcShare * calc + (1 - STAM.calcShare) * manual;
+  else if (calc != null) score = calc;
+  else if (manual != null) score = manual;
+  else score = 0;
+  return { score: parseFloat(score.toFixed(1)), calc, manual, matches: c ? c.matches : 0, gkShare: c ? c.gkShare : 0 };
+}
+function stamLabel(s) { return s >= 8.5 ? 'Iron Lungs' : s >= 7 ? 'Strong' : s >= 5.5 ? 'Solid' : s >= 4 ? 'Average' : s >= 2.5 ? 'Fades' : 'Tires Fast'; }
+
 function computeWeightedRating(playerName) {
   const raw = computeWeightedRatingRaw(playerName);
   const p = playerStats[playerName];
@@ -13881,6 +14016,7 @@ function computeWeightedRatingRaw(playerName) {
     const w = idx < 5 ? 1.5 : 1.0;
     // Per-game score for this match
     const g = Math.max(p.games, 1);
+    const stamBlend = getBlendedStamina(playerName).score;
     const matchScore =
       n(r.goals) * 4.5 +
       n(r.assists) * 3 +
@@ -13890,7 +14026,7 @@ function computeWeightedRatingRaw(playerName) {
       n(r.key_passes) * 0.35 +
       n(r.blocks) * 0.3 +
       n(cs.enforcer || 0) * 0.5 +
-      n(cs.stamina || 0) * 0.4;
+      stamBlend * 0.4;
     weightedSum += matchScore * w;
     totalWeight += w;
   });
@@ -14434,6 +14570,7 @@ function autoBalance(rebalanceOnly = false) {
       playerBuff: buff,
       enforcer: n((customStats[name] || {}).enforcer || 0) * (1 - pen),
       enforcerRaw: n((customStats[name] || {}).enforcer || 0),
+      stamina: getBlendedStamina(name).score,
       role: getPlayerRole(p)
     };
   }).filter(Boolean);
@@ -14473,7 +14610,14 @@ function autoBalance(rebalanceOnly = false) {
     // Chemistry imbalance — shrunk + capped (see teamDimensions) so a few lucky games can't dominate
     const synergyDiff = Math.min(Math.abs(dA.synergy - dB.synergy) * 5.0, BAL.synergyTermCap);
 
+    // Stamina balance: average stamina difference (works for uneven teams) plus how many
+    // low-stamina players each side has, so one team doesn't end up with all the tired legs.
+    const avgSt = t => t.length ? t.reduce((s,p) => s + (p.stamina || 0), 0) / t.length : 0;
+    const lowSt = t => t.filter(p => (p.stamina || 0) > 0 && p.stamina < STAM.lowBelow).length;
+    const staminaTerm = abs(avgSt(a), avgSt(b)) * STAM.teamWeight + abs(lowSt(a), lowSt(b)) * STAM.lowWeight;
+
     return (
+      staminaTerm +
       abs(rA, rB) * 3.0 +
       abs(dA.attack, dB.attack) * 1.5 +
       abs(dA.defense, dB.defense) * 1.5 +
@@ -14846,10 +14990,10 @@ function renderTeamResult(tA, tB) {
       })() : ''}
       ${(() => {
         if (!adminMode) return '';
-        const stam = computeStaminaFromEvents(p.player);
-        if (!stam || stam.matches < 1) return '';
-        const col = stam.score >= 7 ? 'var(--green)' : stam.score >= 5 ? 'var(--lime)' : stam.score >= 3 ? 'var(--amber,#f59e0b)' : 'rgba(248,113,113,.8)';
-        return `<span style="font-size:.65rem;color:${col}" data-tip="Stamina ${stam.score}/10 (${stam.label}) — admin only.">💪 ${stam.score}</span>`;
+        const st = getBlendedStamina(p.player);
+        if (!(st.score > 0)) return '';
+        const col = st.score >= 7 ? 'var(--green)' : st.score >= 5 ? 'var(--lime)' : st.score >= 3 ? 'var(--amber,#f59e0b)' : 'rgba(248,113,113,.8)';
+        return `<span style="font-size:.65rem;color:${col}" data-tip="Stamina ${st.score}/10 — blend of calculated ${st.calc != null ? st.calc : 'n/a'} and manual ${st.manual != null ? st.manual : 'n/a'}.">💪 ${st.score}</span>`;
       })()}
       <span class="tp-rating">${adminMode ? (() => {
         const base = p.weightedRating.toFixed(1);
