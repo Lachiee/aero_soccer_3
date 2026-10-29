@@ -2489,7 +2489,8 @@ const BAL = {
   impactStrength: 0.6,       // how much of the estimate is applied
   impactCap: 4,              // max +/- rating points
   // 4 — new players
-  shrinkMinGames: 8,         // players under this many games are blended toward the group mean
+  shrinkMinGames: 8,         // players under this many games are blended toward the group prior
+  shrinkPriorQuantile: 0,    // prior for new players = this quantile of the active group's ratings (0 = the lowest regular player; 0.1 = near the bottom; 0.5 = median; null = group mean, which rates a new player as average)
   activeDays: 120,           // "current" group = played within this many days of the latest match
   // 6 — chemistry
   chemShrinkGames: 10,       // delta *= games / (games + this)
@@ -13889,24 +13890,27 @@ function stamV2Compute() {
   const W = STAM.weights, bins = STAM.stintBins;
   const agg = {};
   Object.values(logs).forEach(log => {
-    const evs = (log && log.events || []).filter(e => e.tsSecsRaw != null && !isNaN(e.tsSecsRaw) && e.tsSecsRaw >= 0 && e.tsSecsRaw <= 7200);
+    // timestamps can be fractional (e.g. 2875.2) - work in whole seconds so they index the per-second arrays
+    const evs = (log && log.events || [])
+      .filter(e => e.tsSecsRaw != null && !isNaN(e.tsSecsRaw) && e.tsSecsRaw >= 0 && e.tsSecsRaw <= 7200)
+      .map(e => ({ ...e, _s: Math.floor(e.tsSecsRaw) }));
     if (evs.length < 20) return;
-    const end = evs.reduce((m, e) => Math.max(m, e.tsSecsRaw), 0);
-    const h2 = evs.filter(e => e.half === '2H').reduce((m, e) => Math.min(m, e.tsSecsRaw), Infinity);
+    const end = evs.reduce((m, e) => Math.max(m, e._s), 0);
+    const h2 = evs.filter(e => e.half === '2H').reduce((m, e) => Math.min(m, e._s), Infinity);
     const players = new Set();
     evs.forEach(e => { if (e.player && (W[e.event] != null || e.event === 'GK On')) players.add(e.player); });
     // keeper spells: a keeper is in goal from their GK On until the next GK On for that team (or their GK Removed)
     const gk = {};
     ['A','B'].forEach(team => {
       const t = evs.filter(e => e.team === team && (e.event === 'GK On' || e.event === 'GK Removed'))
-                   .sort((a,b) => a.tsSecsRaw - b.tsSecsRaw);
+                   .sort((a,b) => a._s - b._s);
       let cur = null;
       t.forEach(e => {
         if (e.event === 'GK On') {
-          if (cur) (gk[cur.p] = gk[cur.p] || []).push([cur.from, e.tsSecsRaw]);
-          cur = { p: e.player, from: e.tsSecsRaw };
+          if (cur) (gk[cur.p] = gk[cur.p] || []).push([cur.from, e._s]);
+          cur = { p: e.player, from: e._s };
         } else if (cur && cur.p === e.player) {
-          (gk[cur.p] = gk[cur.p] || []).push([cur.from, e.tsSecsRaw]);
+          (gk[cur.p] = gk[cur.p] || []).push([cur.from, e._s]);
           cur = null;
         }
       });
@@ -13928,8 +13932,8 @@ function stamV2Compute() {
         }
       }
       evs.forEach(e => {
-        if (e.player !== p || W[e.event] == null || e.tsSecsRaw > end || ing[e.tsSecsRaw]) return;
-        const bi = bins.findIndex(([lo, hi]) => age[e.tsSecsRaw] >= lo && age[e.tsSecsRaw] < hi);
+        if (e.player !== p || W[e.event] == null || e._s > end || ing[e._s]) return;
+        const bi = bins.findIndex(([lo, hi]) => age[e._s] >= lo && age[e._s] < hi);
         if (bi >= 0) be[bi] += W[e.event];
       });
       const a = agg[p] || (agg[p] = { m: 0, tot: 0, gk: 0, out: 0, bm: [0,0,0], be: [0,0,0] });
@@ -14512,7 +14516,14 @@ function balGroupMeanRating() {
     const v = computeWeightedRatingRaw(nm);
     if (v > 0) vals.push(v);
   });
-  _balCache.groupMean = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
+  if (!vals.length) _balCache.groupMean = 0;
+  else if (BAL.shrinkPriorQuantile == null) _balCache.groupMean = vals.reduce((a, b) => a + b, 0) / vals.length;
+  else {
+    // quantile (linear interpolation) so a brand-new player isn't assumed to be an average player
+    const sv = [...vals].sort((a, b) => a - b), pos = (sv.length - 1) * BAL.shrinkPriorQuantile;
+    const lo = Math.floor(pos), hi = Math.ceil(pos);
+    _balCache.groupMean = sv[lo] + (sv[hi] - sv[lo]) * (pos - lo);
+  }
   return _balCache.groupMean;
 }
 
