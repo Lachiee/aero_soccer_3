@@ -738,11 +738,6 @@ canvas.spider{display:block;margin:0 auto}
       title="Adjusts player ratings based on win rate — high win rate gets a small nerf, low win rate gets a small buff">
       ⚖ Win Rate Balance: OFF
     </button>
-    <button id="impact-adj-btn" onclick="toggleImpactAdjust()"
-      style="padding:6px 14px;border-radius:7px;cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-size:.82rem;letter-spacing:.5px;text-transform:uppercase;border:1px solid var(--lime);background:rgba(168,224,80,.1);color:var(--lime);transition:all .15s"
-      title="Adjusts ratings by how each player's teams have actually done (goal difference when they play, shrunk for small samples, capped at ±4 points)">
-      📉 Impact Adjust: ON
-    </button>
     <div id="winrate-strength-wrap" style="display:flex;align-items:center;gap:6px;font-family:'Barlow Condensed',sans-serif;font-size:.78rem;color:var(--muted)">
       <span style="white-space:nowrap">Strength</span>
       <input type="range" min="0.05" max="0.40" step="0.05" value="0.20"
@@ -819,18 +814,16 @@ canvas.spider{display:block;margin:0 auto}
     🤏 Drag any player card between teams to adjust
   </div>
 
+  <!-- Team Synergy Breakdown -->
+  <div id="synergy-section" style="display:none;margin-top:16px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:18px">
+    <div style="font-family:'Barlow Condensed',sans-serif;font-size:.85rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:14px">🤝 Team Chemistry</div>
+    <div id="synergy-content"></div>
+  </div>
+
   <!-- Predicted Result -->
   <div id="predict-section" style="display:none;margin-top:16px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:18px">
     <div style="font-family:'Barlow Condensed',sans-serif;font-size:.85rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:14px">🔮 Predicted Result</div>
     <div id="predict-content"></div>
-  </div>
-
-  <!-- Team Synergy Breakdown (collapsible, below predicted result) -->
-  <div id="synergy-section" style="display:none;margin-top:16px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px 18px">
-    <details>
-      <summary style="cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-size:.85rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted)">🤝 Team Chemistry <span style="font-size:.7rem;opacity:.6;text-transform:none;letter-spacing:0">· click to expand</span></summary>
-      <div id="synergy-content" style="margin-top:14px"></div>
-    </details>
   </div>
 
   <!-- Attack combo predictions -->
@@ -2470,37 +2463,6 @@ let playerStats = {};
 let matchList = [];
 var customStats = window.customStats || {};
 let playerNotes = {};
-// ---- Balance v2 settings (see helpers above autoBalance) ----
-const BAL = {
-  // 1 / 2 — goalkeeping and roles
-  gkPriorShots: 20,          // pseudo-shots of group-average keeping blended into each keeper
-  gkMinMinutes: 90,          // minutes in goal before a keeper counts as proven / is ranked anywhere (races, tags, leaderboard)
-  gkProvenMargin: 0.02,      // proven keeper = shrunk save rate no more than this below the group average
-  gkShotsOnTarget: 24,       // typical shots on target a team faces per game
-  gkWeight: 12,              // balance-score points per expected goal of keeping difference
-  gkUnknownShare: 0.15,      // assumed share of a game in goal for players with no keeper record
-  gameMinutes: 55,
-  finisherGpg: 2.75,         // recent goals/game for a proven finisher
-  roleMissingPenalty: 60,    // balance-score penalty per missing role per team
-  // 3 — on/off impact
-  impactWindow: 30,          // most recent matches used
-  impactLambda: 20,          // ridge strength (halves of prior evidence)
-  impactPtsPerGoal: 5,       // rating points per goal of game difference
-  impactStrength: 0.6,       // how much of the estimate is applied
-  impactCap: 4,              // max +/- rating points
-  // 4 — new players
-  shrinkMinGames: 8,         // players under this many games are blended toward the group mean
-  activeDays: 120,           // "current" group = played within this many days of the latest match
-  // 6 — chemistry
-  chemShrinkGames: 10,       // delta *= games / (games + this)
-  chemCap: 15,               // cap on a pair's shrunk delta (pct points)
-  comboCap: 12,              // cap on combo bonus (was 20)
-  synergyTermCap: 20,        // cap on the synergy term in the balance score
-};
-
-let impactAdjustEnabled = true;
-let _balCache = {};
-
 let playerBuffs = {}; // name → flat rating bonus (can be negative)
 let playerGifs = {};
 let selectedForTeams = new Set();
@@ -2543,13 +2505,8 @@ function openMvpTuner() {
     const tdS = 'padding:3px 5px;text-align:center;font-size:.65rem;color:#d4ead6;white-space:nowrap;border-bottom:1px solid rgba(255,255,255,.04)';
     const tdN = 'padding:3px 6px;font-size:.65rem;font-weight:600;white-space:nowrap;border-bottom:1px solid rgba(255,255,255,.04)';
     const calcMvp = r => {
-      const w = mvpWeights;
-      const raw = (w.goals*n(r.goals)+w.assists*n(r.assists)+w.key_passes*n(r.key_passes)+
-        w.shots_on_target*n(r.shots_on_target)+w.shots_off_target*n(r.shots_off_target)+
-        w.blocks*n(r.blocks)+w.tackles*n(r.tackles)+w.interceptions*n(r.interceptions)+
-        w.goalkeeper_saves*n(r.goalkeeper_saves)+w.nutmegs*n(r.nutmegs)+w.post*n(r.post));
       const match = matchList[window._tunerMatchIdx];
-      return applyGkNorm(raw, r.player, match?.id).toFixed(1);
+      return calcMvpScore(r, match?.id).toFixed(1);
     };
     const teamTable = (rows, color, label) => `
       <div style="font-size:.58rem;letter-spacing:1.5px;text-transform:uppercase;color:${color};margin:10px 0 4px;font-weight:700">${label}</div>
@@ -2580,17 +2537,9 @@ function openMvpTuner() {
     const previewMatch = matchList[window._tunerMatchIdx];
     if (!previewMatch) return '<p style="color:var(--muted);font-size:.75rem">No match data</p>';
     const allP = [...previewMatch.teamA, ...previewMatch.teamB];
-    const w = mvpWeights;
     const scored = allP.map(r => ({
       player: r.player,
-      score: parseFloat(applyGkNorm(
-        w.goals * n(r.goals) + w.assists * n(r.assists) + w.key_passes * n(r.key_passes) +
-        w.nutmegs * n(r.nutmegs) + w.tackles * n(r.tackles) + w.interceptions * n(r.interceptions) +
-        w.blocks * n(r.blocks) + w.goalkeeper_saves * n(r.goalkeeper_saves) +
-        w.shots_on_target * n(r.shots_on_target) + w.shots_off_target * n(r.shots_off_target) +
-        w.post * n(r.post),
-        r.player, previewMatch?.id
-      ).toFixed(1))
+      score: parseFloat(calcMvpScore(r, previewMatch?.id).toFixed(1))
     })).sort((a,b) => b.score - a.score).slice(0,5);
     const medals = ['👑','🥈','🥉','4th','5th'];
     return scored.map((s,i) => `<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);font-size:.78rem">
@@ -2636,7 +2585,28 @@ function openMvpTuner() {
                 style="width:100%;accent-color:var(--amber)">
               <div style="font-size:.65rem;color:var(--muted);margin-top:5px;line-height:1.5">
                 <strong style="color:var(--amber)">0%</strong> = off &nbsp;·&nbsp; <strong style="color:var(--amber)">100%</strong> = full normalisation<br>
-                Scales a player's score by their outfield time fraction. If someone spent 40% of the match in goals, at 100% strength their outfield stats are boosted ÷0.6 = ×1.67. Requires event log data.
+                Scales a player's score (excluding GK save points, which are added afterwards) by their outfield time fraction. If someone spent 40% of the match in goals, at 100% strength their outfield stats are boosted ÷0.6 = ×1.67. Requires event log data.
+              </div>
+            </div>
+            <!-- Shot conversion -->
+            <div style="margin-top:20px;padding-top:14px;border-top:1px solid var(--border)">
+              <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px">
+                <span style="font-size:.75rem;color:var(--text2)">🎯 Shot Conversion Bonus</span>
+                <span id="w-val-convStrength" style="font-size:.75rem;color:var(--amber);font-weight:700;min-width:32px;text-align:right">${Math.round(mvpConv.strength*100)}%</span>
+              </div>
+              <input type="range" min="0" max="1" step="0.05" value="${mvpConv.strength}"
+                oninput="mvpConv.strength=parseFloat(this.value);document.getElementById('w-val-convStrength').textContent=Math.round(this.value*100)+'%';document.getElementById('mvp-live-preview').innerHTML=window._mvpTunerPreview();document.getElementById('mvp-match-stats').innerHTML=window._mvpMatchStats()"
+                style="width:100%;accent-color:var(--amber)">
+              <div style="display:flex;justify-content:space-between;align-items:baseline;margin:10px 0 3px">
+                <span style="font-size:.7rem;color:var(--text2)">Small-sample smoothing (shots)</span>
+                <span id="w-val-convPrior" style="font-size:.75rem;color:var(--amber);font-weight:700;min-width:32px;text-align:right">${mvpConv.priorShots}</span>
+              </div>
+              <input type="range" min="0" max="30" step="1" value="${mvpConv.priorShots}"
+                oninput="mvpConv.priorShots=parseInt(this.value);document.getElementById('w-val-convPrior').textContent=this.value;document.getElementById('mvp-live-preview').innerHTML=window._mvpTunerPreview();document.getElementById('mvp-match-stats').innerHTML=window._mvpMatchStats()"
+                style="width:100%;accent-color:var(--amber)">
+              <div style="font-size:.65rem;color:var(--muted);margin-top:5px;line-height:1.5">
+                Scales goal + shot points by finishing efficiency (goals ÷ shots) vs the league average (<strong style="color:var(--amber)">${(getLeagueConv()*100).toFixed(1)}%</strong>), softly capped around ×${mvpConv.min}–×${mvpConv.max}.
+                <strong style="color:var(--amber)">0%</strong> = off. Higher smoothing stops 1-shot-1-goal players getting a huge boost.
               </div>
             </div>
             <div style="display:flex;gap:8px;margin-top:16px">
@@ -2681,6 +2651,7 @@ function openMvpTuner() {
   window._mvpResetWeights = () => {
     mvpWeights = { ...MVP_WEIGHTS_DEFAULT };
     gkNormStrength = 0;
+    mvpConv = { ...MVP_CONV_DEFAULT };
     saveMvpWeights();
     saveGkNormStrength();
     renderModal();
@@ -3133,21 +3104,8 @@ function computeWinLoss(playerMap, matches) {
     // Use each player's combined full-match totals (not split half rows) so a swapped
     // player is scored once on their whole-match contribution, never occupying two medal slots.
     const allPlayers = m.rows.filter(r => r.half === 'FULL' && r.team !== 'DNP' && r.team !== '-');
-    const w = mvpWeights;
     const scored = allPlayers.map(r => {
-      const raw =
-        w.goals          * n(r.goals) +
-        w.assists        * n(r.assists) +
-        w.key_passes     * n(r.key_passes) +
-        w.nutmegs        * n(r.nutmegs) +
-        w.tackles        * n(r.tackles) +
-        w.interceptions  * n(r.interceptions) +
-        w.blocks         * n(r.blocks) +
-        w.goalkeeper_saves * n(r.goalkeeper_saves) +
-        w.shots_on_target  * n(r.shots_on_target) +
-        w.shots_off_target * n(r.shots_off_target) +
-        w.post           * n(r.post);
-      const score = applyGkNorm(raw, r.player, m.id);
+      const score = calcMvpScore(r, m.id);
       return { player: r.player, score: parseFloat(score.toFixed(2)) };
     });
     scored.sort((a, b) => b.score - a.score);
@@ -4085,8 +4043,8 @@ function buildTagAuction() {
     'Pressure Cooker':   m => m.pressureScore   || 0,
     'Spark Plug':        m => m.defChainScore   || 0,
     'Iron Man':          m => m.gkMinutes       || 0,
-    'Brick Wall':        m => m.gkConcededPer90 != null && m.gkMinutes >= BAL.gkMinMinutes ? 90 - m.gkConcededPer90 * 10 : 0,
-    'Shot Stopper':      m => m.gkSavesPer90    != null && m.gkMinutes >= BAL.gkMinMinutes ? m.gkSavesPer90 : 0,
+    'Brick Wall':        m => m.gkConcededPer90 != null && m.gkMinutes >= 30 ? 90 - m.gkConcededPer90 * 10 : 0,
+    'Shot Stopper':      m => m.gkSavesPer90    != null && m.gkMinutes >= 30 ? m.gkSavesPer90 : 0,
   };
   Object.entries(shotTagFns).forEach(([label, fn]) => {
     let bestP = null, bestV = 0;
@@ -4578,12 +4536,14 @@ function renderSeasonSummary() {
     { label:'📈 Most Improved (MIP)',     desc:'Performance score: early season vs late season',           fn: mipScore,          fmt: v => (v>0?'+':'')+v.toFixed(1)+' pts/g', min: 8 },
     { label:'⚽ Golden Boot Race',        desc:'Goals per game',                                           fn: gpgScore,          fmt: v => v.toFixed(2)+' gpg' },
     { label:'🎯 Playmaker Race',          desc:'Assists + key passes per game',                            fn: creatorScore,      fmt: v => v.toFixed(2)+'/g' },
-    { label:'🧤 Best Goalkeeper Race',    desc:'Save rate (saves ÷ shots faced, adjusted for small samples) — needs 90+ minutes in goal, from event log GK data',
+    { label:'🧤 Best Goalkeeper Race',    desc:'Saves per 55 min in goal — only players with event log GK data',
       fn: p => {
-        const g = gkRankRate(p.player);
-        return g ? g.rate : -Infinity; // not enough time in goal = not ranked
+        const ts = getPlayerEventStats(p.player);
+        // Only rank players who have actually been tracked in goal
+        if (ts?.gkSavesPer90 != null && ts.gkMinutes >= 10) return ts.gkSavesPer90;
+        return -Infinity; // exclude players without GK time data
       },
-      fmt: v => Math.round(v*100)+'% saved', min: 1 },
+      fmt: v => v.toFixed(1)+' saves/55', min: 1 },
     { label:'🤝 Team Player Race',        desc:'Win rate %',                                               fn: winRateScore,      fmt: v => Math.round(v)+'%' },
     { label:'⏱ Clutch Player Race',       desc:'Late goals (47+ min) — winning/decisive goals weighted more', fn: clutchPlayerScore, fmt: v => v.toFixed(1)+' pts' },
     { label:'⚡ X-Factor Race',          desc:'Variance × goals per game — the most unpredictable match-winner. Can be invisible then score 5. High floor players won\'t win this.', fn: xFactorRaceScore,  fmt: v => v.toFixed(2)+' pts', min: 5 },
@@ -6884,52 +6844,17 @@ function renderAllCombos() {
 let _reelState = {
   type: 'all',       // 'all' | 'goal' | 'assist' | 'save' | 'moment' | 'lowlight'
   query: '',
-  p1: '',            // player filter (any clip they scored / assisted / are the subject of)
-  p2: '',            // optional second player: only goals/assists where BOTH were involved
   index: 0,
-  list: [],          // filtered clips that have a video
-  autoplay: true,    // auto-advance ON by default
+  autoplay: false,
   autoplaySecs: 12,
-  repeat: false,     // replay each clip once before moving on
-  repeated: false,   // has the current clip already been replayed?
   timer: null,
-  active: false,     // reel page currently open
-  loadedVid: null,   // youtube id loaded in the persistent iframe
-  playerReady: false,
-  pending: null,     // clip requested before the player was ready
 };
-
-const REEL_TYPE_META = {
-  all:      { label: 'All',      icon: '🎬' },
-  goal:     { label: 'Goals',    icon: '⚽' },
-  assist:   { label: 'Assists',  icon: '🎯' },
-  save:     { label: 'Saves',    icon: '🧤' },
-  moment:   { label: 'Moments',  icon: '⭐' },
-  lowlight: { label: 'Lowlights',icon: '😬' },
-};
-
-function reelEsc(v) {
-  return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
-}
-function reelClipIcon(h) {
-  return h.label || (h.type==='goal'?'⚽':h.type==='assist'?'🎯':h.type==='save'?'🧤':h.type==='lowlight'?'😬':'⭐');
-}
-function reelInvolves(h, name) {
-  return !!name && (h.scorer === name || h.assister === name);
-}
 
 function reelGetFilteredList() {
   const all = window._reelAllHighlights || (window._reelAllHighlights = getAllHighlights());
   const q = (_reelState.query || '').trim().toLowerCase();
-  const p1 = _reelState.p1, p2 = _reelState.p2;
   return all.filter(h => {
     if (_reelState.type !== 'all' && h.type !== _reelState.type) return false;
-    if (p1 && p2 && p1 !== p2) {
-      // two players: only goals/assists they were BOTH part of (either one scoring, the other assisting)
-      if (!(reelInvolves(h, p1) && reelInvolves(h, p2))) return false;
-    } else if (p1 || p2) {
-      if (!reelInvolves(h, p1 || p2)) return false;
-    }
     if (!q) return true;
     const haystack = `${h.scorer||''} ${h.assister||''} ${h.match.date||''}`.toLowerCase();
     return haystack.includes(q);
@@ -6940,348 +6865,147 @@ function renderHighlightsReel() {
   // Refresh the underlying data every time the page is opened (new imports since last visit)
   window._reelAllHighlights = getAllHighlights();
   _reelState.index = 0;
-  _reelState.active = true;
-  reelBuildShell();
-  reelApplyFilters();
+  reelRenderPage();
 }
 
-// Called when the user leaves the reel page: stop the timer and pause the video
-function reelStop() {
-  _reelState.active = false;
-  if (_reelState.timer) { clearTimeout(_reelState.timer); _reelState.timer = null; }
-  reelPost('pauseVideo');
-}
+const REEL_TYPE_META = {
+  all:      { label: 'All',      icon: '🎬' },
+  goal:     { label: 'Goals',    icon: '⚽' },
+  assist:   { label: 'Assists',  icon: '🎯' },
+  save:     { label: 'Saves',    icon: '🧤' },
+  moment:   { label: 'Moments',  icon: '⭐' },
+  lowlight: { label: 'Lowlights',icon: '😬' },
+};
 
-// ── Build the page ONCE. Everything after this updates in place, so the
-//    filmstrip scroll position, the typed search text and — importantly —
-//    the video iframe (and its fullscreen state) are never thrown away.
-function reelBuildShell() {
+function reelRenderPage() {
   const el = document.getElementById('reel-content');
   if (!el) return;
-  _reelState.loadedVid = null;
-  _reelState.playerReady = false;
-  _reelState.pending = null;
-  _reelState.repeated = false;
+  const list = reelGetFilteredList();
+  const withVideo = list.filter(h => h.ytId);
+  const noVideoCount = list.length - withVideo.length;
 
-  const all = window._reelAllHighlights || [];
-  const typesPresent = ['all', ...new Set(all.map(h => h.type))];
-  const players = [...new Set(all.flatMap(h => [h.scorer, h.assister]).filter(Boolean))].sort((a, b) => a.localeCompare(b));
-  if (_reelState.p1 && !players.includes(_reelState.p1)) _reelState.p1 = '';
-  if (_reelState.p2 && !players.includes(_reelState.p2)) _reelState.p2 = '';
-  if (!_reelState.p1) _reelState.p2 = '';
-  window._reelPlayers = players;
+  if (_reelState.index >= withVideo.length) _reelState.index = 0;
+  const current = withVideo[_reelState.index] || null;
 
-  const chipBase = "font-size:.78rem;padding:6px 14px;border-radius:20px;border:1px solid var(--border);cursor:pointer;font-family:'Barlow Condensed',sans-serif;letter-spacing:.3px;";
+  const typesPresent = ['all', ...new Set((window._reelAllHighlights||[]).map(h=>h.type))];
+
   const chipsHtml = typesPresent.map(t => `
-    <button data-reel-type="${t}" onclick="reelSetType('${t}')" style="${chipBase}">
-      ${REEL_TYPE_META[t]?.icon || ''} ${REEL_TYPE_META[t]?.label || t}
+    <button onclick="reelSetType('${t}')"
+      style="font-size:.78rem;padding:6px 14px;border-radius:20px;border:1px solid var(--border);cursor:pointer;
+      font-family:'Barlow Condensed',sans-serif;letter-spacing:.3px;
+      background:${_reelState.type===t?'var(--green)':'var(--card2)'};
+      color:${_reelState.type===t?'#071009':'var(--text2)'};font-weight:${_reelState.type===t?'700':'400'}">
+      ${REEL_TYPE_META[t]?.icon||''} ${REEL_TYPE_META[t]?.label||t}
     </button>`).join('');
 
-  const selStyle = "background:var(--card);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 10px;font-size:.85rem;font-family:'Barlow Condensed',sans-serif;outline:none;min-width:150px";
-  const lblStyle = "display:flex;align-items:center;gap:6px;font-size:.78rem;color:var(--muted);font-family:'Barlow Condensed',sans-serif;letter-spacing:.5px;text-transform:uppercase";
-  const btnStyle = "background:var(--card2);border:1px solid var(--border);color:var(--text);border-radius:7px;padding:7px 14px;font-family:'Barlow Condensed',sans-serif;font-size:.85rem;cursor:pointer";
+  const playerHtml = current ? `
+    <div style="position:relative;padding-bottom:56.25%;height:0;border-radius:10px;overflow:hidden;background:#000">
+      <iframe key="${current.mid}-${current.time}"
+        src="https://www.youtube.com/embed/${current.ytId}?rel=0&modestbranding=1&autoplay=1&start=${Math.max(0, Math.round(timeToYtSeconds(current.time, current.half) - 3))}"
+        style="position:absolute;top:0;left:0;width:100%;height:100%;border:none"
+        allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture"
+        allowfullscreen loading="lazy"></iframe>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;margin-top:12px;flex-wrap:wrap">
+      <span style="font-size:1.3rem">${current.label || (current.type==='goal'?'⚽':current.type==='assist'?'🎯':current.type==='save'?'🧤':current.type==='lowlight'?'😬':'⭐')}</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.2rem;color:var(--text);line-height:1.2">
+          ${current.scorer}${current.assister ? ` <span style="color:var(--muted);font-size:.9rem">← ${current.assister}</span>` : ''}
+        </div>
+        <div style="font-size:.78rem;color:var(--muted)">${current.match.date} · ${current.half||''} ${current.time||''} · ${current.match.goalsA}–${current.match.goalsB}</div>
+      </div>
+      <button onclick="navToMatch('${current.mid}')" class="btn-secondary" style="white-space:nowrap">View Match</button>
+    </div>` : `
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:60px 20px;text-align:center;color:var(--muted)">
+      ${list.length ? `No clips with video linked yet for this filter (${noVideoCount} matching clip${noVideoCount!==1?'s':''} found, but none have a match video attached).`
+                     : 'No highlights match this filter.'}
+    </div>`;
+
+  const controlsHtml = withVideo.length ? `
+    <div style="display:flex;align-items:center;gap:10px;margin-top:14px">
+      <button onclick="reelPrev()" class="btn-secondary" style="min-width:90px">◀ Prev</button>
+      <div style="flex:1;text-align:center;font-size:.78rem;color:var(--muted);font-family:'Barlow Condensed',sans-serif;letter-spacing:.5px">
+        ${_reelState.index+1} / ${withVideo.length}
+      </div>
+      <button onclick="reelNext()" class="btn-secondary" style="min-width:90px">Next ▶</button>
+    </div>
+    <label style="display:flex;align-items:center;gap:8px;margin-top:12px;cursor:pointer;font-size:.8rem;color:var(--text2)">
+      <input type="checkbox" id="reel-autoplay-toggle" ${_reelState.autoplay?'checked':''} onchange="reelToggleAutoplay(this.checked)" style="accent-color:var(--green);width:15px;height:15px">
+      Auto-advance every ${_reelState.autoplaySecs}s
+    </label>` : '';
+
+  const filmstripHtml = withVideo.length ? `
+    <div style="display:flex;gap:8px;overflow-x:auto;padding:4px 2px 8px;margin-top:16px">
+      ${withVideo.map((h, i) => {
+        const active = i === _reelState.index;
+        const icon = h.label || (h.type==='goal'?'⚽':h.type==='assist'?'🎯':h.type==='save'?'🧤':h.type==='lowlight'?'😬':'⭐');
+        return `<div onclick="reelGoTo(${i})" style="flex-shrink:0;width:120px;background:${active?'var(--card2)':'var(--card)'};border:1px solid ${active?'var(--green)':'var(--border)'};border-radius:8px;padding:8px;cursor:pointer">
+          <div style="font-size:.9rem;margin-bottom:3px">${icon}</div>
+          <div style="font-size:.68rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${h.scorer}</div>
+          <div style="font-size:.6rem;color:var(--muted)">${h.match.date}</div>
+        </div>`;
+      }).join('')}
+    </div>` : '';
 
   el.innerHTML = `
-    <style>
-      #reel-video-wrap{position:relative;width:100%;aspect-ratio:16/9;border-radius:10px;overflow:hidden;background:#000}
-      #reel-video-wrap iframe{position:absolute;inset:0;width:100%;height:100%;border:none}
-      #reel-video-wrap:fullscreen{width:100vw;height:100vh;aspect-ratio:auto;border-radius:0}
-      #reel-video-wrap:-webkit-full-screen{width:100vw;height:100vh;aspect-ratio:auto;border-radius:0}
-      #reel-fs-bar{display:none;position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:5;align-items:center;gap:8px;
-        background:rgba(0,0,0,.55);border-radius:20px;padding:5px 10px;color:#fff;font-family:'Barlow Condensed',sans-serif;font-size:.95rem;max-width:90%}
-      #reel-video-wrap:fullscreen #reel-fs-bar{display:flex}
-      #reel-video-wrap:-webkit-full-screen #reel-fs-bar{display:flex}
-      #reel-fs-bar button{background:rgba(255,255,255,.18);border:none;color:#fff;border-radius:14px;padding:3px 12px;cursor:pointer;font-family:inherit;font-size:.9rem}
-      #reel-fs-caption{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-      #reel-strip{position:relative}
-    </style>
     <div style="margin-bottom:16px">
-      <div id="reel-chips" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px">${chipsHtml}</div>
-      <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center">
-        <label style="${lblStyle}">Player
-          <select id="reel-p1" onchange="reelSetPlayer(1,this.value)" style="${selStyle}"></select>
-        </label>
-        <label style="${lblStyle}">With
-          <select id="reel-p2" onchange="reelSetPlayer(2,this.value)" style="${selStyle}"></select>
-        </label>
-        <input type="text" id="reel-search" placeholder="Search by player or date…" value="${reelEsc(_reelState.query)}"
-          oninput="reelSetQuery(this.value)"
-          style="background:var(--card);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:9px 13px;font-size:.88rem;font-family:'Barlow',sans-serif;outline:none;width:100%;max-width:260px;box-sizing:border-box">
-        <button onclick="reelClearPlayers()" style="${btnStyle}">Clear players</button>
-      </div>
-      <div id="reel-filter-note" style="font-size:.76rem;color:var(--muted);margin-top:8px;min-height:1em"></div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px">${chipsHtml}</div>
+      <input type="text" placeholder="Search by player or date…" value="${_reelState.query.replace(/"/g,'&quot;')}"
+        oninput="reelSetQuery(this.value)"
+        style="background:var(--card);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:9px 13px;font-size:.88rem;font-family:'Barlow',sans-serif;outline:none;width:100%;max-width:340px;box-sizing:border-box">
     </div>
-    <div id="reel-stage" style="max-width:1360px;margin:0 auto">
-      <div id="reel-video-box" style="width:min(100%, calc((100vh - 190px) * 16 / 9));margin:0 auto">
-        <div id="reel-video-wrap">
-          <iframe id="reel-iframe" onload="reelOnIframeLoad()"
-            allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture;fullscreen"
-            allowfullscreen></iframe>
-          <div id="reel-fs-bar">
-            <button onclick="reelPrev()">◀</button>
-            <span id="reel-fs-caption"></span>
-            <button onclick="reelNext()">▶</button>
-            <button onclick="reelToggleFullscreen()">✕</button>
-          </div>
-        </div>
-        <div style="display:flex;align-items:center;gap:10px;margin-top:12px;flex-wrap:wrap">
-          <span id="reel-info-icon" style="font-size:1.3rem"></span>
-          <div style="flex:1;min-width:0">
-            <div id="reel-info-title" style="font-family:'Bebas Neue',sans-serif;font-size:1.2rem;color:var(--text);line-height:1.2"></div>
-            <div id="reel-info-sub" style="font-size:.78rem;color:var(--muted)"></div>
-          </div>
-          <button onclick="reelToggleFullscreen()" class="btn-secondary" style="white-space:nowrap" title="Fullscreen stays on when the next highlight starts">⛶ Fullscreen</button>
-          <button id="reel-info-match" class="btn-secondary" style="white-space:nowrap">View Match</button>
-        </div>
-      </div>
-      <div id="reel-empty" style="display:none;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:60px 20px;text-align:center;color:var(--muted)"></div>
-      <div id="reel-controls">
-        <div style="display:flex;align-items:center;gap:10px;margin-top:14px">
-          <button onclick="reelPrev()" class="btn-secondary" style="min-width:90px">◀ Prev</button>
-          <div id="reel-count" style="flex:1;text-align:center;font-size:.78rem;color:var(--muted);font-family:'Barlow Condensed',sans-serif;letter-spacing:.5px"></div>
-          <button onclick="reelNext()" class="btn-secondary" style="min-width:90px">Next ▶</button>
-        </div>
-        <div style="display:flex;flex-wrap:wrap;gap:18px;margin-top:12px">
-          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:.8rem;color:var(--text2)">
-            <input type="checkbox" id="reel-autoplay-toggle" ${_reelState.autoplay ? 'checked' : ''} onchange="reelToggleAutoplay(this.checked)" style="accent-color:var(--green);width:15px;height:15px">
-            Auto-advance every ${_reelState.autoplaySecs}s
-          </label>
-          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:.8rem;color:var(--text2)" title="After ${_reelState.autoplaySecs}s the clip plays one more time (useful when the first play is low quality), then moves on">
-            <input type="checkbox" id="reel-repeat-toggle" ${_reelState.repeat ? 'checked' : ''} onchange="reelToggleRepeat(this.checked)" style="accent-color:var(--green);width:15px;height:15px">
-            Repeat each highlight once
-          </label>
-        </div>
-      </div>
-      <div id="reel-strip" style="display:flex;gap:8px;overflow-x:auto;padding:4px 2px 8px;margin-top:16px"></div>
+    <div style="max-width:820px;margin:0 auto">
+      ${playerHtml}
+      ${controlsHtml}
+      ${filmstripHtml}
     </div>
   `;
-  reelFillPlayerSelects();
-  reelBindMessages();
-}
 
-function reelFillPlayerSelects() {
-  const players = window._reelPlayers || [];
-  const s1 = document.getElementById('reel-p1'), s2 = document.getElementById('reel-p2');
-  if (!s1 || !s2) return;
-  s1.innerHTML = `<option value="">All players</option>` +
-    players.map(p => `<option value="${reelEsc(p)}" ${p === _reelState.p1 ? 'selected' : ''}>${reelEsc(p)}</option>`).join('');
-  s2.innerHTML = `<option value="">${_reelState.p1 ? 'Anyone' : '(pick a player first)'}</option>` +
-    players.filter(p => p !== _reelState.p1)
-           .map(p => `<option value="${reelEsc(p)}" ${p === _reelState.p2 ? 'selected' : ''}>${reelEsc(p)}</option>`).join('');
-  s2.disabled = !_reelState.p1;
-  s2.style.opacity = _reelState.p1 ? '1' : '.5';
-}
-
-function reelSetPlayer(which, val) {
-  if (which === 1) { _reelState.p1 = val; if (!val || val === _reelState.p2) _reelState.p2 = ''; }
-  else _reelState.p2 = val;
-  reelFillPlayerSelects();
-  reelApplyFilters();
-}
-function reelClearPlayers() {
-  _reelState.p1 = ''; _reelState.p2 = '';
-  reelFillPlayerSelects();
-  reelApplyFilters();
-}
-function reelSetType(type) { _reelState.type = type; reelApplyFilters(); }
-function reelSetQuery(q) { _reelState.query = q; reelApplyFilters(); }
-
-// Re-filter: only the clip list changes; the page shell and iframe stay put.
-function reelApplyFilters() {
-  const withVideo = reelGetFilteredList().filter(h => h.ytId);
-  const totalMatching = reelGetFilteredList().length;
-  _reelState.list = withVideo;
-  _reelState.index = 0;
-
-  document.querySelectorAll('#reel-chips [data-reel-type]').forEach(b => {
-    const on = b.dataset.reelType === _reelState.type;
-    b.style.background = on ? 'var(--green)' : 'var(--card2)';
-    b.style.color = on ? '#071009' : 'var(--text2)';
-    b.style.fontWeight = on ? '700' : '400';
-  });
-
-  const note = document.getElementById('reel-filter-note');
-  if (note) {
-    const { p1, p2 } = _reelState;
-    note.textContent = (p1 && p2 && p1 !== p2)
-      ? `Goals & assists where ${p1} and ${p2} were both involved — ${withVideo.length} clip${withVideo.length !== 1 ? 's' : ''} with video`
-      : p1 ? `Everything involving ${p1} — ${withVideo.length} clip${withVideo.length !== 1 ? 's' : ''} with video` : '';
-  }
-
-  const has = withVideo.length > 0;
-  const show = (id, on, disp) => { const e = document.getElementById(id); if (e) e.style.display = on ? (disp || 'block') : 'none'; };
-  show('reel-video-box', has); show('reel-controls', has); show('reel-strip', has, 'flex'); show('reel-empty', !has);
-  const empty = document.getElementById('reel-empty');
-  if (empty) empty.textContent = totalMatching
-    ? `No clips with video linked yet for this filter (${totalMatching - withVideo.length} matching clip${totalMatching - withVideo.length !== 1 ? 's' : ''} found, but none have a match video attached).`
-    : 'No highlights match this filter.';
-
-  reelRebuildStrip();
-  if (has) reelShowCurrent(true);
-  else {
-    if (_reelState.timer) { clearTimeout(_reelState.timer); _reelState.timer = null; }
-    reelPost('pauseVideo');
-  }
-}
-
-function reelRebuildStrip() {
-  const strip = document.getElementById('reel-strip');
-  if (!strip) return;
-  strip.innerHTML = _reelState.list.map((h, i) => `
-    <div data-i="${i}" onclick="reelGoTo(${i})" style="flex-shrink:0;width:120px;border:1px solid var(--border);border-radius:8px;padding:8px;cursor:pointer;background:var(--card)">
-      <div style="font-size:.9rem;margin-bottom:3px">${reelClipIcon(h)}</div>
-      <div style="font-size:.68rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${reelEsc(h.scorer)}</div>
-      <div style="font-size:.6rem;color:var(--muted)">${reelEsc(h.match.date)}</div>
-    </div>`).join('');
-  strip.scrollLeft = 0;
-}
-
-// Update the info line / counter / active card for the current clip WITHOUT rebuilding anything
-function reelShowCurrent(load) {
-  const list = _reelState.list;
-  if (!list.length) return;
-  if (_reelState.index >= list.length || _reelState.index < 0) _reelState.index = 0;
-  const cur = list[_reelState.index];
-
-  const setText = (id, html, asHtml) => { const e = document.getElementById(id); if (e) { if (asHtml) e.innerHTML = html; else e.textContent = html; } };
-  setText('reel-info-icon', reelClipIcon(cur));
-  setText('reel-info-title',
-    `${reelEsc(cur.scorer)}${cur.assister ? ` <span style="color:var(--muted);font-size:.9rem">← ${reelEsc(cur.assister)}</span>` : ''}`, true);
-  setText('reel-info-sub', `${cur.match.date} · ${cur.half || ''} ${cur.time || ''} · ${cur.match.goalsA}–${cur.match.goalsB}`);
-  setText('reel-count', `${_reelState.index + 1} / ${list.length}`);
-  setText('reel-fs-caption', `${cur.scorer}${cur.assister ? ' ← ' + cur.assister : ''} · ${cur.match.date} · ${_reelState.index + 1}/${list.length}`);
-  const mb = document.getElementById('reel-info-match');
-  if (mb) mb.onclick = () => navToMatch(cur.mid);
-
-  // highlight the active card; only scroll the strip if the card is actually out of view
-  const strip = document.getElementById('reel-strip');
-  if (strip) {
-    [...strip.children].forEach((c, i) => {
-      const on = i === _reelState.index;
-      c.style.background = on ? 'var(--card2)' : 'var(--card)';
-      c.style.borderColor = on ? 'var(--green)' : 'var(--border)';
-    });
-    const card = strip.children[_reelState.index];
-    if (card) {
-      const left = card.offsetLeft, right = left + card.offsetWidth;
-      if (left < strip.scrollLeft) strip.scrollLeft = Math.max(0, left - 8);
-      else if (right > strip.scrollLeft + strip.clientWidth) strip.scrollLeft = right - strip.clientWidth + 8;
-    }
-  }
-  if (load) reelLoadClip(cur);
-}
-
-// ── Video: one persistent iframe, driven with YouTube's postMessage API ──
-function reelPost(func, args) {
-  const f = document.getElementById('reel-iframe');
-  if (!f || !f.contentWindow || !f.getAttribute('src')) return;
-  try { f.contentWindow.postMessage(JSON.stringify({ event: 'command', func, args: args || [] }), '*'); } catch (e) {}
-}
-function reelPlayAt(vid, start) {
-  if (vid === _reelState.loadedVid) { reelPost('seekTo', [start, true]); reelPost('playVideo'); }
-  else { reelPost('loadVideoById', [{ videoId: vid, startSeconds: start }]); _reelState.loadedVid = vid; }
-}
-function reelLoadClip(clip) {
-  const f = document.getElementById('reel-iframe');
-  if (!f) return;
-  _reelState.repeated = false;
-  const start = Math.max(0, Math.round(timeToYtSeconds(clip.time, clip.half) - 3));
-  if (!f.getAttribute('src')) {
-    // first clip: create the player (later clips reuse it, so fullscreen survives)
-    _reelState.playerReady = false;
-    const origin = /^https?:$/.test(location.protocol) ? '&origin=' + encodeURIComponent(location.origin) : '';
-    f.src = `https://www.youtube.com/embed/${clip.ytId}?rel=0&modestbranding=1&autoplay=1&playsinline=1&enablejsapi=1&start=${start}${origin}`;
-    _reelState.loadedVid = clip.ytId;
-    _reelState.pending = null;
-  } else if (!_reelState.playerReady) {
-    _reelState.pending = { vid: clip.ytId, start };
-  } else {
-    reelPlayAt(clip.ytId, start);
-  }
   reelSetupAutoplayTimer();
 }
-function reelMarkReady() {
-  if (_reelState.playerReady) return;
-  _reelState.playerReady = true;
-  if (_reelState.pending) {
-    const p = _reelState.pending; _reelState.pending = null;
-    reelPlayAt(p.vid, p.start);
-  }
-}
-function reelOnIframeLoad() {
-  const f = document.getElementById('reel-iframe');
-  if (!f || !f.getAttribute('src')) return;     // ignore the initial blank load
-  const listen = () => { try { f.contentWindow.postMessage(JSON.stringify({ event: 'listening', id: 1, channel: 'widget' }), '*'); } catch (e) {} };
-  listen(); setTimeout(listen, 500); setTimeout(listen, 1200);
-  setTimeout(reelMarkReady, 2500);              // fallback if no ready message arrives
-}
-function reelBindMessages() {
-  if (window._reelMsgBound) return;
-  window._reelMsgBound = true;
-  window.addEventListener('message', (e) => {
-    const f = document.getElementById('reel-iframe');
-    if (!f || e.source !== f.contentWindow) return;
-    let d; try { d = typeof e.data === 'string' ? JSON.parse(e.data) : e.data; } catch (err) { return; }
-    if (d && (d.event === 'onReady' || d.event === 'initialDelivery' || d.event === 'infoDelivery')) reelMarkReady();
-  });
+
+function reelSetType(type) {
+  _reelState.type = type;
+  _reelState.index = 0;
+  reelRenderPage();
 }
 
-function reelToggleFullscreen() {
-  const w = document.getElementById('reel-video-wrap');
-  if (!w) return;
-  const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
-  if (fsEl) { (document.exitFullscreen || document.webkitExitFullscreen).call(document); }
-  else { (w.requestFullscreen || w.webkitRequestFullscreen).call(w); }
+function reelSetQuery(q) {
+  _reelState.query = q;
+  _reelState.index = 0;
+  reelRenderPage();
 }
 
-// ── Navigation ──
 function reelNext() {
-  const n = _reelState.list.length;
-  if (!n) return;
-  _reelState.index = (_reelState.index + 1) % n;
-  reelShowCurrent(true);
+  const list = reelGetFilteredList().filter(h => h.ytId);
+  if (!list.length) return;
+  _reelState.index = (_reelState.index + 1) % list.length;
+  reelRenderPage();
 }
+
 function reelPrev() {
-  const n = _reelState.list.length;
-  if (!n) return;
-  _reelState.index = (_reelState.index - 1 + n) % n;
-  reelShowCurrent(true);
+  const list = reelGetFilteredList().filter(h => h.ytId);
+  if (!list.length) return;
+  _reelState.index = (_reelState.index - 1 + list.length) % list.length;
+  reelRenderPage();
 }
+
 function reelGoTo(i) {
   _reelState.index = i;
-  reelShowCurrent(true);
+  reelRenderPage();
 }
 
-// ── Auto-advance / repeat ──
 function reelToggleAutoplay(checked) {
   _reelState.autoplay = checked;
   reelSetupAutoplayTimer();
 }
-function reelToggleRepeat(checked) {
-  _reelState.repeat = checked;
-  reelSetupAutoplayTimer();
-}
+
 function reelSetupAutoplayTimer() {
   if (_reelState.timer) { clearTimeout(_reelState.timer); _reelState.timer = null; }
-  if (!_reelState.active) return;
-  if (!_reelState.autoplay && !_reelState.repeat) return;
-  if (!_reelState.list.length) return;
-  _reelState.timer = setTimeout(reelTimerFired, _reelState.autoplaySecs * 1000);
-}
-function reelTimerFired() {
-  _reelState.timer = null;
-  if (!_reelState.active) return;
-  const cur = _reelState.list[_reelState.index];
-  if (!cur) return;
-  if (_reelState.repeat && !_reelState.repeated) {
-    // play the same clip one more time (same iframe, so fullscreen is kept)
-    _reelState.repeated = true;
-    const start = Math.max(0, Math.round(timeToYtSeconds(cur.time, cur.half) - 3));
-    reelPlayAt(cur.ytId, start);
-    reelSetupAutoplayTimer();
-    return;
-  }
-  if (_reelState.autoplay && _reelState.list.length >= 2) reelNext();
+  if (!_reelState.autoplay) return;
+  const list = reelGetFilteredList().filter(h => h.ytId);
+  if (list.length < 2) return;
+  _reelState.timer = setTimeout(() => { reelNext(); }, _reelState.autoplaySecs * 1000);
 }
 
 function renderCombosPage() {
@@ -8063,9 +7787,13 @@ function renderAll() {
 // NAVIGATION
 // =====================================================================
 function nav(page, extra) {
-  const _prevPage = currentPage;
+  // Leaving the Highlights Reel: stop autoplay timer and destroy the embedded YouTube iframe so audio stops.
+  if (currentPage === 'reel' && page !== 'reel') {
+    try { if (_reelState.timer) { clearTimeout(_reelState.timer); clearInterval(_reelState.timer); _reelState.timer = null; } } catch(e) {}
+    const _rc = document.getElementById('reel-content');
+    if (_rc) _rc.innerHTML = '';
+  }
   currentPage = page;
-  if (_prevPage === 'reel' && page !== 'reel' && typeof reelStop === 'function') reelStop();
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('page-' + page)?.classList.add('active');
@@ -8139,6 +7867,7 @@ function updateDraftBanner() {
 function saveSettings() {
   const settings = {
     mvpWeights: { ...mvpWeights },
+    mvpShotConversion: { ...mvpConv },
     customStats: { ...customStats },
     bannerHeights: { ...bannerHeights },
     bannerSlowmo: { ...bannerSlowmo },
@@ -8189,7 +7918,7 @@ function saveSettings() {
 }
 
 function saveMvpWeights() {
-  try { localStorage.setItem(LS_MVP_WEIGHTS, JSON.stringify(mvpWeights)); } catch(e) {}
+  try { localStorage.setItem(LS_MVP_WEIGHTS, JSON.stringify(mvpWeights)); localStorage.setItem('aeroSoccer_mvpConv', JSON.stringify(mvpConv)); } catch(e) {}
 }
 
 function saveGkNormStrength() {
@@ -8226,6 +7955,114 @@ function applyGkNorm(rawScore, playerName, matchId) {
   const normalised = rawScore / Math.max(frac, 0.1); // cap so 10% outfield can't blow up to 10×
   return rawScore + (normalised - rawScore) * gkNormStrength;
 }
+
+
+// ── SHOT-CONVERSION MULTIPLIER ─────────────────────────────────────────
+// Scales a player's ATTACKING points (goals + shots on/off target) by how efficient their
+// finishing was compared with the league average, so 4 goals from 8 shots beats 4 goals
+// from 20 shots, and 18 wasted shots earn less than a few accurate ones.
+//   conversion  = goals / total_shots
+//   smoothed    = (goals + priorShots*leagueConv) / (shots + priorShots)
+//                 -> small samples (1 shot, 1 goal) get pulled toward average instead of
+//                    getting a silly 100% conversion
+//   multiplier  = 1 + strength*(smoothed/leagueConv - 1), softly compressed toward min/max (tanh)
+// strength 0 = feature off (multiplier is always 1). 0 shots = neutral (multiplier 1).
+const MVP_CONV_DEFAULT = { strength: 0.5, priorShots: 10, min: 0.7, max: 1.5 };
+let mvpConv = (() => {
+  try { const sv = localStorage.getItem('aeroSoccer_mvpConv'); return sv ? { ...MVP_CONV_DEFAULT, ...JSON.parse(sv) } : { ...MVP_CONV_DEFAULT }; }
+  catch(e) { return { ...MVP_CONV_DEFAULT }; }
+})();
+
+function _rowShots(r) {
+  const t = n(r.total_shots);
+  return t > 0 ? t : n(r.shots_on_target) + n(r.shots_off_target);
+}
+let _leagueConvCache = { ref: null, len: -1, val: 0.166 };
+function getLeagueConv() {
+  if (_leagueConvCache.ref === allRows && _leagueConvCache.len === allRows.length) return _leagueConvCache.val;
+  let g = 0, sh = 0;
+  allRows.forEach(r => {
+    if (r.half !== 'FULL' || r.team === 'DNP' || r.team === '-') return;
+    g += n(r.goals); sh += _rowShots(r);
+  });
+  const val = sh > 0 && g > 0 ? g / sh : 0.166;
+  _leagueConvCache = { ref: allRows, len: allRows.length, val };
+  return val;
+}
+function mvpShotMultiplier(r) {
+  const c = mvpConv;
+  if (!c || !c.strength || c.strength <= 0) return 1;
+  const shots = _rowShots(r);
+  if (shots <= 0) return 1;
+  const L = getLeagueConv();
+  const smoothed = (n(r.goals) + c.priorShots * L) / (shots + c.priorShots);
+  const x = c.strength * (smoothed / L - 1);
+  // Soft saturation (tanh) instead of a hard clamp: the multiplier keeps rising with better
+  // conversion but flattens toward max/min, so two very efficient players don't tie at the cap.
+  return x >= 0
+    ? 1 + (c.max - 1) * Math.tanh(x / (c.max - 1))
+    : 1 - (1 - c.min) * Math.tanh(-x / (1 - c.min));
+}
+
+// Single source of truth for a player's MVP score.
+//  - calcMvpCore : everything EXCEPT GK saves (attack x shot-conversion multiplier + other stats).
+//                  This is the part that GK time normalisation is allowed to scale.
+//  - calcMvpSaves: GK save points. Added AFTER normalisation so keepers aren't boosted twice.
+//  - calcMvpScore: the final match MVP score = applyGkNorm(core) + saves.
+//  - calcMvpRaw  : core + saves with NO GK normalisation (for views that don't use it).
+function calcMvpCore(r) {
+  const w = mvpWeights;
+  const attack = w.goals * n(r.goals) + w.shots_on_target * n(r.shots_on_target) + w.shots_off_target * n(r.shots_off_target);
+  const other  = w.assists * n(r.assists) + w.key_passes * n(r.key_passes) + w.nutmegs * n(r.nutmegs)
+               + w.tackles * n(r.tackles) + w.interceptions * n(r.interceptions) + w.blocks * n(r.blocks)
+               + w.post * n(r.post);
+  return attack * mvpShotMultiplier(r) + other;
+}
+function calcMvpSaves(r) { return mvpWeights.goalkeeper_saves * n(r.goalkeeper_saves); }
+function calcMvpRaw(r)   { return calcMvpCore(r) + calcMvpSaves(r); }
+function calcMvpScore(r, matchId) {
+  return applyGkNorm(calcMvpCore(r), r.player, matchId) + calcMvpSaves(r);
+}
+
+// Build GK rotation segments from GK On / GK Removed events.
+// Segments are paired within each half. Special case: a keeper who is already in goal at the
+// end of 1H usually isn't re-logged with a "GK On" at the start of 2H — only their eventual
+// "GK Removed" appears in 2H. Without handling that, their 2H time was dropped entirely.
+// So: an open 1H spell with no new "GK On" in 2H is carried into 2H, from the end of 1H until
+// their 2H "GK Removed" (or a teammate taking over, or the end of the match).
+function buildGkRotation(rows) {
+  const valid = r => r.tsSecsRaw != null && !isNaN(r.tsSecsRaw) && r.tsSecsRaw >= 0 && r.tsSecsRaw <= 7200;
+  const maxT = {};
+  ['1H','2H'].forEach(h => { maxT[h] = rows.filter(r => r.half === h && valid(r)).reduce((m, r) => Math.max(m, r.tsSecsRaw), 0); });
+  const rot = { '1H': [], '2H': [] };
+  const openAtEnd1H = [];
+  ['1H','2H'].forEach(half => {
+    const ons  = rows.filter(r => r.event === 'GK On'      && r.half === half).sort((a,b) => a.tsSecsRaw - b.tsSecsRaw);
+    const offs = rows.filter(r => r.event === 'GK Removed' && r.half === half).sort((a,b) => a.tsSecsRaw - b.tsSecsRaw);
+    ons.forEach(on => {
+      const off = offs.find(o => o.player === on.player && o.tsSecsRaw >= on.tsSecsRaw);
+      rot[half].push({ player: on.player, team: on.team, fromSecs: on.tsSecsRaw, toSecs: off ? off.tsSecsRaw : (maxT[half] || 9999) });
+      if (half === '1H' && !off) openAtEnd1H.push(on);
+    });
+  });
+  if (maxT['2H'] > 0) {
+    const start2H = maxT['1H']; // clock is continuous across halves, so 2H starts where 1H ended
+    openAtEnd1H.forEach(on => {
+      const reOn = rot['2H'].some(seg => seg.player === on.player);
+      if (reOn) return; // user logged them going on again in 2H — trust that
+      const off = rows.filter(r => r.event === 'GK Removed' && r.half === '2H' && r.player === on.player)
+                      .sort((a,b) => a.tsSecsRaw - b.tsSecsRaw)[0];
+      // if no explicit removal, a teammate going on in 2H also ends their spell
+      const takeover = rot['2H'].filter(seg => seg.team === on.team && seg.player !== on.player)
+                                .sort((a,b) => a.fromSecs - b.fromSecs)[0];
+      const to = off ? off.tsSecsRaw : (takeover ? takeover.fromSecs : maxT['2H']);
+      if (to > start2H) rot['2H'].push({ player: on.player, team: on.team, fromSecs: start2H, toSecs: to, carried: true });
+    });
+    rot['2H'].sort((a,b) => a.fromSecs - b.fromSecs);
+  }
+  return rot;
+}
+
 
 function setMatchFilter(f) {
   matchFilter = f;
@@ -9059,25 +8896,17 @@ function buildSingleMatchCardHtml(m) {
         </div>
 
         <div class="matchtab-panel" id="matchtab-formation-${m.id.replace(/[#]/g,'__')}">
-          <div class="two-pitch">
-            <div class="pitch-col">
-              <div class="pitch-col-label a">TEAM A ▲</div>
-              <div class="mini-pitch-wrap" id="wrapA-${m.id.replace(/[#]/g,'__')}">
-                <canvas class="mini-canvas" id="canvasA-${m.id.replace(/[#]/g,'__')}"></canvas>
-                <div class="mini-players" id="playersA-${m.id.replace(/[#]/g,'__')}"></div>
-              </div>
-            </div>
-            <div class="pitch-col">
-              <div class="pitch-col-label b">TEAM B ▲</div>
-              <div class="mini-pitch-wrap" id="wrapB-${m.id.replace(/[#]/g,'__')}">
-                <canvas class="mini-canvas" id="canvasB-${m.id.replace(/[#]/g,'__')}"></canvas>
-                <div class="mini-players" id="playersB-${m.id.replace(/[#]/g,'__')}"></div>
-              </div>
-            </div>
+          <div class="goals-direction-row">
+            <span class="goals-dir-team a">● Team A ▶</span>
+            <span class="goals-dir-team b">◀ Team B ●</span>
+          </div>
+          <div class="goals-pitch-wrap" id="formWrap-${m.id.replace(/[#]/g,'__')}">
+            <canvas class="goals-canvas" id="formCanvas-${m.id.replace(/[#]/g,'__')}" style="cursor:default"></canvas>
+            <div class="mini-players" id="formPlayers-${m.id.replace(/[#]/g,'__')}"></div>
           </div>
           <div class="formation-legend">
             <span>👑 🥈 🥉 Top 3 MVP</span>
-            <span>Hover a player to see which stats they led the team in this match (highlighted in gold)</span>
+            <span>Team A attacks ▶, Team B attacks ◀ · Hover a player to see which stats they led the team in this match (highlighted in gold)</span>
           </div>
         </div>
 
@@ -9089,7 +8918,8 @@ function buildSingleMatchCardHtml(m) {
           <div class="goals-pitch-wrap" id="goalsWrap-${m.id.replace(/[#]/g,'__')}">
             <canvas class="goals-canvas" id="goalsCanvas-${m.id.replace(/[#]/g,'__')}"></canvas>
           </div>
-          <div class="goal-hint">Hover a dot for scorer info · click to reveal the assist origin and pass line</div>
+          <div id="goalsWatch-${m.id.replace(/[#]/g,'__')}" style="display:none;align-items:center;justify-content:space-between;gap:10px;margin-top:8px;font-size:.78rem;flex-wrap:wrap"></div>
+          <div class="goal-hint">Hover a dot for scorer info · click to reveal the assist origin and pass line · click again (or ▶ Watch) to jump to the moment in the YouTube video</div>
           <div class="formation-legend">
             <span><i style="background:var(--green)"></i> Team A goal</span>
             <span><i style="background:var(--blue)"></i> Team B goal</span>
@@ -9283,7 +9113,8 @@ function formPlaceTeam(teamRowsRaw, matchId, pitchW, pitchH){
   const arcR = pitchW*0.28;
   const gkMaxFy = (pitchH-3-arcR)/pitchH;
   const GK_FY = gkMaxFy - 0.008;
-  const ZONE_Y = { Forward:0.18, Midfield:0.50, Defence: gk?0.665:0.76 };
+  // Landscape: Team A defends the LEFT goal and attacks right, so role = depth along x.
+  const ZONE_X = { Defence:0.14, Midfield:0.29, Forward:0.44 };
   const ROLE_X_BANDS = { Defence:[0.30,0.70,0.5], Midfield:[0.5,0.25,0.75], Forward:[0.32,0.68,0.5] };
   const ZONE_VALUE = { left:0, mid:1, right:2 };
   const FORWARD_ZONE_X_SOLO = { left:0.3, mid:0.5, right:0.7 };
@@ -9301,23 +9132,23 @@ function formPlaceTeam(teamRowsRaw, matchId, pitchW, pitchH){
       if (withZone.length > 0) {
         withZone.sort((a,b)=> ZONE_VALUE[a._shotZone.zone]-ZONE_VALUE[b._shotZone.zone] || a._shotZone.count-b._shotZone.count);
         if (withZone.length === 1) {
-          withZone[0]._fx = FORWARD_ZONE_X_SOLO[withZone[0]._shotZone.zone];
+          withZone[0]._fy = FORWARD_ZONE_X_SOLO[withZone[0]._shotZone.zone];
         } else if (withZone.length === 2) {
           const SLOTS_2 = [0.34, 0.66];
-          withZone.forEach((p,i)=>{ p._fx = SLOTS_2[i]; });
+          withZone.forEach((p,i)=>{ p._fy = SLOTS_2[i]; });
         } else {
           const xMin=0.16, xMax=0.84;
-          withZone.forEach((p,i)=>{ p._fx = xMin + i*((xMax-xMin)/(withZone.length-1)); });
+          withZone.forEach((p,i)=>{ p._fy = xMin + i*((xMax-xMin)/(withZone.length-1)); });
         }
-        withoutZone.forEach((p,i)=>{ p._fx = bandXs[i%bandXs.length]; p._yJitter = Math.floor(i/bandXs.length)*(70/pitchH); });
+        withoutZone.forEach((p,i)=>{ p._fy = bandXs[i%bandXs.length]; p._xJitter = Math.floor(i/bandXs.length)*(64/pitchW); });
         return;
       }
     }
-    group.forEach((p,i)=>{ p._fx = bandXs[i%bandXs.length]; p._yJitter = Math.floor(i/bandXs.length)*(70/pitchH); });
+    group.forEach((p,i)=>{ p._fy = bandXs[i%bandXs.length]; p._xJitter = Math.floor(i/bandXs.length)*(64/pitchW); });
   });
 
-  outfield.forEach(p=>{ p._fy = ZONE_Y[p._role] + (p._yJitter||0); });
-  if (gk){ gk._fx = 0.5; gk._fy = GK_FY; gk._role = 'GK'; }
+  outfield.forEach(p=>{ p._fx = ZONE_X[p._role] - (p._xJitter||0); });
+  if (gk){ gk._fx = 0.06; gk._fy = 0.5; gk._role = 'GK'; }
   return gk ? [...outfield, gk] : outfield;
 }
 
@@ -9400,41 +9231,43 @@ function formHideTip(){
   if (tip) tip.style.opacity = '0';
 }
 
-function formRenderTeamPitch(matchId, safeId, teamKey, teamRows, mvpList, matchHighs){
-  const wrap = document.getElementById(`wrap${teamKey}-${safeId}`);
-  const cv = document.getElementById(`canvas${teamKey}-${safeId}`);
-  if (!wrap || !cv) return;
+function formRenderPitch(matchId, safeId, m, matchHighs){
+  const wrap = document.getElementById(`formWrap-${safeId}`);
+  const cv = document.getElementById(`formCanvas-${safeId}`);
+  const container = document.getElementById(`formPlayers-${safeId}`);
+  if (!wrap || !cv || !container) return;
   const dpr = window.devicePixelRatio || 1;
-  const W = wrap.getBoundingClientRect().width || 460;
-  const H = Math.round(W * 1.3);
+  const W = wrap.getBoundingClientRect().width || 600;
+  const H = Math.round(W * 0.52); // identical sizing to the Goal Locations court
   cv.width = W*dpr; cv.height = H*dpr;
   cv.style.width = W+'px'; cv.style.height = H+'px';
   const ctx = cv.getContext('2d');
   ctx.clearRect(0,0,cv.width,cv.height);
   ctx.save(); ctx.scale(dpr,dpr);
-  formDrawMiniCourt(ctx, W, H);
+  goalsDrawCourt(ctx, W, H);
   ctx.restore();
 
-  if (!teamRows || !teamRows.length) { document.getElementById(`players${teamKey}-${safeId}`).innerHTML = ''; return; }
-
-  const placed = formPlaceTeam(teamRows, matchId, W, H);
   const medals = ['👑','🥈','🥉'];
-  const container = document.getElementById(`players${teamKey}-${safeId}`);
   let html = '';
-  placed.forEach(p=>{
-    // Match the same gold/silver/bronze medal ranking used everywhere else in the app
-    // (m.mvpList, index 0-2), instead of only ever highlighting the #1 MVP.
-    const mvpIdx = mvpList ? mvpList.findIndex(e => e.player === p.player) : -1;
-    const badges = mvpIdx >= 0 && mvpIdx < 3 ? `<span class="pplayer-badge mvp-${mvpIdx+1}">${medals[mvpIdx]}</span>` : '';
-    const tipId = `${safeId}_${teamKey}_${p.player}`.replace(/[^a-zA-Z0-9_]/g,'');
-    formTipData[tipId] = { ...p, _matchHighs: matchHighs };
-    const teamCls = teamKey==='A' ? 'team-a' : 'team-b';
-    html += `<div class="pplayer" style="left:${(p._fx*100).toFixed(2)}%;top:${(p._fy*100).toFixed(2)}%"
-      onmousemove="formShowTip(event,'${tipId}')" onmouseleave="formHideTip()">
-      <div class="pplayer-avatar ${teamCls}">${formInitials(p.player)}${badges}</div>
-      <div class="pplayer-name">${p.player}</div>
-      <div class="pplayer-role">${p._role}</div>
-    </div>`;
+  [['A', m.teamA], ['B', m.teamB]].forEach(([teamKey, rows])=>{
+    if (!rows || !rows.length) return;
+    const placed = formPlaceTeam(rows, matchId, W, H);
+    placed.forEach(p=>{
+      // Team A sits on the left half attacking right; Team B is mirrored (1-x, 1-y), same as goal dots.
+      const fx = teamKey==='A' ? p._fx : 1-p._fx;
+      const fy = teamKey==='A' ? p._fy : 1-p._fy;
+      const mvpIdx = m.mvpList ? m.mvpList.findIndex(e => e.player === p.player) : -1;
+      const badges = mvpIdx >= 0 && mvpIdx < 3 ? `<span class="pplayer-badge mvp-${mvpIdx+1}">${medals[mvpIdx]}</span>` : '';
+      const tipId = `${safeId}_${teamKey}_${p.player}`.replace(/[^a-zA-Z0-9_]/g,'');
+      formTipData[tipId] = { ...p, _matchHighs: matchHighs };
+      const teamCls = teamKey==='A' ? 'team-a' : 'team-b';
+      html += `<div class="pplayer" style="left:${(fx*100).toFixed(2)}%;top:${(fy*100).toFixed(2)}%"
+        onmousemove="formShowTip(event,'${tipId}')" onmouseleave="formHideTip()">
+        <div class="pplayer-avatar ${teamCls}">${formInitials(p.player)}${badges}</div>
+        <div class="pplayer-name">${p.player}</div>
+        <div class="pplayer-role">${p._role}</div>
+      </div>`;
+    });
   });
   container.innerHTML = html;
 }
@@ -9477,8 +9310,7 @@ function renderFormationTab(safeId){
   // team" (which could highlight someone with fewer tackles than an opponent).
   const allRows = [...(m.teamA||[]), ...(m.teamB||[])];
   const matchHighs = formComputeMatchHighs(allRows);
-  formRenderTeamPitch(m.id, safeId, 'A', m.teamA, m.mvpList, matchHighs);
-  formRenderTeamPitch(m.id, safeId, 'B', m.teamB, m.mvpList, matchHighs);
+  formRenderPitch(m.id, safeId, m, matchHighs);
 }
 
 // ============================================================
@@ -9716,13 +9548,42 @@ function goalsShowTip(ev, safeId, idx){
   tip.innerHTML = `<div style="color:${col};font-weight:700;margin-bottom:2px">${label}</div>`
     + (g.assistBy ? `<div style="color:rgba(168,224,80,.8);font-size:.7rem">&larr; assist: ${g.assistBy}</div>` : '<div style="color:var(--muted);font-size:.7rem">Unassisted</div>')
     + `<div style="color:rgba(255,255,255,.6);font-size:.68rem;margin-top:3px">${g.half || ''} · ${g.ts || ''}</div>`
-    + `<div style="color:rgba(251,191,36,.7);font-size:.6rem;margin-top:4px">CLICK TO SEE ASSIST LOCATION</div>`;
+    + `<div style="color:rgba(251,191,36,.7);font-size:.6rem;margin-top:4px">CLICK TO SEE ASSIST LOCATION</div>`
+    + (goalsVideoSecs(safeId, g) != null ? `<div style="color:#ff6b6b;font-size:.6rem;margin-top:2px">▶ CLICK AGAIN OR USE “WATCH” TO JUMP TO VIDEO</div>` : '');
   tip.style.opacity = '1';
   const ow = tip.offsetWidth || 150;
   let left = ev.clientX + 14;
   if (left + ow > window.innerWidth) left = ev.clientX - ow - 8;
   tip.style.left = left + 'px';
   tip.style.top = (ev.clientY - 10) + 'px';
+}
+function goalsVideoInfo(safeId, g){
+  const m = window.__matchById?.[safeId];
+  if (!m || !g) return null;
+  const raw = (typeof matchVideos !== 'undefined') ? matchVideos[m.id] : null;
+  const ytId = raw ? extractYtId(raw) : null;
+  if (!ytId || !g.ts) return null;
+  return { ytId, secs: timeToYtSeconds(g.ts, '1H'), key: m.id.replace(/[#,]/g,'_') }; // timestamps are absolute (as in momentum chart)
+}
+function goalsVideoSecs(safeId, g){ const v = goalsVideoInfo(safeId, g); return v ? v.secs : null; }
+function goalsWatchSelected(safeId){
+  const st = goalsTabState[safeId];
+  if (!st || st.selectedIdx < 0) return;
+  const v = goalsVideoInfo(safeId, st.events[st.selectedIdx]);
+  if (v) seekYtVideo(v.key, v.ytId, v.secs);
+}
+function goalsUpdateWatchBar(safeId){
+  const bar = document.getElementById(`goalsWatch-${safeId}`);
+  if (!bar) return;
+  const st = goalsTabState[safeId];
+  const g = st && st.selectedIdx >= 0 ? st.events[st.selectedIdx] : null;
+  if (!g) { bar.style.display = 'none'; return; }
+  const v = goalsVideoInfo(safeId, g);
+  const label = g.event === 'OG' ? `Own goal — ${g.player}` : `${g.player}${g.assistBy ? ' (assist ' + g.assistBy + ')' : ''}`;
+  bar.style.display = 'flex';
+  bar.innerHTML = `<span><b>${label}</b> · ${g.half || ''} ${g.ts || ''}</span>`
+    + (v ? `<button class="print-btn" onclick="event.stopPropagation();goalsWatchSelected('${safeId}')" style="color:#ff6b6b;border-color:rgba(255,107,107,.4)">▶ Watch on YouTube</button>`
+         : `<span style="color:var(--muted)">No video linked for this match</span>`);
 }
 function goalsHideTip(){
   const tip = document.getElementById('goal-tip-global');
@@ -9818,7 +9679,7 @@ function renderGoalsTab(safeId){
   });
 
   goalsTabState[safeId] = { events, hoveredIdx: -1, selectedIdx: -1 };
-  goalsDraw(safeId);
+  goalsDraw(safeId); goalsUpdateWatchBar(safeId);
 
   const cv = document.getElementById(`goalsCanvas-${safeId}`);
   if (!cv || cv._goalsWired) { if (cv) goalsDraw(safeId); return; }
@@ -9843,7 +9704,15 @@ function renderGoalsTab(safeId){
   cv.addEventListener('click', ev=>{
     const hit = goalsGetHit(safeId, ev);
     const state = goalsTabState[safeId];
-    if (hit>=0) { state.selectedIdx = (state.selectedIdx===hit) ? -1 : hit; goalsDraw(safeId); }
+    if (hit>=0) {
+      if (state.selectedIdx === hit) {
+        // second click on an already-selected goal jumps to that moment in the video
+        const v = goalsVideoInfo(safeId, state.events[hit]);
+        if (v) { seekYtVideo(v.key, v.ytId, v.secs); return; }
+        state.selectedIdx = -1;
+      } else state.selectedIdx = hit;
+      goalsDraw(safeId); goalsUpdateWatchBar(safeId);
+    }
   });
 }
 
@@ -10597,8 +10466,7 @@ function setTrendStat(name, gifKey, statKey){
 // configurable, defaults to MVP_WEIGHTS_DEFAULT) — so "All Stats" reflects the same notion of
 // "how good was this game" the rest of the app already uses, not a separate invented formula.
 function computeAllStatsScore(row){
-  const w = (typeof mvpWeights !== 'undefined' && mvpWeights) ? mvpWeights : MVP_WEIGHTS_DEFAULT;
-  return Object.keys(w).reduce((sum, key) => sum + n(row[key]) * (w[key]||0), 0);
+  return calcMvpRaw(row);
 }
 
 function drawTrendChart(name, gifKey){
@@ -13034,8 +12902,8 @@ function renderLeaderboard() {
     // so a lot of players won't have a value at all here. Return null (not 0) so they render
     // as a dash instead of looking like they scored zero.
     if (lbStat === 'save_rate') {
-      const g = gkRankRate(p.player);
-      return g ? Math.round(g.rate * 100) : null;
+      const ts = getPlayerEventStats(p.player);
+      return (ts && ts.gkSaveRate != null) ? Math.round(ts.gkSaveRate * 100) : null;
     }
     if (lbStat === 'def_sparks') {
       const ts = getPlayerEventStats(p.player);
@@ -13112,7 +12980,7 @@ function renderLeaderboard() {
     else if (lbStat === 'shot_conversion') allTimeVals[p.player] = p.total_shots > 0 ? parseFloat((p.goals/p.total_shots*100).toFixed(1)) : 0;
     else if (lbStat === 'shot_accuracy') allTimeVals[p.player] = p.total_shots > 0 ? parseFloat((p.shots_on_target/p.total_shots*100).toFixed(1)) : 0;
     else if (lbStat === 'rating') allTimeVals[p.player] = p.rating || 0;
-    else if (lbStat === 'save_rate') { const g = gkRankRate(p.player); allTimeVals[p.player] = g ? Math.round(g.rate*100) : null; }
+    else if (lbStat === 'save_rate') { const ts = getPlayerEventStats(p.player); allTimeVals[p.player] = (ts && ts.gkSaveRate != null) ? Math.round(ts.gkSaveRate*100) : null; }
     else if (lbStat === 'def_sparks') { const ts = getPlayerEventStats(p.player); allTimeVals[p.player] = (ts && ts.defChains) ? (lbPerGame ? ts.defChainsPerMatch : ts.defChains) : null; }
     else if (lbStat === 'clutch') { const ts = getPlayerEventStats(p.player); allTimeVals[p.player] = (ts && ts.clutchTotal) ? (lbPerGame ? ts.clutchPerMatch : ts.clutchTotal) : null; }
     else { const raw = p[lbStat] ?? 0; allTimeVals[p.player] = lbPerGame && !noPerGame.includes(lbStat) ? raw/g : raw; }
@@ -13744,17 +13612,6 @@ function computeStaminaFromEvents(playerName) {
 }
 
 function computeWeightedRating(playerName) {
-  const raw = computeWeightedRatingRaw(playerName);
-  const p = playerStats[playerName];
-  if (!p || typeof BAL === 'undefined') return raw;
-  const w = Math.min(1, (Math.max(p.games, 0) + 1) / (BAL.shrinkMinGames + 1));
-  if (w >= 1) return raw;
-  const mean = balGroupMeanRating();
-  if (!(mean > 0)) return raw;
-  return parseFloat((w * raw + (1 - w) * mean).toFixed(2));
-}
-
-function computeWeightedRatingRaw(playerName) {
   const p = playerStats[playerName];
   const cs = customStats[playerName] || {};
   if (!p) return 0;
@@ -13813,17 +13670,16 @@ function getPlayerRole(p) {
 }
 
 function teamDimensions(team) {
-  let attack = 0, defense = 0, playmaking = 0, enforcer = 0;
+  let attack = 0, defense = 0, playmaking = 0, gk = 0, enforcer = 0;
   team.forEach(p => {
     const games = Math.max(p.games, 1);
     const cs = customStats[p.player] || {};
     attack   += (p.goals / games) * 4 + (p.nutmegs / games) * 0.5;
     defense  += ((p.tackles + p.interceptions + p.blocks) / games) * 1.2;
     playmaking += (p.assists / games) * 3 + (p.key_passes / games) * 1;
+    gk       += ((p.goalkeeper_saves || 0) / games) * 2;
     enforcer += p.enforcer != null ? p.enforcer : n(cs.enforcer || 0);
   });
-
-  const gk = balTeamKeeping(team).rate * 20;   // keeping quality (save rate), not save volume
 
   // Team synergy: sum of pairwise chemistry deltas within the team
   // Combined from win-rate chemistry AND goal combo frequency
@@ -13831,10 +13687,8 @@ function teamDimensions(team) {
   const chemLookupLocal = {};
   (window._filteredChemistry || window._chemistry || []).forEach(c => {
     if ((c.games || 0) >= minChemGames) {
-      // shrink small samples toward 0, then cap
-      const sd = Math.max(-BAL.chemCap, Math.min(BAL.chemCap, c.delta * (c.games / (c.games + BAL.chemShrinkGames))));
-      chemLookupLocal[`${c.p1}|||${c.p2}`] = sd;
-      chemLookupLocal[`${c.p2}|||${c.p1}`] = sd;
+      chemLookupLocal[`${c.p1}|||${c.p2}`] = c.delta;
+      chemLookupLocal[`${c.p2}|||${c.p1}`] = c.delta;
     }
   });
 
@@ -13845,7 +13699,7 @@ function teamDimensions(team) {
     if (c.matchCount >= 3) {
       // Normalise: 1 combo/game = +5% chemistry boost, capped at +20%
       const rate = c.goals / c.matchCount;
-      const bonus = Math.min(rate * 5, BAL.comboCap);
+      const bonus = Math.min(rate * 5, 20);
       const key1 = `${c.scorer}|||${c.assister}`;
       const key2 = `${c.assister}|||${c.scorer}`;
       comboChemBonus[key1] = (comboChemBonus[key1] || 0) + bonus;
@@ -13927,7 +13781,6 @@ function renderKeepApartList() {
 }
 
 function shuffleTeams() {
-  balResetCache();
   // Build rated player objects same way autoBalance does
   const sel = [...selectedForTeams].map(name => {
     const p = customPlayers[name] || playerStats[name];
@@ -13951,11 +13804,9 @@ function shuffleTeams() {
       streakMod = 1 + ((wr - 0.5) * winRateAugStrength * 2);
     }
     const buff = playerBuffs[name] || 0;
-    const impactAdj = p._isCustom ? 0 : balImpactAdj(name);
     return {
       ...p,
-      effectiveRating: weightedRating * (1 - pen) * streakMod + buff + impactAdj,
-      impactAdj,
+      effectiveRating: weightedRating * (1 - pen) * streakMod + buff,
       weightedRating,
       streakMod,
       playerBuff: buff,
@@ -14077,204 +13928,7 @@ function shuffleTeams() {
   }
 }
 
-
-// =====================================================================
-// BALANCE v2 helpers
-//  1. goalkeeper quality (save rate, shrunk) instead of save volume
-//  2. role requirements (proven keeper + proven finisher per team)
-//  3. on/off impact adjustment (ridge-regressed goal difference)
-//  4. small-sample shrinkage for players with few games
-//  6. shrunk + capped chemistry
-// =====================================================================
-function balResetCache() { _balCache = {}; }
-
-// ---- 1. goalkeeper quality ----
-function balGkRecord(name) {
-  const ts = getPlayerEventStats(name);
-  if (!ts || !(ts.gkMinutes > 0)) return { saves: 0, conceded: 0, minutes: 0, share: null };
-  const games = Math.max(ts.matchesWithData || 1, 1);
-  return {
-    saves: ts.gkSaves || 0,
-    conceded: ts.gkGoalsConceded || 0,
-    minutes: ts.gkMinutes,
-    share: Math.min(1, ts.gkMinutes / (games * BAL.gameMinutes)),
-  };
-}
-function balGkPrior() {
-  if (_balCache.gkPrior != null && Date.now() - (_balCache.gkPriorAt || 0) < 3000) return _balCache.gkPrior;
-  let sv = 0, cc = 0;
-  Object.keys(playerStats).forEach(nm => {
-    const r = balGkRecord(nm);
-    sv += r.saves; cc += r.conceded;
-  });
-  _balCache.gkPrior = (sv + cc) > 0 ? sv / (sv + cc) : 0.65;
-  _balCache.gkPriorAt = Date.now();
-  return _balCache.gkPrior;
-}
-// save rate shrunk toward the group average by how many shots they have faced
-function balGkRate(name) {
-  const prior = balGkPrior();
-  const key = 'gk:' + name + ':' + (_balCache.gkPriorAt || 0);
-  if (_balCache[key]) return _balCache[key];
-  const r = balGkRecord(name);
-  const shots = r.saves + r.conceded;
-  const rate = (r.saves + prior * BAL.gkPriorShots) / (shots + BAL.gkPriorShots);
-  const out = { rate, raw: shots > 0 ? r.saves / shots : null, minutes: r.minutes, shots,
-                share: r.share != null ? r.share : BAL.gkUnknownShare,
-                proven: r.minutes >= BAL.gkMinMinutes && rate >= prior - BAL.gkProvenMargin };
-  _balCache[key] = out;
-  return out;
-}
-// ranking rate: shrunk save rate, but only for players with enough time in goal
-function gkRankRate(name) {
-  const g = balGkRate(name);
-  return g.minutes >= BAL.gkMinMinutes ? { rate: g.rate, raw: g.raw, minutes: g.minutes } : null;
-}
-// team keeping: players weighted by how much of a game they normally spend in goal
-function balTeamKeeping(team) {
-  let wSum = 0, rSum = 0, best = null, worst = null;
-  team.forEach(p => {
-    const g = p._isCustom ? { rate: balGkPrior(), minutes: 0, share: BAL.gkUnknownShare, proven: false, raw: null } : balGkRate(p.player);
-    const w = Math.max(g.share, 0.02);
-    wSum += w; rSum += w * g.rate;
-    if (g.minutes >= BAL.gkMinMinutes) {
-      if (!best || g.rate > best.rate) best = { player: p.player, rate: g.rate, raw: g.raw };
-      if (!worst || g.rate < worst.rate) worst = { player: p.player, rate: g.rate, raw: g.raw, share: g.share };
-    }
-  });
-  const rate = wSum > 0 ? rSum / wSum : balGkPrior();
-  return { rate, expConceded: (1 - rate) * BAL.gkShotsOnTarget, best, worst, proven: team.some(p => !p._isCustom && balGkRate(p.player).proven) };
-}
-
-// ---- 2. role requirements ----
-function balRecentGpg(name) {
-  const key = 'gpg:' + name;
-  if (_balCache[key] != null) return _balCache[key];
-  const p = playerStats[name];
-  let v = 0;
-  if (p && p.matches) {
-    const rows = [...p.matches]
-      .filter(r => r.match_date && r.half === 'FULL' && r.team !== 'DNP' && r.team !== '-')
-      .sort((a, b) => (b.match_date || '').localeCompare(a.match_date || ''))
-      .slice(0, 10);
-    v = rows.length ? rows.reduce((s, r) => s + n(r.goals), 0) / rows.length : 0;
-  }
-  _balCache[key] = v;
-  return v;
-}
-function balTeamRoles(team) {
-  const hasKeeper = team.some(p => !p._isCustom && balGkRate(p.player).proven);
-  const hasFinisher = team.some(p => p._isCustom ? false : balRecentGpg(p.player) >= BAL.finisherGpg);
-  return { hasKeeper, hasFinisher };
-}
-
-// ---- 3. on/off impact (ridge-regressed goal difference per half) ----
-function balImpactTable() {
-  if (_balCache.impact) return _balCache.impact;
-  const table = {};
-  const recent = [...matchList]
-    .filter(m => m.rows && m.rows.some(r => r.half === '1H' || r.half === '2H'))
-    .sort((a, b) => b.date.localeCompare(a.date))
-    .slice(0, BAL.impactWindow);
-  const obs = [];           // { x: {player: +1/-1}, y }
-  const names = new Set();
-  recent.forEach(m => {
-    const fullTeam = {};
-    m.rows.filter(r => r.half === 'FULL' && (r.team === 'A' || r.team === 'B')).forEach(r => { fullTeam[r.player] = r.team; });
-    ['1H', '2H'].forEach(h => {
-      const rows = m.rows.filter(r => r.half === h && (r.team === 'A' || r.team === 'B'));
-      if (!rows.length) return;
-      const x = {};
-      let gA = 0, gB = 0;
-      rows.forEach(r => {
-        x[r.player] = r.team === 'A' ? 1 : -1;
-        if (r.team === 'A') { gA += n(r.goals); gB += n(r.own_goals); }
-        else                { gB += n(r.goals); gA += n(r.own_goals); }
-      });
-      Object.entries(fullTeam).forEach(([pl, t]) => { if (!(pl in x)) x[pl] = t === 'A' ? 1 : -1; });
-      Object.keys(x).forEach(pl => names.add(pl));
-      obs.push({ x, y: gA - gB });
-    });
-  });
-  const list = [...names];
-  const idx = {}; list.forEach((nm, i) => { idx[nm] = i; });
-  const k = list.length;
-  if (!k || obs.length < 6) { _balCache.impact = table; return table; }
-  // normal equations (X'X + lambda I) b = X'y
-  const M = Array.from({ length: k }, () => new Array(k + 1).fill(0));
-  obs.forEach(o => {
-    const ents = Object.entries(o.x);
-    ents.forEach(([a, xa]) => {
-      const i = idx[a];
-      M[i][k] += xa * o.y;
-      ents.forEach(([b, xb]) => { M[i][idx[b]] += xa * xb; });
-    });
-  });
-  for (let i = 0; i < k; i++) M[i][i] += BAL.impactLambda;
-  // Gaussian elimination with partial pivoting
-  for (let c = 0; c < k; c++) {
-    let piv = c;
-    for (let r = c + 1; r < k; r++) if (Math.abs(M[r][c]) > Math.abs(M[piv][c])) piv = r;
-    [M[c], M[piv]] = [M[piv], M[c]];
-    const d = M[c][c];
-    if (Math.abs(d) < 1e-9) continue;
-    for (let j = c; j <= k; j++) M[c][j] /= d;
-    for (let r = 0; r < k; r++) {
-      if (r === c) continue;
-      const f = M[r][c];
-      if (!f) continue;
-      for (let j = c; j <= k; j++) M[r][j] -= f * M[c][j];
-    }
-  }
-  const halvesBy = {};
-  obs.forEach(o => Object.keys(o.x).forEach(pl => { halvesBy[pl] = (halvesBy[pl] || 0) + 1; }));
-  list.forEach((nm, i) => {
-    const beta = M[i][k];                         // goals per half vs an average player
-    const pts = beta * 2 * BAL.impactPtsPerGoal * BAL.impactStrength;
-    table[nm] = { beta, halves: halvesBy[nm] || 0, pts: Math.max(-BAL.impactCap, Math.min(BAL.impactCap, pts)) };
-  });
-  _balCache.impact = table;
-  return table;
-}
-function balImpactAdj(name) {
-  if (!impactAdjustEnabled) return 0;
-  const t = balImpactTable()[name];
-  return t ? t.pts : 0;
-}
-function toggleImpactAdjust() {
-  impactAdjustEnabled = !impactAdjustEnabled;
-  const btn = document.getElementById('impact-adj-btn');
-  if (btn) {
-    btn.textContent = `📉 Impact Adjust: ${impactAdjustEnabled ? 'ON' : 'OFF'}`;
-    btn.style.borderColor = impactAdjustEnabled ? 'var(--lime)' : 'var(--border)';
-    btn.style.background  = impactAdjustEnabled ? 'rgba(168,224,80,.1)' : 'transparent';
-    btn.style.color       = impactAdjustEnabled ? 'var(--lime)' : 'var(--muted)';
-  }
-  if (teamA.length || teamB.length) renderTeamResult(teamA, teamB);
-}
-
-// ---- 4. group mean for shrinking low-sample players ----
-function balGroupMeanRating() {
-  if (_balCache.groupMean != null) return _balCache.groupMean;
-  let latest = '';
-  matchList.forEach(m => { if (m.date > latest) latest = m.date; });
-  const cutoff = latest ? new Date(new Date(latest).getTime() - BAL.activeDays * 86400000).toISOString().slice(0, 10) : '';
-  const vals = [];
-  Object.keys(playerStats).forEach(nm => {
-    const p = playerStats[nm];
-    if (!p || p.games < BAL.shrinkMinGames) return;
-    const lastPlayed = (p.matches || []).reduce((mx, r) => (r.match_date && r.match_date > mx ? r.match_date : mx), '');
-    if (cutoff && lastPlayed < cutoff) return;
-    const v = computeWeightedRatingRaw(nm);
-    if (v > 0) vals.push(v);
-  });
-  _balCache.groupMean = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
-  return _balCache.groupMean;
-}
-
-
 function autoBalance(rebalanceOnly = false) {
-  balResetCache();
   const sel = [...selectedForTeams].map(name => {
     // Check custom players first, then regular player stats
     const p = customPlayers[name] || playerStats[name];
@@ -14315,11 +13969,9 @@ function autoBalance(rebalanceOnly = false) {
     }
 
     const buff = playerBuffs[name] || 0;
-    const impactAdj = p._isCustom ? 0 : balImpactAdj(name);
     return {
       ...p,
-      effectiveRating: weightedRating * (1 - pen) * streakMod + buff + impactAdj,
-      impactAdj,
+      effectiveRating: weightedRating * (1 - pen) * streakMod + buff,
       weightedRating,
       streakMod,
       streakLabel,
@@ -14353,25 +14005,19 @@ function autoBalance(rebalanceOnly = false) {
     const rB = b.reduce((s,p) => s + p.effectiveRating, 0);
     const abs = (x, y) => Math.abs(x - y);
 
-    // GK balance: expected goals lost to keeping quality (shrunk save rate, weighted by
-    // how much of a game each player normally spends in goal) — NOT save volume
-    const kA = balTeamKeeping(a), kB = balTeamKeeping(b);
+    // GK balance: sum goalkeeper_saves/game for each team
+    const gkScore = (team) => team.reduce((s,p) => s + ((p.goalkeeper_saves||0) / Math.max(p.games,1)), 0);
+    const gkA = gkScore(a), gkB = gkScore(b);
 
-    // Role requirements: every team should have a proven keeper and a proven finisher
-    const roleA = balTeamRoles(a), roleB = balTeamRoles(b);
-    const rolePen = ((roleA.hasKeeper ? 0 : 1) + (roleA.hasFinisher ? 0 : 1) +
-                     (roleB.hasKeeper ? 0 : 1) + (roleB.hasFinisher ? 0 : 1)) * BAL.roleMissingPenalty;
-
-    // Chemistry imbalance — shrunk + capped (see teamDimensions) so a few lucky games can't dominate
-    const synergyDiff = Math.min(Math.abs(dA.synergy - dB.synergy) * 5.0, BAL.synergyTermCap);
+    // Chemistry imbalance — heavily weighted so teams with stacked good pairs get split
+    const synergyDiff = Math.abs(dA.synergy - dB.synergy) * 5.0;
 
     return (
       abs(rA, rB) * 3.0 +
       abs(dA.attack, dB.attack) * 1.5 +
       abs(dA.defense, dB.defense) * 1.5 +
       abs(dA.playmaking, dB.playmaking) * 1.0 +
-      abs(kA.expConceded, kB.expConceded) * BAL.gkWeight +
-      rolePen +
+      abs(gkA, gkB) * 2.0 +
       synergyDiff
     );
   };
@@ -14598,7 +14244,6 @@ function getPenalty(note) {
 }
 
 function renderTeamResult(tA, tB) {
-  balResetCache();
   // Recompute effectiveRating for all players in case notes/penalties changed
   const recomputeRating = (p) => {
     const pen = getPenalty(playerNotes[p.player]);
@@ -14607,8 +14252,7 @@ function renderTeamResult(tA, tB) {
       : computeWeightedRating(p.player);
     const streakMod = p._isCustom ? 1.0 : (p.streakMod || 1.0);
     const buff = playerBuffs[p.player] || 0;
-    p.impactAdj = p._isCustom ? 0 : balImpactAdj(p.player);
-    p.effectiveRating = weightedRating * (1 - pen) * streakMod + buff + p.impactAdj;
+    p.effectiveRating = weightedRating * (1 - pen) * streakMod + buff;
     p.weightedRating = weightedRating;
     p.playerBuff = buff;
     p.enforcerRaw = n((customStats[p.player] || {}).enforcer || 0);
@@ -14654,12 +14298,12 @@ function renderTeamResult(tA, tB) {
         { label: '💪 Under Pressure',         key: 'pressure', fmt: v => v.toFixed(1)+'/opp', tip: 'Avg stats in 90s after conceding a goal' },
       ];
       // GK save rate comparison — most meaningful keeper stat
-      const gkRateA = tA.map(p => { const g = p._isCustom ? null : gkRankRate(p.player); return g ? { player: p.player, rate: g.rate, mins: g.minutes } : null; }).filter(Boolean);
-      const gkRateB = tB.map(p => { const g = p._isCustom ? null : gkRankRate(p.player); return g ? { player: p.player, rate: g.rate, mins: g.minutes } : null; }).filter(Boolean);
+      const gkRateA = tA.map(p => { const ts = getPlayerEventStats(p.player); return ts?.gkSaveRate != null && ts.gkMinutes >= 10 ? { player: p.player, rate: ts.gkSaveRate, mins: ts.gkMinutes } : null; }).filter(Boolean);
+      const gkRateB = tB.map(p => { const ts = getPlayerEventStats(p.player); return ts?.gkSaveRate != null && ts.gkMinutes >= 10 ? { player: p.player, rate: ts.gkSaveRate, mins: ts.gkMinutes } : null; }).filter(Boolean);
       const bestGkA = gkRateA.sort((a,b)=>b.rate-a.rate)[0];
       const bestGkB = gkRateB.sort((a,b)=>b.rate-a.rate)[0];
       const gkRow = (bestGkA || bestGkB) ? `
-        <div style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:.75rem" data-tip="Best available keeper save rate (adjusted for small samples) — only keepers with 90+ minutes in goal">
+        <div style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:.75rem" data-tip="Best available keeper save rate — saves / (saves + goals conceded) per 55 min in goal">
           <span style="flex:1;color:var(--muted)">🧤 Best keeper (save rate)</span>
           <span style="color:${bestGkA?'var(--green)':'rgba(255,255,255,.3)'};min-width:52px;text-align:right">${bestGkA ? Math.round(bestGkA.rate*100)+'% '+bestGkA.player.split(' ')[0] : '—'}</span>
           <span style="color:var(--muted);font-size:.65rem;min-width:28px;text-align:center">${bestGkA&&bestGkB ? (bestGkA.rate>=bestGkB.rate?'A ›':'‹ B') : '='}</span>
@@ -14707,7 +14351,6 @@ function renderTeamResult(tA, tB) {
       <span class="tp-name" onclick="nav('profile','${p.player}')" style="cursor:pointer">${p.player}</span>
       <span style="font-size:.7rem;opacity:.55">${roleIcon[role]} ${roleLabel[role]}</span>
       ${p.streakLabel ? `<span style="font-size:.65rem;font-weight:600;padding:1px 6px;border-radius:4px;${p.streakLabel.type==='buff'?'background:rgba(96,165,250,.15);color:#60a5fa':'background:rgba(239,68,68,.12);color:#f87171'}" title="${p.streakLabel.type==='buff'?'Win rate is low — rating buffed to help balance teams':'Win rate is high — rating slightly nerfed to help balance teams'}">WR ${p.streakLabel.text}</span>` : ''}
-      ${(adminMode && p.impactAdj && Math.abs(p.impactAdj) >= 0.3) ? `<span style="font-size:.65rem;font-weight:600;padding:1px 6px;border-radius:4px;${p.impactAdj>0?'background:rgba(74,222,128,.12);color:#4ade80':'background:rgba(248,113,113,.12);color:#f87171'}" data-tip="Impact adjustment from how this player's teams have done (goal difference while on the pitch, shrunk for small samples)">${p.impactAdj>0?'▲':'▼'} impact ${p.impactAdj>0?'+':''}${p.impactAdj.toFixed(1)}</span>` : ''}
       ${p.playerBuff ? `<span style="font-size:.65rem;font-weight:600;padding:1px 6px;border-radius:4px;${p.playerBuff>0?'background:rgba(74,222,128,.12);color:#4ade80':'background:rgba(248,113,113,.12);color:#f87171'}" data-tip="Manual buff applied — adjustable in Player Notes &amp; Buffs above">${p.playerBuff>0?'+':''}${p.playerBuff} buff</span>` : ''}
       ${(() => {
         const ps = playerStats[p.player];
@@ -14833,27 +14476,6 @@ function renderTeamResult(tA, tB) {
 
   // Append enforcer note under balance bar
   document.getElementById('balance-msg-area').innerHTML += enfNote;
-
-  // Role requirements + keeper guidance (proven keeper & finisher per team)
-  (() => {
-    const fmtGk = (k) => k ? `${k.player.split(' ')[0]} ${Math.round(k.rate*100)}%` : '—';
-    const line = (label, col, team) => {
-      const roles = balTeamRoles(team), k = balTeamKeeping(team);
-      const warns = [];
-      if (!roles.hasKeeper)   warns.push('no proven keeper');
-      if (!roles.hasFinisher) warns.push('no proven finisher');
-      return `<div style="font-size:.74rem;padding:3px 0">
-        <span style="color:${col};font-family:'Barlow Condensed',sans-serif;letter-spacing:1px;text-transform:uppercase;margin-right:6px">${label}</span>
-        ${warns.length ? `<span style="color:#fb923c">⚠ ${warns.join(' · ')}</span>` : `<span style="color:var(--green)">✓ keeper &amp; finisher covered</span>`}
-        <span style="color:var(--muted)"> · 🧤 best ${fmtGk(k.best)}</span>
-      </div>`;
-    };
-    document.getElementById('balance-msg-area').innerHTML +=
-      `<div style="background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;margin-bottom:10px">
-        <div style="font-family:'Barlow Condensed',sans-serif;font-size:.68rem;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:4px" data-tip="Keeper = ${BAL.gkMinMinutes}+ min in goal with a save rate (shrunk for small samples) within ${Math.round(BAL.gkProvenMargin*100)} pts of the group average (${Math.round(balGkPrior()*100)}%). Finisher = ${BAL.finisherGpg}+ goals/game over the last 10 games.">🧩 Role check</div>
-        ${line('Team A','var(--green)',tA)}${line('Team B','var(--blue)',tB)}
-      </div>`;
-  })();
 
   // Generate synergy breakdown and prediction
   renderTeamSynergy(tA, tB);
@@ -15582,12 +15204,7 @@ function computeAnalytics() {
 
     // Consistency score: 1 - (stddev of per-game MVP scores / mean), scaled 0-100
     const rowScores = p.matches.map(r => {
-      const w = mvpWeights;
-      const raw = w.goals*n(r.goals) + w.assists*n(r.assists) + w.key_passes*n(r.key_passes)
-           + w.tackles*n(r.tackles) + w.interceptions*n(r.interceptions) + w.blocks*n(r.blocks)
-           + w.goalkeeper_saves*n(r.goalkeeper_saves) + w.shots_on_target*n(r.shots_on_target)
-           + w.shots_off_target*n(r.shots_off_target) + w.nutmegs*n(r.nutmegs) + w.post*n(r.post);
-      return applyGkNorm(raw, r.player, r.match_id);
+      return calcMvpScore(r, r.match_id);
     });
     if (rowScores.length < 2) { p.consistency = 100; }
     else {
@@ -15600,12 +15217,7 @@ function computeAnalytics() {
     // Best game by MVP score — same weights as match history MVP
     let bestScore=-1, bestRow=null, maxGoals=0;
     p.matches.forEach(r=>{
-      const w = mvpWeights;
-      const raw = w.goals*n(r.goals) + w.assists*n(r.assists) + w.key_passes*n(r.key_passes)
-               + w.tackles*n(r.tackles) + w.interceptions*n(r.interceptions) + w.blocks*n(r.blocks)
-               + w.goalkeeper_saves*n(r.goalkeeper_saves) + w.shots_on_target*n(r.shots_on_target)
-               + w.shots_off_target*n(r.shots_off_target) + w.nutmegs*n(r.nutmegs) + w.post*n(r.post);
-      const sc = applyGkNorm(raw, r.player, r.match_id);
+      const sc = calcMvpScore(r, r.match_id);
       if(sc>bestScore){bestScore=sc;bestRow=r;}
       if(n(r.goals)>maxGoals) maxGoals=n(r.goals);
     });
@@ -17608,19 +17220,7 @@ function parseNewFormatCSV(text) {
   const goalEvents = eventRows.filter(r => r.event === 'Goals');
 
   // Build GK rotation: who was in goal at each timestamp
-  const gkRotation = {}; // half → [ { player, fromSecs, toSecs } ]
-  const gkOnEvents  = eventRows.filter(r => r.event === 'GK On');
-  const gkOffEvents = eventRows.filter(r => r.event === 'GK Removed');
-  ['1H','2H'].forEach(half => {
-    const ons  = gkOnEvents .filter(r => r.half === half).sort((a,b) => a.tsSecsRaw - b.tsSecsRaw);
-    const offs = gkOffEvents.filter(r => r.half === half).sort((a,b) => a.tsSecsRaw - b.tsSecsRaw);
-    const segments = [];
-    ons.forEach(on => {
-      const off = offs.find(o => o.player === on.player && o.tsSecsRaw >= on.tsSecsRaw);
-      segments.push({ player: on.player, team: on.team, fromSecs: on.tsSecsRaw, toSecs: off ? off.tsSecsRaw : 9999 });
-    });
-    gkRotation[half] = segments;
-  });
+  const gkRotation = buildGkRotation(eventRows); // half → [ { player, team, fromSecs, toSecs } ]
 
   // Compute time-based stats from event log
   const timeStats = computeTimeStats(eventRows, goalEvents, gkRotation, h2OffsetSecs);
@@ -18219,7 +17819,7 @@ function splitTwoGameEventLog(parsed) {
     return { ...r, half: '1H', tsSecsRaw: secs, tsSecsNorm: secs, ts: secsToMMSS(secs) };
   });
   const gkRotation2 = {
-    '1H': (gkRotation['2H'] || []).map(seg => ({
+    '1H': (gkRotation['2H'] || []).filter(seg => !seg.carried).map(seg => ({
       ...seg,
       fromSecs: Math.max(0, seg.fromSecs - offset),
       toSecs: seg.toSecs === 9999 ? 9999 : Math.max(0, seg.toSecs - offset),
@@ -19383,16 +18983,7 @@ document.addEventListener('DOMContentLoaded', () => {
           });
 
           // Rebuild gkRotation from GK On/Removed events
-          const gkRotation = { '1H': [], '2H': [] };
-          ['1H','2H'].forEach(half => {
-            const ons  = dedupedEvents.filter(e => e.event === 'GK On'      && e.half === half).sort((a,b)=>a.tsSecsRaw-b.tsSecsRaw);
-            const offs = dedupedEvents.filter(e => e.event === 'GK Removed' && e.half === half).sort((a,b)=>a.tsSecsRaw-b.tsSecsRaw);
-            const maxT = Math.max(...dedupedEvents.filter(e=>e.half===half).map(e=>e.tsSecsRaw), 0);
-            ons.forEach(on => {
-              const off = offs.find(o => o.player === on.player && o.tsSecsRaw >= on.tsSecsRaw);
-              gkRotation[half].push({ player: on.player, team: on.team, fromSecs: on.tsSecsRaw, toSecs: off ? off.tsSecsRaw : maxT });
-            });
-          });
+          const gkRotation = buildGkRotation(dedupedEvents);
 
           // Recompute timeStats fresh from events
           const goalEvts = dedupedEvents.filter(e => e.event === 'Goals');
@@ -19501,6 +19092,9 @@ document.addEventListener('DOMContentLoaded', () => {
         // Also clear any localStorage override since settings.json takes precedence
         try { localStorage.removeItem(LS_MVP_WEIGHTS); } catch(e) {}
         console.log(`✅ Loaded mvpWeights from settings.json`);
+      }
+      if (settings.mvpShotConversion && typeof settings.mvpShotConversion === 'object') {
+        mvpConv = { ...MVP_CONV_DEFAULT, ...settings.mvpShotConversion };
       }
       if (settings.bannerHeights && typeof settings.bannerHeights === 'object') {
         bannerHeights = { ...settings.bannerHeights };
